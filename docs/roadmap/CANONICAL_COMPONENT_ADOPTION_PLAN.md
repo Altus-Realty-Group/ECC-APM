@@ -2,7 +2,7 @@
 
 Status: CANONICAL
 Owner: Dion / CD
-Target Repo: Altus-Realty-Group/Replit_Front_End_ECC
+Target Repo: Altus-Realty-Group/ECC-APM
 
 ## Purpose
 This document records the approved component adoption plan for ECC so the work is durable, auditable, and executed in the correct repo.

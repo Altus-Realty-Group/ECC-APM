@@ -13,147 +13,39 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   proof-pack:
     if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: proof-pack
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ECC_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      ECC_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+      ECC_BRANCH: ${{ github.head_ref || github.ref_name }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout source head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
-      - name: Compute changed files
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
-            BASE_REF="${{ github.event.pull_request.base.ref }}"
-            git fetch origin "$BASE_REF" --prune
-            git diff --name-only "origin/${BASE_REF}...HEAD" | sed '/^[[:space:]]*$/d' > changed_files.txt
-          else
-            git diff --name-only "${{ github.event.before }}...${{ github.sha }}" | sed '/^[[:space:]]*$/d' > changed_files.txt || true
-          fi
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 20
+          package-manager-cache: false
 
-      - name: Forbidden scan + ci_proof.json/txt
-        shell: bash
-        run: |
-          set -euo pipefail
+      - name: Test proof failure and missing-check handling
+        run: python3 -m unittest discover -s tests/ci -p 'test_*.py'
 
-          TOKENS=("fetch(" "httpGet(" "queryFn" "useQuery" "supabase" "adapter" "endpoint" "VITE_API_BASE_URL")
-          TS_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          REPO="${GITHUB_REPOSITORY}"
-          BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
-          SHA="${GITHUB_SHA}"
-
-          echo "CI PROOF PACK" > ci_proof.txt
-          echo "repo=$REPO" >> ci_proof.txt
-          echo "branch=$BRANCH" >> ci_proof.txt
-          echo "commit_sha=$SHA" >> ci_proof.txt
-          echo "timestamp_utc=$TS_UTC" >> ci_proof.txt
-          echo "" >> ci_proof.txt
-          echo "=== changed files ===" >> ci_proof.txt
-          cat changed_files.txt >> ci_proof.txt
-          echo "" >> ci_proof.txt
-          echo "=== forbidden scan (changed files excluding .github/**) ===" >> ci_proof.txt
-
-          grep -vE '^\.github/' changed_files.txt > scan_files.txt || true
-
-          : > scan.tsv
-          HIT_ANY="0"
-
-          while IFS= read -r f; do
-            [ -f "$f" ] || continue
-            for t in "${TOKENS[@]}"; do
-              if grep -Fq "$t" "$f"; then
-                printf "%s\t%s\tYES\n" "$f" "$t" >> scan.tsv
-                echo "FILE=$f TOKEN=$t FORBIDDEN_HIT=YES" >> ci_proof.txt
-                HIT_ANY="1"
-              else
-                printf "%s\t%s\tNO\n" "$f" "$t" >> scan.tsv
-                echo "FILE=$f TOKEN=$t FORBIDDEN_HIT=NO" >> ci_proof.txt
-              fi
-            done
-          done < scan_files.txt
-
-          python3 - << 'PY'
-          import json, os, datetime
-          repo=os.environ.get("GITHUB_REPOSITORY","")
-          branch=os.environ.get("GITHUB_HEAD_REF","") or os.environ.get("GITHUB_REF_NAME","")
-          sha=os.environ.get("GITHUB_SHA","")
-          ts=datetime.datetime.utcnow().replace(microsecond=0).isoformat()+"Z"
-
-          tokens=["fetch(","httpGet(","queryFn","useQuery","supabase","adapter","endpoint","VITE_API_BASE_URL"]
-
-          changed=[]
-          with open("changed_files.txt","r",encoding="utf-8") as f:
-            changed=[ln.strip() for ln in f if ln.strip()]
-
-          scan={}
-          if os.path.exists("scan.tsv"):
-            with open("scan.tsv","r",encoding="utf-8") as f:
-              for ln in f:
-                parts=ln.rstrip("\n").split("\t")
-                if len(parts)!=3: continue
-                file, tok, hit = parts
-                scan.setdefault(file, {})[tok] = (hit=="YES")
-
-          obj={
-            "metadata":{
-              "repo":repo,
-              "branch":branch,
-              "commit_sha":sha,
-              "timestamp_utc":ts
-            },
-            "scope_proof":{
-              "diff_name_only":changed
-            },
-            "forbidden_scan":{
-              "tokens":tokens,
-              "per_file":scan,
-              "zero_hit_assertion": all(not any(v.values()) for v in scan.values()) if scan else True
-            },
-            "fe_build_proof":{
-              "typecheck_exit_code": null,
-              "build_exit_code": null
-            }
-          }
-          with open("ci_proof.json","w",encoding="utf-8") as out:
-            json.dump(obj,out,indent=2,sort_keys=True)
-          PY
-
-          set +e
-          npm ci
-          npm run typecheck --if-present
-          TYPECHECK_CODE=$?
-          npm run build --if-present
-          BUILD_CODE=$?
-          set -e
-
-          python3 - << PY
-          import json
-          p="ci_proof.json"
-          with open(p,"r",encoding="utf-8") as f: obj=json.load(f)
-          obj["fe_build_proof"]["typecheck_exit_code"]=${TYPECHECK_CODE}
-          obj["fe_build_proof"]["build_exit_code"]=${BUILD_CODE}
-          with open(p,"w",encoding="utf-8") as f: json.dump(obj,f,indent=2,sort_keys=True)
-          PY
-
-          echo "" >> ci_proof.txt
-          echo "=== FE build proof ===" >> ci_proof.txt
-          echo "typecheck_exit_code=${TYPECHECK_CODE}" >> ci_proof.txt
-          echo "build_exit_code=${BUILD_CODE}" >> ci_proof.txt
-
-          if [ "$HIT_ANY" = "1" ]; then
-            echo "Forbidden token hit detected. Failing job."
-            exit 1
-          fi
+      - name: Generate scope and executable proof
+        run: python3 scripts/ci_proof_pack.py
 
       - name: Upload proof artifact
-        uses: actions/upload-artifact@v4
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ci-proof-pack
           if-no-files-found: error

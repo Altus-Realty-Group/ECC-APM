@@ -2,7 +2,7 @@
 
 Status: CANONICAL PLANNING AUTHORITY - merged through PR #103; implementation and mutation gates still require current authorization  
 Product owner: Dion DePaoli  
-Repository: `Altus-Realty-Group/Replit_Front_End_ECC`  
+Repository: `Altus-Realty-Group/ECC-APM`  
 Baseline audited: `main` at `15f670a09c7a0fc029ae8e417efaddd002ba61ec` on 2026-08-04
 
 ## 1. Executive directive

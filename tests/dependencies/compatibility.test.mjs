@@ -9,6 +9,37 @@ import { readFileSync } from "node:fs";
 import { PropertyCardDTO } from "../../src/lib/dto.ts";
 import PrefetchLink from "../../src/components/cardkit/PrefetchLink.tsx";
 
+test("ExcelJS report columns and UUID-dependent formatting survive XLSX round-trip", async () => {
+  const {default: ExcelJS} = await import("exceljs");
+  const wb = new ExcelJS.Workbook();
+  const sheet = wb.addWorksheet("Summary");
+  // Same keys as the existing report consumer; isolated values, no service/DB import.
+  sheet.columns = ["id", "old_owner_id", "new_owner_id", "effective_date", "status"]
+    .map(key => ({header: key, key}));
+  sheet.addRow({id: 17, old_owner_id: "fixture-old", new_owner_id: "fixture-new",
+    effective_date: "2026-10-12", status: "PENDING"});
+  sheet.addConditionalFormatting({ref: "A2", rules: [{type: "iconSet", iconSet: "3Stars",
+    cfvo: [{type: "num", value: 0}, {type: "num", value: 10}, {type: "num", value: 20}]}]});
+  const bytes = await wb.xlsx.writeBuffer();
+  const restored = new ExcelJS.Workbook();
+  await restored.xlsx.load(bytes);
+  assert.deepEqual(restored.getWorksheet("Summary").getRow(2).values.slice(1),
+    [17, "fixture-old", "fixture-new", "2026-10-12", "PENDING"]);
+  const id = restored.getWorksheet("Summary").conditionalFormattings[0].rules[0].x14Id;
+  assert.match(id, /^\{[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}\}$/i);
+});
+
+test("migration loader still compiles TypeScript through its scoped esbuild", async () => {
+  const require = createRequire(import.meta.url);
+  const loaderRequire = createRequire(require.resolve("@esbuild-kit/core-utils"));
+  assert.equal(loaderRequire("esbuild/package.json").version, "0.25.12");
+  const {transformSync} = require("@esbuild-kit/core-utils");
+  const result = transformSync("const value: number = 17; module.exports = value;", "fixture.ts", {});
+  const module = {exports: null};
+  new Function("module", result.code)(module);
+  assert.equal(module.exports, 17);
+});
+
 test("prefetch links retain both URL forms and child anchors", () => {
   const client = new QueryClient();
   for (const props of [{to: "/card/property/17"}, {href: "/card/property/17"}, {href: "/card/property/17", asChild: true}]) {

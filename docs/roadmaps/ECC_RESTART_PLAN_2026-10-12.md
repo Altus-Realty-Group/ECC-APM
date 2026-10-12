@@ -141,3 +141,20 @@ Business outcome measures: managed/owned assets under the selected definition, r
 Planning owner: ChatGPT in the ECC lane; product decisions: Dion. Implementation assignments are unissued at this stage. No Claude/Grok worker is assumed to be monitoring this PR.
 
 This planning change is documentation only. Reverting this addendum removes the proposal without altering runtime, database, authentication, providers or deployed behavior.
+
+## 9. Authorized restart campaign and complete PR cleanup
+
+Dion authorized execution on 2026-10-12, including distinct Claude, Grok and current ChatGPT assignments. All existing PRs are in scope for evidence-based disposition and modernization; age alone never permits loss of useful work.
+
+Mandatory closure ledger: every PR open at campaign start (27 including #112), plus later campaign PRs, must record head/base, unique changed paths, inherited changes, behavior intent, current-standard gaps, CI/proof, disposition, accountable lane, dependencies and final URL/SHA. Dispositions: retain-and-upgrade, merge-after-proof, superseded-with-preserved-replacement, duplicate, obsolete-with-rationale, or explicit dependency with next action. No unowned parked PRs and no acceptance from historical CI. Finish by re-enumerating GitHub and reconciling every remaining open PR against an active bounded assignment.
+
+Modernize retained work for current source/data authority, internal identity, auth/session rules, file storage, privacy, null/zero/freshness, UI accessibility, workflows, CI cost, dependency support, contracts, and documentation as relevant. Changes to backend ownership, deployed schema, vendor accounts and live financial authority remain distinct reviewed actions.
+
+Parallel ownership:
+- Claude: targeted frontend integrity PR, including canonical navigation, reachable routes, sidebar hooks/accessibility, operator copy and missing-versus-zero UI states. Read-only disposition of overlapping product PRs #81/#83/#84/#88/#98; no duplicate feature implementation without preserving their useful delta.
+- Grok: retained #104 repository hygiene PR, plus complete PR-disposition ledger and current operational documentation. Review legacy/workflow/dependency work and propose closure or retained upgrades; no closure/merge before PM review. Existing #104 is reused rather than duplicated.
+- ChatGPT: targeted CI/proof correction PR, source/backend ownership audit and campaign review/closure. Owns .github/workflows/ci-proof-pack.yml and CI helper/test paths; Claude/Grok must not modify those paths in parallel.
+
+External delivery state: startup prompts prepared for manual handoff through Dion; delivery and execution unconfirmed until receipts arrive. Current ChatGPT work proceeds independently. Each agent returns exact-head proof to this ECC chat. Routine in-scope investigation, implementation and tests proceed under the startup assignment; only material scope changes require a new handoff.
+
+Cleanup is complete only when every retained implementation is upgraded/tested or clearly assigned to a current dependency, every obsolete/duplicate PR has an evidenced disposition, and no old PR is silently forgotten. This is not a request to merge all historical code.

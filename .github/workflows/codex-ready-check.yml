@@ -30,21 +30,22 @@ permissions:
 jobs:
   normalize-task:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      OBJECTIVE: ${{ inputs.objective }}
+      CONSTRAINTS: ${{ inputs.constraints }}
+      SCOPE: ${{ inputs.scope }}
+      ACCEPTANCE_CHECKS: ${{ inputs.acceptance_checks }}
+      DO_NOT_TOUCH: ${{ inputs.do_not_touch }}
     steps:
       - name: Validate required metadata
         shell: bash
-        env:
-          OBJECTIVE: ${{ inputs.objective }}
-          CONSTRAINTS: ${{ inputs.constraints }}
-          SCOPE: ${{ inputs.scope }}
-          ACCEPTANCE_CHECKS: ${{ inputs.acceptance_checks }}
-          DO_NOT_TOUCH: ${{ inputs.do_not_touch }}
         run: |
           set -euo pipefail
 
           for name in OBJECTIVE CONSTRAINTS SCOPE ACCEPTANCE_CHECKS DO_NOT_TOUCH; do
             value="${!name}"
-            if [ -z "${value// }" ]; then
+            if [[ ! "$value" =~ [^[:space:]] ]]; then
               echo "::error::${name} is required."
               exit 1
             fi
@@ -59,11 +60,11 @@ jobs:
             echo "- Repository: ${GITHUB_REPOSITORY}"
             echo "- Ref: ${GITHUB_REF_NAME}"
             echo "- Actor: ${GITHUB_ACTOR}"
-            echo "- Objective: ${{ inputs.objective }}"
-            echo "- Constraints: ${{ inputs.constraints }}"
-            echo "- Scope: ${{ inputs.scope }}"
-            echo "- Acceptance checks: ${{ inputs.acceptance_checks }}"
-            echo "- Do not touch: ${{ inputs.do_not_touch }}"
+            echo "- Objective: ${OBJECTIVE}"
+            echo "- Constraints: ${CONSTRAINTS}"
+            echo "- Scope: ${SCOPE}"
+            echo "- Acceptance checks: ${ACCEPTANCE_CHECKS}"
+            echo "- Do not touch: ${DO_NOT_TOUCH}"
             echo "- Safety: manual-only, read-safe, no cross-repo mutation"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -74,8 +75,8 @@ jobs:
             "ready_for_codex=true" \
             "repository=${GITHUB_REPOSITORY}" \
             "ref=${GITHUB_REF_NAME}" \
-            "objective=${{ inputs.objective }}" \
-            "constraints=${{ inputs.constraints }}" \
-            "scope=${{ inputs.scope }}" \
-            "acceptance_checks=${{ inputs.acceptance_checks }}" \
-            "do_not_touch=${{ inputs.do_not_touch }}"
+            "objective=${OBJECTIVE}" \
+            "constraints=${CONSTRAINTS}" \
+            "scope=${SCOPE}" \
+            "acceptance_checks=${ACCEPTANCE_CHECKS}" \
+            "do_not_touch=${DO_NOT_TOUCH}"

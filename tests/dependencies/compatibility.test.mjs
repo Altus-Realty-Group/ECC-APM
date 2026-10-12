@@ -77,3 +77,50 @@ test("Playwright test, core and browser tooling stay aligned", () => {
   assert.equal(require("playwright/package.json").version, require("@playwright/test/package.json").version);
   assert.equal(require("playwright/package.json").version, require("playwright-core/package.json").version);
 });
+
+
+// Source-only ORM compatibility: compile queries, never execute a database call.
+test("declared schema retains primary/FK, array and decimal metadata", async () => {
+  const schema = await import("../../shared/schema.ts");
+  const {getTableConfig} = await import("drizzle-orm/pg-core");
+  for (const key of ["properties", "units", "leases", "tenants", "owners", "workorders", "geocodeCache", "ownerTransfers", "ownerTransferSnapshots", "auditEvents"]) {
+    const cfg = getTableConfig(schema[key]);
+    assert.ok(cfg.columns.some(c => c.name === "id" && c.primary), key);
+  }
+  const refs = getTableConfig(schema.units).foreignKeys.map(f => f.reference());
+  assert.ok(refs.some(r => r.columns[0].name === "property_id" && getTableConfig(r.foreignTable).name === "properties"));
+  assert.match(schema.properties.lat.getSQLType(), /^numeric\(10,\s*8\)$/);
+  assert.match(schema.units.marketRent.getSQLType(), /^numeric\(10,\s*2\)$/);
+  assert.equal(schema.ownerTransfers.property_ids.getSQLType(), "text[]");
+});
+
+test("actual drizzle-zod insert/status validators retain null/type constraints", async () => {
+  const s = await import("../../shared/schema.ts");
+  assert.equal(s.insertPropertySchema.safeParse({name: "isolated schema fixture", lat: "41.12345678"}).success, true);
+  assert.equal(s.insertPropertySchema.safeParse({name: "isolated schema fixture", lat: 41.12}).success, false);
+  assert.equal(s.insertOwnerTransferSchema.safeParse({property_ids: ["17"], new_owner_id: 3}).success, true);
+  assert.equal(s.insertOwnerTransferSchema.safeParse({property_ids: [17]}).success, false);
+  assert.equal(s.insertAuditEventSchema.safeParse({}).success, false);
+  assert.equal(s.ownerTransferStatusSchema.safeParse({transfer_id: 0, new_status: "COMPLETE"}).success, false);
+  assert.equal(s.ownerTransferStatusSchema.safeParse({transfer_id: 17, new_status: "not-a-status"}).success, false);
+});
+
+test("actual PostgreSQL query compilation keeps untrusted values parameterized", async () => {
+  const {drizzle} = await import("drizzle-orm/pg-proxy");
+  const {eq} = await import("drizzle-orm");
+  const {properties, units} = await import("../../shared/schema.ts");
+  let calls = 0;
+  const db = drizzle(async () => {calls++; throw new Error("No database execution permitted");});
+  const fixture = "schema-fixture'; DROP TABLE properties; --";
+  const select = db.select({id: properties.id, unitId: units.id})
+    .from(properties).leftJoin(units, eq(units.property_id, properties.id))
+    .where(eq(properties.name, fixture)).limit(2).toSQL();
+  assert.ok(select.sql.includes("left join"));
+  assert.ok(!select.sql.includes(fixture));
+  assert.ok(select.params.includes(fixture));
+  const insert = db.insert(properties).values({name: fixture, active: false, lat: null}).toSQL();
+  assert.ok(!insert.sql.includes(fixture));
+  assert.ok(insert.params.includes(fixture));
+  assert.ok(insert.params.includes(false));
+  assert.equal(calls, 0, "compatibility check must not read/write a database");
+});

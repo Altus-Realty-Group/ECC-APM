@@ -23,3 +23,9 @@
 7. Historical documents and screenshots
 
 No roadmap authorizes mutations to Supabase, deployments, vendor accounts, secrets, payments, communications, or another repository.
+
+## Active restart execution
+
+Dion authorized the restart campaign on 2026-10-12. Use `ECC_RESTART_PLAN_2026-10-12.md` as its execution addendum, including complete disposition of every old PR. Strategic direction remains the master plan.
+
+Current lanes: Claude frontend integrity #113; Grok retained repository hygiene #104 and all-PR disposition; ChatGPT CI proof repair #114 and campaign review. External agents require manual startup prompts through Dion; PR records alone do not establish delivery or activity. Read current heads and delivery receipts before continuing. Old PR #82 is superseded by #114; its branch is preserved.

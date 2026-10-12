@@ -50,3 +50,7 @@
 ## Canonical repository identity (2026-10-12)
 
 Dion renamed this same repository to `Altus-Realty-Group/ECC-APM` (display name: ECC - APM). Repository ID remains `1058195656`. `Replit_Front_End_ECC` is the historical name, not a separate backend or a different application. Use the new owner/name for current GitHub operations, prompts and origin URLs; verify repository ID before accepting an old-name redirect. Preserve historical commit/proof records and existing PR numbers/branches. Refresh active branch identity records without rewriting history. Do not infer any runtime, Azure, database, OAuth or deployment rename from this code-repository rename.
+
+## Supabase architecture and data access
+
+Before changing database schema, data access, assumption resolution or cache behavior, read [the shared architecture standard](docs/database/ALTUS_SUPABASE_ARCHITECTURE.md) and [this app's architecture record](docs/database/DATABASE_ARCHITECTURE.md). Review existing entities and relationships before adding persistence. Update the affected architecture record and decisions in the same PR. Mark source-only and live-verified evidence separately. Apply this to database-backed work; it does not require adding Supabase to an app without it. This rule does not authorize live migrations or deployment.

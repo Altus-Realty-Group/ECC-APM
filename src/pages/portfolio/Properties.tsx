@@ -10,11 +10,11 @@ const PROPERTY_SURFACE_CONFIG: CommandSurfaceConfig = {
   entityLabel: "Property",
   entityPluralLabel: "Properties",
   routePath: "/portfolio/properties",
-  title: "Properties Command Surface",
-  subtitle: "Type A zoning over the existing property resolver, using only current ECC collection fields.",
+  title: "Properties",
+  subtitle: "Search the portfolio and open a property card from any row.",
   searchPlaceholder: "Search property, address, id, or market",
   searchLabel: "Search properties",
-  tableSummary: "Search current rows and select properties for the optional triage rail.",
+  tableSummary: "Search properties and select rows to review them together.",
   selectedLabel: "selected",
   metricALabel: "Units",
   metricBLabel: "Occupancy",
@@ -22,15 +22,16 @@ const PROPERTY_SURFACE_CONFIG: CommandSurfaceConfig = {
   segmentLabel: "Market",
   segmentSummaryLabel: "markets",
   triageTitle: "Portfolio Triage",
-  triageEmptyLabel: "Select properties from the dense table to start local triage.",
+  triageEmptyLabel: "Select properties from the table to review them here.",
   focusCommandLabel: "Focus Property Search",
+  rowHref: (id) => `/card/property/${id}`,
 };
 
 export default function Properties() {
   const [q, setQ] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const { data, isLoading, isFetching, error } = useAllProperties();
+  const { data, isLoading, isFetching, error, refetch } = useAllProperties();
 
   const rows = useMemo(() => {
     if (!data) return [];
@@ -66,7 +67,9 @@ export default function Properties() {
             rows={rows}
             config={PROPERTY_SURFACE_CONFIG}
             loading={isLoading || (isFetching && rows.length === 0)}
-            error={error ? String(error) : undefined}
+            error={error ?? undefined}
+            onRetry={() => { void refetch(); }}
+            retrying={isFetching}
             search={q}
             onSearchChange={setQ}
             searchInputRef={searchInputRef}

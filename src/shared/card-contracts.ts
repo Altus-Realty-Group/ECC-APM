@@ -16,9 +16,10 @@ export const PropertyCard = z.object({
     address: Address,
   }),
   kpis: z.object({
-    units: z.number().default(0),
-    activeLeases: z.number().default(0),
-    occupancyPct: z.number().default(0),
+    // Missing is unknown (null), not a confirmed zero. Wire shape is a superset: number | null | absent.
+    units: z.number().nullable().default(null),
+    activeLeases: z.number().nullable().default(null),
+    occupancyPct: z.number().nullable().default(null),
     avgRentCents: z.number().nullable().default(null),
   }),
 });

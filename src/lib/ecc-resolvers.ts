@@ -35,33 +35,44 @@ export function useOwnerCard(id: number) {
 }
 
 /* --------- Collection hooks (for portfolio pages) --------- */
+/**
+ * Collections arrive as a raw array (documented contract) or a { data: [...] } envelope
+ * (what some handlers emit). Accept both; anything else is a contract error, not an empty list.
+ */
+export function toRows(raw: unknown): any[] {
+  if (Array.isArray(raw)) return raw;
+  const inner = (raw as { data?: unknown } | null)?.data;
+  if (Array.isArray(inner)) return inner;
+  throw new Error("Unexpected collection response shape");
+}
+
 export function useAllProperties() {
   return useQuery({
     queryKey: ["portfolio","properties"],
-    queryFn: ({ signal }) => fetchJSON("/api/portfolio/properties", { signal }),
+    queryFn: ({ signal }) => fetchJSON("/api/portfolio/properties", { signal }).then(toRows),
   });
 }
 export function useAllUnits() {
   return useQuery({
     queryKey: ["portfolio","units"],
-    queryFn: ({ signal }) => fetchJSON("/api/portfolio/units", { signal })
+    queryFn: ({ signal }) => fetchJSON("/api/portfolio/units", { signal }).then(toRows)
   });
 }
 export function useAllLeases() {
   return useQuery({
     queryKey: ["portfolio","leases"],
-    queryFn: ({ signal }) => fetchJSON("/api/portfolio/leases", { signal })
+    queryFn: ({ signal }) => fetchJSON("/api/portfolio/leases", { signal }).then(toRows)
   });
 }
 export function useAllTenants() {
   return useQuery({
     queryKey: ["portfolio","tenants"],
-    queryFn: ({ signal }) => fetchJSON("/api/portfolio/tenants", { signal })
+    queryFn: ({ signal }) => fetchJSON("/api/portfolio/tenants", { signal }).then(toRows)
   });
 }
 export function useAllOwners() {
   return useQuery({
     queryKey: ["portfolio","owners"],
-    queryFn: ({ signal }) => fetchJSON("/api/portfolio/owners", { signal })
+    queryFn: ({ signal }) => fetchJSON("/api/portfolio/owners", { signal }).then(toRows)
   });
 }

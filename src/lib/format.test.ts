@@ -19,7 +19,7 @@ describe("formatPercent", () => {
     expect(formatPercent(0.125)).toBe("12.5%");
   });
   it("supports percent basis", () => {
-    expect(formatPercent(12.5, 1, "percent")).toBe("12.5%\");
+    expect(formatPercent(12.5, 1, "percent")).toBe("12.5%");
   });
   it("handles invalid", () => {
     expect(formatPercent(undefined as any)).toBe(BLANK);

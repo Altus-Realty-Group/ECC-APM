@@ -1,49 +1,50 @@
 # ECC PR Disposition Ledger
 
-Status date: 2026-10-12
-Campaign assignment: ECC-C1-V1
-Base main SHA (verified): 6ac571ba731bb1b79437571706b83ca3546a9e55
-Hygiene PR #104 head (post-refresh): e5c456e32541d78c7d74670f3ff5640ddd651ed8
+Status date: 2026-10-12  
+Assignment: ECC-C1-V3  
+Repository: Altus-Realty-Group/ECC-APM (ID 1058195656)  
+Current main: 6bafe36f707b11c721683c7154fd6728cd8a88b7  
+Hygiene branch head (post-refresh): 04e32912f412031fda47919c323dd02d343c724b  
 
-This ledger covers PRs open at campaign start (approximately 27), later campaign PRs, and current open PRs (25 as of this update). Dispositions are proposals only. No merges, closures, or history rewrites performed. Age alone is not a closure reason. Review based on actual diffs where inspected.
+Dispositions are proposals based on live GitHub state. No merges or closures performed by this lane. Age alone is not a closure reason. Historical proof is preserved separately from current evidence.
 
-## Closed / Superseded (preserve evidence)
+## Open PRs (live enumeration 2026-10-12)
 
-| PR | Title | State | Notes | Proposed Disposition | Preservation |
-|----|-------|-------|-------|----------------------|--------------|
-| 82 | chore(ci): fix CI proof pack artifacts | closed | Superseded by merged #114 | Do not revive. Salvage any justified CI artifact ideas into current standards if needed. | Link to #114 |
-| 70 | (obsolete Replit authoring/scheduled-write) | closed | Obsolete policy | Preserve disposition evidence. Salvage ignore/documentation ideas without reviving workflows. | Historical |
+| PR | Title | Head SHA / Base SHA | Unique paths / intent | Inherited / notes | Evidence / CI limits | Disposition | Owner | Replacement / dependency | Final URL |
+|----|-------|---------------------|-----------------------|-------------------|----------------------|-------------|-------|--------------------------|-----------|
+| 104 | ECC repository recovery: hygiene, current standards, and complete PR disposition | 04e32912f412031fda47919c323dd02d343c724b / 6bafe36f707b11c721683c7154fd6728cd8a88b7 | .gitignore, .env.example sanitization, cache/upload removals, artifact inventory, this ledger, README identity/setup | Refreshed from current main; preserves hygiene history | Prior npm ci/guardrail/build historical; exact-head verify previously succeeded; full current CI pending after docs; proof-pack/CodeQL draft-skipped historically | Complete docs, revalidate, review for merge (docs-only) | Grok | None | https://github.com/Altus-Realty-Group/ECC-APM/pull/104 |
+| 113 | ECC frontend integrity: canonical navigation and trustworthy operator states | 198996d08bcd1b85e084dd5c55f2b051052f842b / 6ac571ba731bb1b79437571706b83ca3546a9e55 | Canonical nav, stable sidebar, keyboard/touch, null/zero/error/freshness states, property/collection repairs, unit/browser test sources (43 paths) | Substantial frontend implementation (not scaffold) | Verify succeeded; proof-pack/CodeQL skipped while draft; typecheck fails with 268 diagnostics (baseline ~288); unit tests present but Verify may not invoke them; no live runtime/DB proof | Hold for Claude corrections (parser/cache/accessibility, contract errors, sensitive-data cache clear, numeric/timestamp validation, full CI) | Claude | Outstanding corrections remain; separate owner-transfer defects | https://github.com/Altus-Realty-Group/ECC-APM/pull/113 |
+| 121 | chore(deps): bump drizzle-orm from 0.44.7 to 0.45.4 | (dependabot) / main | Dependency bump | New since prior enumeration | Dependabot | Review separately; out of hygiene scope | Dependabot | Backend ownership for ORM changes | https://github.com/Altus-Realty-Group/ECC-APM/pull/121 |
 
-## Current Open PRs (selected inspected)
+## Merged campaign / key PRs (verified)
 
-| PR | Title | Head/Base | Unique changes | Purpose | Standards gaps | Proof | Proposed disposition | Owner | Next action |
-|----|-------|-----------|----------------|---------|----------------|-------|----------------------|-------|-------------|
-| 104 | ECC repository recovery: hygiene... | agent/ecc-security-hygiene / main (refreshed) | .gitignore, .env.example, removals of cache/uploads, inventory | Hygiene, recovery docs | None in scope | npm ci/guardrail/build passed previously | Complete and review for merge (docs only) | Grok | Continue docs, revalidate |
-| 113 | ECC frontend integrity... | codex/ecc-frontend-integrity-20261012 | Assignment scaffold only | Frontend nav integrity | Product implementation pending | None yet | Hold for Claude owner | Claude | Implement per assignment |
-| 111 | docs: adopt Supabase... | (not inspected) | Docs | Architecture standard | Confirm current | - | Review for merge if aligned | - | Inspect diff |
-| 110 | Define ECC property identity... | - | - | PI handoff | - | - | Audit | - | Inspect |
-| 107 | docs(ECC): scope PI consumer... | - | Docs | Backend authority | - | - | Review | - | Inspect |
-| 106 | ECC Control Plane connection... | - | Parked | Handoff | - | - | Hold or salvage | - | Inspect |
-| 98 | Install Phase 1 ECC KPI strips... | - | Product | KPIs | May need modernization | - | Audit for unique value, propose modernization | - | Inspect diff |
-| 97 | docs: install Altus Prompt Protocol V6 | - | Docs | Governance | - | - | Review | - | Inspect |
-| 94-89 | Dependabot bumps (react-query, framer, zod, vite, wouter, playwright) | dependabot branches | Dependency updates | Security/updates | Out of scope for this lane | - | Propose separate review; do not bump in #104 | Dependabot | Owner decision |
-| 88 | Restore Properties table rows | - | Product | Table fix | - | - | Audit | - | Inspect |
-| 84 | FE fix: asset card cosmetics | - | Product | UI | Brand standards (no orange) | - | Audit | - | Inspect |
-| 83 | Dashboard go-live | - | Product | Dashboard | - | - | Audit | - | Inspect |
-| 81 | Day 1-2: property asset drill chain route | - | Product | Routing | - | - | Audit | - | Inspect |
-| 78 | Phase 3: Tasks/Prospects... | - | Scaffold | Command surface | - | - | Audit | - | Inspect |
-| 77 | chore: repo identity + preflight... | - | Identity | Preflight | - | - | Review | - | Inspect |
-| 76,72,71,67,64 | Dependabot GitHub Actions / other | - | Action bumps | Updates | Out of scope | - | Separate | Dependabot | Owner |
+| PR | Title | Head SHA / Base SHA | Unique / intent | Evidence | Disposition | Owner | Replacement / notes | Merge SHA / URL |
+|----|-------|---------------------|-----------------|----------|-------------|-------|---------------------|-----------------|
+| 120 | docs: record ECC cleanup execution and backend ownership discovery | 4784b73c25024baf6a564174b12ab0a4be0b0a7b / 417f27aea8ce052b36ab9cd4c89a52e739c43fef | Cleanup checkpoint, source caller/handler map, health404, remaining advisories | Source references checked; no runtime authority | Merged docs | ChatGPT | Source map and staging-health404 establish no live schema/runtime authority. Seven remaining package advisories recorded; backend ownership dependency. | Merged 2026-10-12; https://github.com/Altus-Realty-Group/ECC-APM/pull/120 |
+| 118 | chore: reconcile stale dependencies and make npm setup reproducible | 7dae2c3e3b14be5baab75373f61cd30f5a9db2b5 / d78b57b4b7189625f043adba7b701a5891813066 | npm/package-lock single path, package name ecc-apm, Node engines, compatible dep updates, lock cleanup | Fresh npm ci/guardrail/build, regressions, 44→7 advisories | Merged | ChatGPT | Supersedes old npm proposals (#71,#89–#94). Remaining 7 advisories require backend owner. | Merged 2026-10-12; https://github.com/Altus-Realty-Group/ECC-APM/pull/118 |
+| 117 | chore(ci): modernize validation Actions with immutable pins and bounded jobs | ac6c39c434f99670a4b4df775483f44c25b0a464 / 8d8daf7e4d381d17bee5dd60af03125659fe3bb0 | Pin checkout/setup-node/CodeQL, bound Verify/CodeQL | YAML parse, regressions | Merged | ChatGPT | Salvages applicable CI from older Actions PRs | Merged 2026-10-12; https://github.com/Altus-Realty-Group/ECC-APM/pull/117 |
+| 116 | fix(ci): prevent task metadata from executing as shell code | 023c176c72a226a561dab1923404683cad3be5c7 / c6e3546a4811b618d0b335ffbcb32f27f348b090 | Env vars for inputs, quoting, bounds | 9 tests pass | Merged | ChatGPT | Security fix for ready-check | Merged 2026-10-12; https://github.com/Altus-Realty-Group/ECC-APM/pull/116 |
+| 115 | Align ECC - APM repository identity after the approved rename | 84d09163af9e4625a2f3ca29dea5509be62eda71 / 6ac571ba731bb1b79437571706b83ca3546a9e55 | AGENTS.md, roadmap headers, identity record | Metadata confirmed | Merged | ChatGPT | Current identity | Merged 2026-10-12; https://github.com/Altus-Realty-Group/ECC-APM/pull/115 |
+| 114 | Fix ECC proof generation, failure propagation, and missing-check reporting | 3eaaea85349d3cac605c84d62de338119a89de40 / 50ea0bd10a26566ce007e68fc56e8ae977a5924a | Proof helper, failure propagation, typecheck honesty | Local tests, workflow shape | Merged | ChatGPT | Supersedes #82 | Merged 2026-10-12; https://github.com/Altus-Realty-Group/ECC-APM/pull/114 |
+| 112 | ECC restart: source audit, cleanup plan, and operational development sequence | 70eeb72a5b5666699dcea6f672f35a4f636b318c / 808bafb3824bd8ea7f5bc3331507364392f9a40e | Restart plan, disposition framework | Docs only | Merged | ChatGPT | Canonical restart reference | Merged 2026-10-12; https://github.com/Altus-Realty-Group/ECC-APM/pull/112 |
+| 111 | docs: adopt Supabase architecture and reuse standard | a47bd6d91d2a4e6d872861a0d00d5a95f1d085b9 / 8d8daf7e4d381d17bee5dd60af03125659fe3bb0 | Architecture standard, source inventory separation | Docs reviewed | Merged | ChatGPT | No live DB proof | Merged 2026-10-12; https://github.com/Altus-Realty-Group/ECC-APM/pull/111 |
+| 110 | docs: consolidate ECC property identity and governed PI handoff | a7a30bc9a79aad471fd1ad54c915d170868bf93b / aa66336be3aa865b42b862a945cda3b4d2207d2d | PI handoff consolidation | Docs only | Merged | ChatGPT | Owner contract revalidation required | Merged 2026-10-12; https://github.com/Altus-Realty-Group/ECC-APM/pull/110 |
+| 76 | chore(ci): pin supported Actions in remaining legacy workflows | c4547aba889bdaa6dcb1702e95c0d79b33be489b / 417f27aea8ce052b36ab9cd4c89a52e739c43fef | Pins in legacy deployment/Owners Sync | YAML comparison | Merged | Dependabot / ChatGPT | Remaining legacy pins; #119 referenced for broader ownership | Merged 2026-10-12; https://github.com/Altus-Realty-Group/ECC-APM/pull/76 |
 
-Full enumeration of all 25+ requires per-PR diff inspection. This is a starting ledger; expand with actual head/base/unique files from get_files calls.
+## Closed / superseded (evidence preserved)
 
-## Remaining Archives (from inventory)
+| PR | Title | State | Head / Base | Notes | Disposition | Preservation |
+|----|-------|-------|-------------|-------|-------------|--------------|
+| 82 | chore(ci): fix CI proof pack artifacts | closed | 731533e8bb4ac1090145840e888661d810a24ea4 / prior | Superseded by #114 | Do not revive. Branch preserved. | https://github.com/Altus-Realty-Group/ECC-APM/pull/82 |
+| 70 | Obsolete Replit authoring/scheduled-write policy | closed | — | Obsolete under current source policy | Preserve evidence; salvage ignore/docs ideas only | Historical |
 
-See docs/security/REPOSITORY_ARTIFACT_INVENTORY.md. Propose retention: verify snapshots for authority, then dedicated archival PR if needed. No irreversible deletion here.
+## Additional notes
+
+- #119: Not found via direct fetch (404). Referenced in #76 for broader pipeline/ownership concerns. Seven remaining package advisories recorded in #120 and #118 dependency recovery doc; backend ownership dependency remains.
+- Original campaign open PRs (~27) have been largely reconciled via the above merges and closures. Live open set is now #104, #113, #121.
+- Hygiene removals and inventories retained. Reference checks previously confirmed no active source refs to removed cache/uploads. Archives retained pending evidenced disposition.
+- No history rewrite, secret inspection, or irreversible deletion performed.
 
 ## Next
 
-- Revalidate current references to removed paths.
-- Upgrade README with current identity/security/setup.
-- Classify stale docs.
-- Continue bounded validation.
+Refresh complete. Docs updated. Obtain current full CI on exact head. PM review before merge.

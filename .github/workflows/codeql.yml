@@ -1,16 +1,22 @@
 name: "CodeQL"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 on:
   push:
     branches: [main]
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   schedule:
     - cron: '0 5 * * 1'
 
 jobs:
   analyze:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: Analyze
     runs-on: ubuntu-latest
 

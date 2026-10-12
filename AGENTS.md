@@ -39,3 +39,10 @@
 - Describe scope boundaries and any systems intentionally left untouched
 - Call out workflow, runtime, adapter, contract, or env impact explicitly
 - Include rollback notes for any scaffold or workflow change
+
+## GitHub Actions spending controls (Dion directive, 2026-09-27)
+
+- Treat runner minutes, artifact storage, and workflow-triggered vendor calls as metered. For a workflow PR, disclose existing and proposed triggers, job fan-out, maximum job duration, expected minutes per PR/month, and whether a required check changes.
+- Keep required checks and release/deployment proof intact. Cancel superseded pull request jobs by workflow and PR number; never cancel a main-branch or deployment run. Do not run the same expensive suite on both the feature push and its PR without a specific reason.
+- Set bounded job timeouts, reuse setup where practical, avoid duplicate matrices and browser downloads, and run expensive checks only when their proof is needed. No production/vendor sync cadence change without documenting data freshness and recovery consequences.
+- Review the Actions usage report by repository and workflow monthly. Investigate unusual growth before increasing CI fan-out. A budget-blocked or skipped job is not a passing check.

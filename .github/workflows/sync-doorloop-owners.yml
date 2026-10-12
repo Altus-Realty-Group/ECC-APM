@@ -1,5 +1,9 @@
 name: Owners Sync
 
+concurrency:
+  group: owners-sync
+  cancel-in-progress: false
+
 on:
   workflow_dispatch:
   schedule:

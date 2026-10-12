@@ -1,9 +1,9 @@
 # Database Architecture Record
 
-Repository: Altus-Realty-Group/Replit_Front_End_ECC
+Repository: Altus-Realty-Group/ECC-APM
 Standard: [Altus Supabase Architecture Standard](ALTUS_SUPABASE_ARCHITECTURE.md), version 1.0.0
 Record status: Documentation bootstrap; domain inventory and live database binding are UNVERIFIED.
-Last evidence review: 2026-10-02 (repository instructions only)
+Last evidence review: 2026-10-12 (repository identity and source path review only; live state unverified)
 
 This record does not assert that the application uses Supabase or that its schema is inefficient. Read existing schema, migrations, contracts and architecture documentation before completing the affected domain. Preserve established contracts and link existing records instead of duplicating them. Populate the affected slice in the next database-related PR; an unfilled section is not authority to invent entities or block unrelated work.
 
@@ -17,6 +17,8 @@ This record does not assert that the application uses Supabase or that its schem
 | Migration and generated-type locations | Not inventoried |
 | Repo versus live schema drift | Not checked |
 | Existing architecture / ADR / contract links | Add verified links before changing the affected domain |
+
+Source inventory pointers at `8d8daf7e4d381d17bee5dd60af03125659fe3bb0`: `server/lib/supabase.ts`, `server/db.ts`, `shared/schema.ts`, `sql/`, `ecc-functions/` and `docs/contracts/`. Their presence establishes candidate source paths, not deployed schema, credentials, migration application, backend authority, RLS or runtime reachability. The restart plan identifies ownership conflicts and requires route-to-owner reconciliation before backend edits.
 
 ## Entity and relationship inventory
 

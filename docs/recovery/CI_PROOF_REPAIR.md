@@ -1,0 +1,13 @@
+# ECC proof repair validation and cost
+
+Base main: 50ea0bd10a26566ce007e68fc56e8ae977a5924a. Owner: ChatGPT. Assignment ECC-C3-V1.
+
+Confirmed original failure: run 37072259597, job 111054184215, NameError for Python null before npm execution. Existing #82 was reviewed and contains malformed nested workflow configuration under checkout.with; do not merge it.
+
+Changes: replace inline Python with a tested standard-library helper; source head checkout and explicit base/head metadata; diff failures and checkout mismatches fail with redacted proof; actual install/guardrail/build/typecheck return codes drive failure; missing typecheck is not_configured with JSON null, never passed. Build and guardrail are mandatory. Normal integration terms become advisory source-review markers, excluding docs and env contents. This token scan is not a secret scanner. Existing guardrail still executes; dedicated secret/contract checks are a later explicit slice. Artifacts upload on failures; remove unused pull-requests write permission.
+
+Local validation: 6 tests passed, covering install failure, build failure, missing typecheck, missing required build, source mismatch artifact retention, actual Git PR diff/source SHA/advisory scan/JSON-null behavior. Parsed workflow shape, preserved trigger set, always-upload path, timeout, read-only permissions and Python syntax passed. No local application install/build/typecheck, live API/DB or browser proof claimed. Current package has no typecheck; the helper records this debt honestly. Verify CI remains unchanged.
+
+Cost: trigger set unchanged (PR opened/synchronize/reopened/ready_for_review; main push; manual). Draft proof jobs remain skipped. One job, no matrix, no paid provider calls. Previously no explicit timeout (GitHub default maximum applies); now 20 minutes. Existing npm install/build remain; adding tiny Python tests and Node setup has no new fan-out. Plan 2-5 minutes per eligible event, not measured, with 20-minute upper bound. At 40 eligible events/month, planning estimate 80-200 runner minutes, cap 800. Verify also builds; this existing duplication is retained pending a broader cost/required-check review, not hidden. Required check/job name proof-pack unchanged; actual repository required contexts/settings not modified. Artifact retention uses existing provider default.
+
+Merge sequence: validate exact head of this repair; supersede #82 with a link while preserving its branch/history; then refresh and verify retained documentation/integration PRs against repaired main. No deployment workflow, provider sync cadence, secret, backend, schema, runtime or auth change.

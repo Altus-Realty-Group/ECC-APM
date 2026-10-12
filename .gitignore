@@ -1,13 +1,39 @@
+# Dependencies and package-manager caches
+node_modules/
+.local/
+.pnpm-store/
 
-.archive/
+# Build, test, and tool output
 dist/
 build/
+coverage/
 .cache/
 .vite/
-
-node_modules
-dist
-.DS_Store
-server/public
+server/public/
 vite.config.ts.*
+*.tsbuildinfo
+.eslintcache
+
+# Local environment and secret-bearing configuration
+.env
+.env.*
+!.env.example
+
+# Replit/chat upload artifacts
+attached_assets/
+
+# Logs, temporary files, local backups, and generated archives
+*.log
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+*.zip
+*.tgz
 *.tar.gz
+
+# Operating-system metadata
+.DS_Store

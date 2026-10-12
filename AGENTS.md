@@ -1,5 +1,5 @@
 ## Purpose
-`Replit_Front_End_ECC` is the ECC frontend ownership layer for Altus. It contains the ECC user interface, local adapter and proxy surfaces, and frontend integration patterns used to consume backend contracts without redefining them.
+`ECC-APM` is the ECC frontend ownership layer for Altus. It contains the ECC user interface, local adapter and proxy surfaces, and frontend integration patterns used to consume backend contracts without redefining them.
 
 ## What Codex May Change
 - Repo-local documentation, templates, and workflow metadata
@@ -46,3 +46,7 @@
 - Keep required checks and release/deployment proof intact. Cancel superseded pull request jobs by workflow and PR number; never cancel a main-branch or deployment run. Do not run the same expensive suite on both the feature push and its PR without a specific reason.
 - Set bounded job timeouts, reuse setup where practical, avoid duplicate matrices and browser downloads, and run expensive checks only when their proof is needed. No production/vendor sync cadence change without documenting data freshness and recovery consequences.
 - Review the Actions usage report by repository and workflow monthly. Investigate unusual growth before increasing CI fan-out. A budget-blocked or skipped job is not a passing check.
+
+## Canonical repository identity (2026-10-12)
+
+Dion renamed this same repository to `Altus-Realty-Group/ECC-APM` (display name: ECC - APM). Repository ID remains `1058195656`. `Replit_Front_End_ECC` is the historical name, not a separate backend or a different application. Use the new owner/name for current GitHub operations, prompts and origin URLs; verify repository ID before accepting an old-name redirect. Preserve historical commit/proof records and existing PR numbers/branches. Refresh active branch identity records without rewriting history. Do not infer any runtime, Azure, database, OAuth or deployment rename from this code-repository rename.

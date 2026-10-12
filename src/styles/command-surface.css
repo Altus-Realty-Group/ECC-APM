@@ -1,0 +1,324 @@
+.ecc-command-launch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 240px;
+  padding: 10px 14px;
+  border: 1px solid rgba(214, 179, 106, 0.25);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(28, 31, 39, 0.96), rgba(18, 20, 26, 0.96));
+  color: var(--ecc-text);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+.ecc-command-launch__label,
+.ecc-command-launch__hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ecc-command-launch__hint {
+  color: var(--ecc-gold);
+  font-size: 12px;
+}
+
+.ecc-command-dialog {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: start center;
+  padding-top: 9vh;
+  background: rgba(5, 7, 10, 0.7);
+  z-index: 1200;
+}
+
+.ecc-command-dialog__frame {
+  width: min(720px, calc(100vw - 32px));
+  border: 1px solid rgba(214, 179, 106, 0.28);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(17, 19, 24, 0.98), rgba(10, 12, 16, 0.98));
+  box-shadow: 0 24px 80px rgba(0,0,0,0.45);
+  overflow: hidden;
+}
+
+.ecc-command-dialog__header,
+.ecc-command-surface__context,
+.ecc-command-surface__toolbar,
+.ecc-command-surface__table-header,
+.ecc-command-surface__footer,
+.ecc-triage-shell__header,
+.ecc-triage-lane__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ecc-command-dialog__header {
+  padding: 16px 18px 8px;
+}
+
+.ecc-command-dialog__eyebrow,
+.ecc-command-surface__eyebrow {
+  margin: 0 0 4px;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ecc-gold);
+}
+
+.ecc-command-dialog__shortcut,
+.ecc-command-surface__subtitle,
+.ecc-command-item__hint,
+.ecc-triage-shell__count,
+.ecc-triage-lane__hint,
+.ecc-command-surface__footer-summary,
+.ecc-command-surface__toolbar-copy span {
+  color: var(--ecc-text-dim);
+  font-size: 13px;
+}
+
+.ecc-command-input {
+  width: calc(100% - 24px);
+  margin: 0 12px 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  color: var(--ecc-text);
+}
+
+.ecc-command-list {
+  max-height: 420px;
+  overflow: auto;
+  padding: 0 8px 12px;
+}
+
+.ecc-command-group {
+  padding: 0 4px;
+}
+
+.ecc-command-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  color: var(--ecc-text);
+}
+
+.ecc-command-item[data-selected="true"] {
+  background: rgba(214, 179, 106, 0.1);
+  outline: none;
+}
+
+.ecc-command-item__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  color: var(--ecc-gold);
+  background: rgba(214, 179, 106, 0.08);
+}
+
+.ecc-command-item__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ecc-command-item__label,
+.ecc-command-surface__title,
+.ecc-triage-shell__title {
+  color: #fbfbfd;
+  font-weight: 600;
+}
+
+.ecc-command-empty,
+.ecc-command-empty-panel,
+.ecc-triage-lane__empty {
+  border: 1px dashed rgba(255,255,255,0.1);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  color: var(--ecc-text-dim);
+}
+
+.ecc-command-empty {
+  margin: 0 8px 12px;
+  padding: 18px;
+}
+
+.ecc-command-surface-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.9fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.ecc-command-surface,
+.ecc-triage-shell {
+  padding: 18px;
+}
+
+.ecc-command-surface__title {
+  margin: 0;
+  font-size: 28px;
+}
+
+.ecc-command-surface__subtitle {
+  max-width: 720px;
+  margin: 6px 0 0;
+}
+
+.ecc-command-surface__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ecc-command-stat,
+.ecc-command-surface__selected {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+}
+
+.ecc-command-surface__toolbar,
+.ecc-command-surface__table-wrap,
+.ecc-command-surface__footer,
+.ecc-triage-shell__lanes {
+  margin-top: 16px;
+}
+
+.ecc-command-search input {
+  width: min(360px, 100%);
+  padding: 11px 13px;
+  border: 1px solid rgba(214, 179, 106, 0.18);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.025);
+  color: var(--ecc-text);
+}
+
+.ecc-command-table-shell {
+  margin-top: 12px;
+  overflow: auto;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+}
+
+.ecc-command-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+.ecc-command-table th,
+.ecc-command-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  text-align: left;
+}
+
+.ecc-command-table tbody tr:hover {
+  background: rgba(255,255,255,0.025);
+}
+
+.ecc-command-table__sort,
+.ecc-command-table__static {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ecc-text);
+  font-weight: 600;
+}
+
+.ecc-command-surface__footer-summary {
+  max-width: 320px;
+  text-align: right;
+}
+
+.ecc-triage-shell__lanes {
+  display: grid;
+  gap: 12px;
+}
+
+.ecc-triage-lane {
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.025);
+}
+
+.ecc-triage-lane[data-drag-over="true"] {
+  border-color: rgba(214, 179, 106, 0.55);
+  background: rgba(214, 179, 106, 0.08);
+}
+
+.ecc-triage-lane__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #fbfbfd;
+  font-weight: 600;
+}
+
+.ecc-triage-lane__body {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  min-height: 72px;
+}
+
+.ecc-triage-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid rgba(214, 179, 106, 0.12);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(32, 35, 43, 0.95), rgba(19, 21, 27, 0.95));
+  color: var(--ecc-text);
+  text-align: left;
+  cursor: grab;
+}
+
+.ecc-triage-card__title {
+  font-weight: 600;
+  color: #fbfbfd;
+}
+
+.ecc-triage-card__meta {
+  color: var(--ecc-text-dim);
+  font-size: 12px;
+}
+
+@media (max-width: 1080px) {
+  .ecc-command-surface-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .ecc-command-surface__context,
+  .ecc-command-surface__toolbar,
+  .ecc-command-surface__table-header,
+  .ecc-command-surface__footer,
+  .ecc-triage-shell__header {
+    flex-direction: column;
+  }
+
+  .ecc-command-surface__footer-summary {
+    text-align: left;
+    max-width: none;
+  }
+}

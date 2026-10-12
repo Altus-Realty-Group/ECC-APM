@@ -7,6 +7,7 @@
 @import "./app.css";
 @import "./genesis.css";
 @import "./_dashboard.css";
+@import "./command-surface.css";
 
 /* Hard guards to survive HMR */
 :root{

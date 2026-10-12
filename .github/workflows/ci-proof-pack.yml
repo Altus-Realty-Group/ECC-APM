@@ -1,0 +1,56 @@
+name: ci-proof-pack
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  proof-pack:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    name: proof-pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ECC_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      ECC_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+      ECC_BRANCH: ${{ github.head_ref || github.ref_name }}
+    steps:
+      - name: Checkout source head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 20
+          package-manager-cache: false
+
+      - name: Test proof failure and missing-check handling
+        run: python3 -m unittest discover -s tests/ci -p 'test_*.py'
+
+      - name: Generate scope and executable proof
+        run: python3 scripts/ci_proof_pack.py
+
+      - name: Upload proof artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ci-proof-pack
+          if-no-files-found: error
+          path: |
+            ci_proof.json
+            ci_proof.txt
+            changed_files.txt
+            scan.tsv

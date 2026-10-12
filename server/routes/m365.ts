@@ -1,11 +1,12 @@
 import express from "express";
 import { recordAudit } from "../lib/audit";
-import { emitBus } from "../lib/bus";
-import { createPlannerTask } from "../lib/m365/graph";
+import { emitBus } from "../lib/bus.js";
+import { createPlannerTask } from "../lib/m365/graph.js";
+import { setContract } from "../lib/contractHeaders.js";
 
 const router = express.Router();
 
-router.post("/api/m365/planner/tasks", async (req, res) => {
+router.post("/m365/planner/tasks", async (req, res) => {
   // Minimal payload: { title, notes, entity_type, entity_id, due_date }
   const { title, notes, entity_type, entity_id, due_date } = req.body || {};
   // For now: record audit + optional bus; later: call Graph if env is present.
@@ -18,7 +19,7 @@ router.post("/api/m365/planner/tasks", async (req, res) => {
   });
   await emitBus("m365.planner.task_created", { title, notes, entity_type, entity_id, due_date });
   // Try Graph if configured
-  try{
+  try {
     const planId = process.env.M365_PLANNER_PLAN_ID || "";
     const bucketId = process.env.M365_PLANNER_BUCKET_ID || "";
     if (planId) {
@@ -29,13 +30,16 @@ router.post("/api/m365/planner/tasks", async (req, res) => {
         planId,
         bucketId: bucketId || undefined
       });
-      return res.json({ ok: true, graph: { taskId: task?.id } });
+      setContract(req, res, '/api/control/integrations/m365/planner/tasks');
+      return res.status(201).json({ ok: true, graph: { taskId: task?.id } });
     }
-  }catch(e:any){
+  } catch (e: any) {
     // Graceful: still ok, we already audited; include hint
-    return res.json({ ok: true, note: "Planner not fully configured for Graph call", error: String(e.message||e) });
+    setContract(req, res, '/api/control/integrations/m365/planner/tasks');
+    return res.status(201).json({ ok: true, note: "Planner not fully configured for Graph call", error: String(e.message || e) });
   }
-  return res.json({ ok: true, note: "Planner plan not configured; audit-only" });
+  setContract(req, res, '/api/control/integrations/m365/planner/tasks');
+  return res.status(201).json({ ok: true, note: "Planner plan not configured; audit-only" });
 });
 
 export default router;

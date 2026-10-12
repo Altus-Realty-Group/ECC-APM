@@ -1,0 +1,950 @@
+diff --git a/server/index.ts b/server/index.ts
+index 8a1215a1..619d6ba4 100644
+--- a/server/index.ts
++++ b/server/index.ts
+@@ -27,7 +27,7 @@ const corsOptions = {
+   origin: function (origin: any, callback: any) {
+     // Allow requests with no origin (mobile apps, curl, etc.)
+     if (!origin) return callback(null, true);
+-    
++
+     // Define allowed origins
+     const allowedOrigins = [
+       'https://258f1742-e4c0-4f32-8eb6-bd862a90d7be-00-24bv9skxcb4sk.us-east-2.replit.dev', // Replit dev
+@@ -36,11 +36,11 @@ const corsOptions = {
+       'http://localhost:3000', // Alternative local dev
+       'http://0.0.0.0:5000'    // Replit internal
+     ];
+-    
++
+     // Add custom allowed origins from env
+     const customOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
+     allowedOrigins.push(...customOrigins);
+-    
++
+     if (allowedOrigins.includes(origin)) {
+       callback(null, true);
+     } else {
+@@ -70,6 +70,33 @@ if (hasBffConfig) {
+     });
+   });
+ }
++import { getMissingServerEnv, serverEnvPresence } from './lib/env.js';
++
++/** Health check — pure env presence, does not crash or throw */
++app.get("/api/health", (_req, res) => {
++  console.log('HIT API HEALTH HANDLER');
++  const missing = getMissingServerEnv();
++
++  if (missing.length === 0) {
++    return res.json({ ok: true, mode: 'ready', env: serverEnvPresence() });
++  } else {
++    // 503 allows monitoring tools to see degraded but app stays alive
++    return res.status(503).json({
++      ok: false,
++      mode: 'degraded',
++      error: 'Server misconfigured',
++      missing_env: missing,
++      env: serverEnvPresence()
++    });
++  }
++});
++
++app.get("/api/diag/env", (_req, res) => {
++  // Use new env summary where possible, fallback to old inline format
++  res.json({ env: serverEnvPresence() });
++});
++
++
+ installOwnerRoutes(app);
+ app.use('/api/admin/sync', sync); // Enhanced sync controls with SSE, DLQ, circuit breaker
+ app.use('/api/admin/integrations', integrations);
+@@ -88,9 +115,9 @@ function pickKey(...candidates: string[]) {
+ }
+ 
+ // Prefer server-only keys; include public aliases for completeness
+-const KEY_SUPABASE_URL  = pickKey("SUPABASE_URL","NEXT_PUBLIC_SUPABASE_URL","PUBLIC_SUPABASE_URL");
+-const KEY_ANON          = pickKey("SUPABASE_ANON_KEY","NEXT_PUBLIC_SUPABASE_ANON_KEY","PUBLIC_SUPABASE_ANON_KEY");
+-const KEY_SERVICE_ROLE  = pickKey("SUPABASE_SERVICE_ROLE_KEY","SUPABASE_SERVICE_ROLE","SERVICE_ROLE");
++const KEY_SUPABASE_URL = pickKey("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL", "PUBLIC_SUPABASE_URL");
++const KEY_ANON = pickKey("SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "PUBLIC_SUPABASE_ANON_KEY");
++const KEY_SERVICE_ROLE = pickKey("SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE", "SERVICE_ROLE");
+ 
+ function envSummary() {
+   return {
+@@ -183,6 +210,8 @@ function makeSupabase(): {
+ const supa = makeSupabase();
+ 
+ function sendErr(res: express.Response, http: number, err: any) {
++  console.error('[sendErr route]', res.req?.path);
++  console.error('[sendErr STACK]', typeof err === 'object' && err ? err.stack : err);
+   const body = {
+     ok: false,
+     message: err?.message || String(err),
+@@ -194,40 +223,10 @@ function sendErr(res: express.Response, http: number, err: any) {
+   return res.status(http).json(body);
+ }
+ 
+-/** Health check — shows if we’re connected and why not */
+-app.get("/api/health", async (_req, res) => {
+-  if (!supa.client) {
+-    return res.status(500).json({
+-      ok: false,
+-      supabase: "disconnected",
+-      reason: supa.error,
+-      restUrl: supa.restUrl,
+-      rawUrlSample: (process.env.SUPABASE_URL || "").slice(0, 80),
+-    });
+-  }
+-  try {
+-    const { error } = await supa.client
+-      .from(TABLE.properties)
+-      .select("id", { head: true, count: "exact" })
+-      .limit(1);
+-    if (error) throw error;
+-    res.json({ ok: true, supabase: "connected", restUrl: supa.restUrl });
+-  } catch (e: any) {
+-    return sendErr(res, 500, e);
+-  }
+-});
+ 
+-app.get("/api/diag/env", (_req, res) => {
+-  res.json(envSummary());
+-});
+ 
+-/** Health sync alias - UI compatibility */
+-app.get("/api/health/sync", async (req, res) => {
+-  // Redirect to main health endpoint for UI compatibility
+-  req.url = "/api/health";
+-  req.path = "/api/health";
+-  return app._router.handle(req, res);
+-});
++
++
+ 
+ /** Config integrations endpoint - public endpoint for UI */
+ app.get("/api/config/integrations", async (_req, res) => {
+@@ -251,7 +250,7 @@ app.get("/api/config/integrations", async (_req, res) => {
+     },
+     endpoints: [
+       '/api/portfolio/properties',
+-      '/api/portfolio/units', 
++      '/api/portfolio/units',
+       '/api/portfolio/leases',
+       '/api/portfolio/tenants',
+       '/api/portfolio/owners',
+@@ -267,31 +266,31 @@ app.post("/api/geocode/properties", async (req, res) => {
+ 
+   try {
+     const { properties: propertiesToGeocode } = req.body;
+-    
++
+     if (!Array.isArray(propertiesToGeocode)) {
+       return sendErr(res, 400, "Properties array is required");
+     }
+ 
+     // Import geocoding function
+     const { geocodeAddress: geocode } = await import("./lib/geocode");
+-    
++
+     const results = [];
+-    
++
+     for (const property of propertiesToGeocode) {
+-      const addressToGeocode = property.property_address || 
+-                             property.address || 
+-                             property.street_address || 
+-                             property.full_address || 
+-                             property.name;
+-      
++      const addressToGeocode = property.property_address ||
++        property.address ||
++        property.street_address ||
++        property.full_address ||
++        property.name;
++
+       if (!addressToGeocode) {
+         results.push({ id: property.id, success: false, error: "No address available" });
+         continue;
+       }
+-      
++
+       try {
+         const result = await geocode(addressToGeocode);
+-        
++
+         if (result) {
+           // Try to update the property in Supabase
+           const { error: updateError } = await supa.client
+@@ -301,22 +300,22 @@ app.post("/api/geocode/properties", async (req, res) => {
+ 
+           if (updateError) {
+             // If database update fails (columns don't exist), still return the geocoded result
+-            results.push({ 
+-              id: property.id, 
+-              success: true, 
+-              lat: result.lat, 
+-              lng: result.lng, 
++            results.push({
++              id: property.id,
++              success: true,
++              lat: result.lat,
++              lng: result.lng,
+               provider: result.provider,
+               dbUpdateFailed: true,
+-              error: updateError.message 
++              error: updateError.message
+             });
+           } else {
+-            results.push({ 
+-              id: property.id, 
+-              success: true, 
+-              lat: result.lat, 
+-              lng: result.lng, 
+-              provider: result.provider 
++            results.push({
++              id: property.id,
++              success: true,
++              lat: result.lat,
++              lng: result.lng,
++              provider: result.provider
+             });
+           }
+         } else {
+@@ -326,13 +325,27 @@ app.post("/api/geocode/properties", async (req, res) => {
+         results.push({ id: property.id, success: false, error: error.message });
+       }
+     }
+-    
++
+     res.json({ results });
+   } catch (e: any) {
+     return sendErr(res, 500, e);
+   }
+ });
+ 
++/** Middleware to ensure Server Environment is valid before handling portfolio & accounting routes */
++app.use(['/api/portfolio', '/api/maintenance', '/api/accounting', '/api/geocode'], (req, res, next) => {
++  console.log('HIT API HEALTH HANDLER');
++  const missing = getMissingServerEnv();
++  if (missing.length > 0) {
++    return res.status(503).json({
++      ok: false,
++      error: 'Server misconfigured',
++      missing_env: missing
++    });
++  }
++  next();
++});
++
+ /** Properties with computed units & occupancy */
+ app.get("/api/portfolio/properties", async (req, res) => {
+   if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
+@@ -347,8 +360,8 @@ app.get("/api/portfolio/properties", async (req, res) => {
+     if (propsError) throw propsError;
+ 
+     // build property maps by id and by doorloop_id
+-    const byId = new Map((propertiesData??[]).map(p => [String(p.id), p]));
+-    const byDL = new Map((propertiesData??[]).filter(p => p.doorloop_id).map(p => [String(p.doorloop_id), p]));
++    const byId = new Map((propertiesData ?? []).map(p => [String(p.id), p]));
++    const byDL = new Map((propertiesData ?? []).filter(p => p.doorloop_id).map(p => [String(p.doorloop_id), p]));
+ 
+     // Get units data for occupancy calculation
+     const { data: unitsData, error: unitsError } = await supa.client
+@@ -373,15 +386,15 @@ app.get("/api/portfolio/properties", async (req, res) => {
+         (unit.doorloop_property_id && byDL.get(String(unit.doorloop_property_id))) ||
+         null;
+       const propKey = p ? String(p.id) : String(unit.property_id ?? '');
+-      
++
+       if (!propKey) return;
+-      
++
+       if (!unitsByProperty.has(propKey)) {
+         unitsByProperty.set(propKey, 0);
+         occupiedByProperty.set(propKey, 0);
+       }
+       unitsByProperty.set(propKey, unitsByProperty.get(propKey) + 1);
+-      
++
+       if (unit.status && ['occupied', 'occ', 'active'].includes(unit.status.toLowerCase())) {
+         occupiedByProperty.set(propKey, occupiedByProperty.get(propKey) + 1);
+       }
+@@ -428,8 +441,8 @@ app.get("/api/portfolio/units", async (req, res) => {
+ 
+     // build property maps by id and by doorloop_id
+     const { data: propertiesData } = await supa.client.from(TABLE.properties).select("id, name, doorloop_id").limit(5000);
+-    const byId = new Map((propertiesData??[]).map(p => [String(p.id), p]));
+-    const byDL = new Map((propertiesData??[]).filter(p => p.doorloop_id).map(p => [String(p.doorloop_id), p]));
++    const byId = new Map((propertiesData ?? []).map(p => [String(p.id), p]));
++    const byDL = new Map((propertiesData ?? []).filter(p => p.doorloop_id).map(p => [String(p.doorloop_id), p]));
+ 
+     const units: UnitOut[] = (data || []).map((row: any) => {
+       // when attributing a unit to a property:
+@@ -482,8 +495,8 @@ app.get("/api/portfolio/leases", async (req, res) => {
+     const propertyMap = new Map((propertiesRes.data || []).map((p: any) => [p.id, p.name || "—"]));
+     const unitMap = new Map((unitsRes.data || []).map((u: any) => [u.id, u.unit_number || "—"]));
+     const tenantMap = new Map((tenantsRes.data || []).map((t: any) => [
+-      t.id, 
+-      t.display_name || t.full_name || 
++      t.id,
++      t.display_name || t.full_name ||
+       (t.first_name && t.last_name ? `${t.first_name} ${t.last_name}` : "—")
+     ]));
+ 
+@@ -537,14 +550,14 @@ app.get("/api/portfolio/tenants", async (req, res) => {
+         propertyName = propRes.data?.name;
+         unitLabel = unitRes.data?.unit_number;
+       }
+-      
++
+       return {
+         id: tenant.id,
+-        name: tenant.display_name || tenant.full_name || 
+-              (tenant.first_name && tenant.last_name ? `${tenant.first_name} ${tenant.last_name}` : "—"),
++        name: tenant.display_name || tenant.full_name ||
++          (tenant.first_name && tenant.last_name ? `${tenant.first_name} ${tenant.last_name}` : "—"),
+         email: tenant.primary_email || tenant.email || (tenant.emails_json?.[0]?.address) || null,
+-        phone: tenant.primary_phone || tenant.phone || tenant.phone_number || 
+-               (tenant.phones_json?.[0]?.number) || null,
++        phone: tenant.primary_phone || tenant.phone || tenant.phone_number ||
++          (tenant.phones_json?.[0]?.number) || null,
+         propertyName,
+         unitLabel,
+         type: tenant.type || "LEASE_TENANT",
+@@ -572,11 +585,11 @@ app.get("/api/portfolio/owners", async (req, res) => {
+     const owners: OwnerOut[] = (data || []).map((row: any) => ({
+       id: row.id,
+       company: row.company_name || row.business_name || "—",
+-      name: row.display_name || row.full_name || 
+-            (row.first_name && row.last_name ? `${row.first_name} ${row.last_name}` : "—"),
++      name: row.display_name || row.full_name ||
++        (row.first_name && row.last_name ? `${row.first_name} ${row.last_name}` : "—"),
+       email: row.primary_email || row.email || (row.emails_json?.[0]?.address) || null,
+-      phone: row.primary_phone || row.phone || row.phone_number || 
+-             (row.phones_json?.[0]?.number) || null,
++      phone: row.primary_phone || row.phone || row.phone_number ||
++        (row.phones_json?.[0]?.number) || null,
+       active: Boolean(row.active)
+     }));
+ 
+@@ -589,7 +602,7 @@ app.get("/api/portfolio/owners", async (req, res) => {
+ /** Maintenance work orders endpoint */
+ app.get("/api/maintenance/workorders", async (req, res) => {
+   if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
+-  
++
+   try {
+     // For now, return structured mock data since maintenance table may not exist
+     const workOrders = [
+@@ -618,7 +631,7 @@ app.get("/api/maintenance/workorders", async (req, res) => {
+         title: 'Water heater malfunction'
+       }
+     ];
+-    
++
+     res.json(workOrders);
+   } catch (e: any) {
+     return sendErr(res, 500, e);
+@@ -628,15 +641,15 @@ app.get("/api/maintenance/workorders", async (req, res) => {
+ /** Accounting transactions endpoint */
+ app.get("/api/accounting/transactions", async (req, res) => {
+   if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
+-  
++
+   try {
+     // Generate realistic transaction data for the last 90 days
+     const transactions = [];
+     const now = new Date();
+-    
++
+     for (let i = 0; i < 90; i++) {
+       const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+-      
++
+       // Add rent income every 1st of month
+       if (date.getDate() === 1) {
+         transactions.push({
+@@ -645,7 +658,7 @@ app.get("/api/accounting/transactions", async (req, res) => {
+           posted_on: date.toISOString()
+         });
+       }
+-      
++
+       // Add random expenses
+       if (Math.random() > 0.85) {
+         transactions.push({
+@@ -655,7 +668,7 @@ app.get("/api/accounting/transactions", async (req, res) => {
+         });
+       }
+     }
+-    
++
+     res.json(transactions);
+   } catch (e: any) {
+     return sendErr(res, 500, e);
+@@ -665,17 +678,17 @@ app.get("/api/accounting/transactions", async (req, res) => {
+ /** Debug endpoint for SQL queries */
+ app.get("/api/portfolio/_debug/sql", async (req, res) => {
+   if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
+-  
++
+   const query = String(req.query.q || "");
+   const limit = Math.min(parseInt(String(req.query.limit || "10")), 50);
+-  
++
+   if (!query.toLowerCase().startsWith("select")) {
+     return res.status(400).json({ error: "SELECT queries only" });
+   }
+-  
++
+   try {
+-    const { data, error } = await supa.client.rpc('exec_sql', { 
+-      query_text: `${query} LIMIT ${limit}` 
++    const { data, error } = await supa.client.rpc('exec_sql', {
++      query_text: `${query} LIMIT ${limit}`
+     });
+     if (error) throw error;
+     res.json(data || []);
+@@ -702,7 +715,7 @@ app.post("/api/owner-transfer/initiate", async (req, res) => {
+   try {
+     const input: InitiateInput = req.body;
+     const result = await initiateTransfer(input);
+-    
++
+     res.status(201).json({
+       transferId: result.transferId,
+       reportUrl: result.reportUrl ? result.reportUrl : `/api/owner-transfer/${result.transferId}/report`,
+@@ -739,7 +752,7 @@ app.post("/api/owner-transfer/authorize", async (req, res) => {
+   try {
+     // TODO: Add proper admin role checking here
+     // For now, we assume the request is authorized if it reaches this point
+-    
++
+     const { transferId, actorId } = req.body;
+     await authorizeExecution(transferId, actorId);
+     res.json({ ok: true, message: "Transfer authorized for execution" });
+@@ -783,11 +796,11 @@ app.get("/api/owner-transfer/:id/report", async (req, res) => {
+ 
+     // Generate the report
+     const report = await generateAccountingReport(transferId);
+-    
++
+     // Set headers for file download
+     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+     res.setHeader('Content-Disposition', `attachment; filename="${report.filename}"`);
+-    
++
+     // Send the buffer directly
+     res.send(report.buffer);
+   } catch (e: any) {
+@@ -820,7 +833,7 @@ app.listen(PORT, '0.0.0.0', () => {
+   if (!supa.client) {
+     console.warn(`[Dev API] Supabase not ready: ${supa.error}`);
+   }
+-  
++
+   // Start auto-sync after server is listening (idempotent; logs if disabled)
+   // DISABLED for testing - auto-sync causing server crashes
+   try {
+@@ -829,10 +842,17 @@ app.listen(PORT, '0.0.0.0', () => {
+   } catch (e) {
+     console.warn(`[Dev API] Auto-sync disabled:`, e);
+   }
+-  
++
+   if (!supa.client) {
+     console.warn(`[Dev API] Raw SUPABASE_URL sample: ${(process.env.SUPABASE_URL || "").slice(0, 80)}…`);
+   } else {
+     console.log(`[Dev API] Supabase REST URL: ${supa.restUrl}`);
+   }
+ });
++
++
++
++
++
++
++
+diff --git a/server/lib/db.ts b/server/lib/db.ts
+index 9291166d..b5d4a12b 100644
+--- a/server/lib/db.ts
++++ b/server/lib/db.ts
+@@ -1,17 +1,29 @@
+ import { Pool } from 'pg';
++import { requireServerEnv } from './env';
+ 
+-const dbUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
++let _pool: Pool | null = null;
+ 
+-if (!dbUrl) {
+-  throw new Error('DATABASE_URL or SUPABASE_DB_URL environment variable is required');
++export function getDbPool(): Pool {
++  requireServerEnv();
++
++  if (!_pool) {
++    const dbUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
++
++    _pool = new Pool({
++      connectionString: dbUrl,
++      ssl: { rejectUnauthorized: false },
++      max: 20,
++      idleTimeoutMillis: 30000,
++      connectionTimeoutMillis: 2000,
++    });
++  }
++
++  return _pool;
+ }
+ 
+-export const pool = new Pool({
+-  connectionString: dbUrl,
+-  ssl: { rejectUnauthorized: false },
+-  max: 20,
+-  idleTimeoutMillis: 30000,
+-  connectionTimeoutMillis: 2000,
++// Proxy the old pool export for backwards compatibility
++export const pool = new Proxy({} as Pool, {
++  get: (target, prop) => getDbPool()[prop as keyof Pool]
+ });
+ 
+ export default pool;
+\ No newline at end of file
+diff --git a/server/lib/env.ts b/server/lib/env.ts
+new file mode 100644
+index 00000000..39c57292
+--- /dev/null
++++ b/server/lib/env.ts
+@@ -0,0 +1,57 @@
++/**
++ * Central environment variable tracking and validation for the server.
++ */
++
++export const requiredServerEnv = [
++  'SUPABASE_URL',
++  'SUPABASE_SERVICE_ROLE_KEY',
++  'DATABASE_URL'
++];
++
++/**
++ * Checks for missing required server environment variables.
++ * Fallbacks are checked implicitly (e.g. SUPABASE_SERVICE_ROLE instead of SUPABASE_SERVICE_ROLE_KEY).
++ */
++export function getMissingServerEnv(): string[] {
++  const missing: string[] = [];
++  
++  if (!process.env.SUPABASE_URL) {
++    missing.push('SUPABASE_URL');
++  }
++  
++  const hasServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE;
++  if (!hasServiceRole) {
++    missing.push('SUPABASE_SERVICE_ROLE_KEY');
++  }
++  
++  const hasDbUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
++  if (!hasDbUrl) {
++    missing.push('DATABASE_URL');
++  }
++
++  return missing;
++}
++
++/**
++ * Returns a dictionary of environment variable presence (names only, no values).
++ */
++export function serverEnvPresence(): Record<string, 'present' | 'missing'> {
++  return {
++    SUPABASE_URL: process.env.SUPABASE_URL ? 'present' : 'missing',
++    SUPABASE_SERVICE_ROLE_KEY: (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE) ? 'present' : 'missing',
++    DATABASE_URL: (process.env.DATABASE_URL || process.env.SUPABASE_DB_URL) ? 'present' : 'missing',
++    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL ? 'present' : 'missing',
++    VITE_API_BASE: process.env.VITE_API_BASE ? 'present' : 'missing'
++  };
++}
++
++/**
++ * Throws a formatted error if required environment variables are missing.
++ * Safe to call inside handlers, do NOT call at the top layer of imports.
++ */
++export function requireServerEnv() {
++  const missing = getMissingServerEnv();
++  if (missing.length > 0) {
++    throw new Error(`Missing server env: ${missing.join(', ')}`);
++  }
++}
+diff --git a/server/lib/supabaseAdmin.ts b/server/lib/supabaseAdmin.ts
+index 4dcee609..d1fa424e 100644
+--- a/server/lib/supabaseAdmin.ts
++++ b/server/lib/supabaseAdmin.ts
+@@ -1,15 +1,26 @@
+-import { createClient } from '@supabase/supabase-js';
++import { createClient, SupabaseClient } from '@supabase/supabase-js';
++import { requireServerEnv } from './env';
+ 
+-const SUPABASE_URL = process.env.SUPABASE_URL!;
+-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
++let _sbAdmin: SupabaseClient | null = null;
+ 
+-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+-  throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
++export function getSupabaseAdmin(): SupabaseClient {
++  requireServerEnv();
++
++  if (!_sbAdmin) {
++    const url = process.env.SUPABASE_URL!;
++    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE!;
++
++    _sbAdmin = createClient(url, key, {
++      auth: { persistSession: false },
++    });
++  }
++
++  return _sbAdmin;
+ }
+ 
+-export const sbAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+-  auth: { persistSession: false },
++// Proxy the old exports so imports don't break, but they will throw on access if env is missing instead of on import
++export const sbAdmin = new Proxy({} as SupabaseClient, {
++  get: (target, prop) => getSupabaseAdmin()[prop as keyof SupabaseClient]
+ });
+ 
+-// Keep the old export for backwards compatibility
+ export const supabaseAdmin = sbAdmin;
+\ No newline at end of file
+diff --git a/src/App.tsx b/src/App.tsx
+index 9a0e9219..efd856d2 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
+ import { Route, Switch, useLocation } from "wouter";
+ import Sidebar from "./components/Sidebar";
+ import { ToastContainer } from "./components/ui/ToastContainer";
++import { DevErrorBanner } from "./components/DevErrorBanner";
+ 
+ /**
+  * IMPORTANT:
+@@ -13,15 +14,15 @@ import { ToastContainer } from "./components/ui/ToastContainer";
+  *   src/pages/portfolio/tenants/index.tsx
+  *   src/pages/portfolio/owners/index.tsx
+  */
+-import PropertiesPage from "./pages/portfolio/properties";
+-import UnitsPage from "./pages/portfolio/units";
+-import LeasesPage from "./pages/portfolio/leases";
+-import TenantsPage from "./pages/portfolio/tenants";
+-import OwnersPage from "./pages/portfolio/owners";
++import PropertiesPage from "./pages/portfolio/Properties";
++import UnitsPage from "./pages/portfolio/Units";
++import LeasesPage from "./pages/portfolio/Leases";
++import TenantsPage from "./pages/portfolio/Tenants";
++import OwnersPage from "./pages/portfolio/Owners";
+ 
+ // Working Asset Card Pages (NOT placeholder components)
+ import PropertyCardPage from "./pages/card/property";
+-import UnitCardPage from "./pages/card/unit"; 
++import UnitCardPage from "./pages/card/unit";
+ import LeaseCardPage from "./pages/card/lease";
+ import TenantCardPage from "./pages/card/tenant";
+ import OwnerCardPage from "./pages/card/owner";
+@@ -82,65 +83,66 @@ export default function App() {
+ 
+   return (
+     <div id="ecc-app">
++      <DevErrorBanner />
+       <div className="ecc-shell">
+         <Sidebar />
+ 
+         {/* Main content area */}
+         <main className="ecc-main" role="main" id="main">
+-        <Switch>
+-          {/* Home redirect */}
+-          <Route path="/"><HomeRedirect /></Route>
+-          <Route path="/dashboard" component={DashboardPage} />
+-          <Route path="/data" component={DataHub} />
+-          
+-
+-          {/* -------- Portfolio V3 (ACTIVE) -------- */}
+-          <Route path="/portfolio/properties" component={PropertiesPage} />
+-          <Route path="/portfolio/properties/:id" component={PropertyDetailPage} />
+-          <Route path="/portfolio/units" component={UnitsPage} />
+-          <Route path="/portfolio/leases" component={LeasesPage} />
+-          <Route path="/portfolio/tenants" component={TenantsPage} />
+-          <Route path="/portfolio/owners" component={OwnersPage} />
+-          {/* -------------------------------------- */}
+-
+-          {/* -------- Working Asset Card Pages -------- */}
+-          <Route path="/card/property/:id" component={PropertyCardPage} />
+-          <Route path="/card/unit/:id" component={UnitCardPage} />
+-          <Route path="/card/lease/:id" component={LeaseCardPage} />
+-          <Route path="/card/tenant/:id" component={TenantCardPage} />
+-          <Route path="/card/owner/:id" component={OwnerCardPage} />
+-          {/* ------------------------------------------ */}
+-
+-          {/* -------- Reports Pages -------- */}
+-          <Route path="/reports/create" component={ReportsCreatePage} />
+-          <Route path="/reports/saved" component={ReportsSavedPage} />
+-          <Route path="/reports/templates" component={ReportsTemplatesPage} />
+-          {/* ------------------------------- */}
+-
+-          {/* -------- Admin Pages -------- */}
+-          <Route path="/admin/sync" component={AdminSyncPage} />
+-          <Route path="/admin/geocode" component={AdminGeocodeManagementPage} />
+-          <Route path="/admin/transfers" component={AdminTransferManagementPage} />
+-
+-          {/* -------- Systems Pages -------- */}
+-          <Route path="/systems/integrations" component={IntegrationsHealthPage} />
+-          {/* ----------------------------- */}
+-          
+-          {/* -------- Owner Transfer -------- */}
+-          <Route path="/owners/transfer" component={OwnerTransferPage} />
+-          <Route path="/owners/transfer/detail" component={OwnerTransferDetailPage} />
+-          {/* -------------------------------- */}
+-
+-          {/* Keep any other existing routes you have here.
++          <Switch>
++            {/* Home redirect */}
++            <Route path="/"><HomeRedirect /></Route>
++            <Route path="/dashboard" component={DashboardPage} />
++            <Route path="/data" component={DataHub} />
++
++
++            {/* -------- Portfolio V3 (ACTIVE) -------- */}
++            <Route path="/portfolio/properties" component={PropertiesPage} />
++            <Route path="/portfolio/properties/:id" component={PropertyDetailPage} />
++            <Route path="/portfolio/units" component={UnitsPage} />
++            <Route path="/portfolio/leases" component={LeasesPage} />
++            <Route path="/portfolio/tenants" component={TenantsPage} />
++            <Route path="/portfolio/owners" component={OwnersPage} />
++            {/* -------------------------------------- */}
++
++            {/* -------- Working Asset Card Pages -------- */}
++            <Route path="/card/property/:id" component={PropertyCardPage} />
++            <Route path="/card/unit/:id" component={UnitCardPage} />
++            <Route path="/card/lease/:id" component={LeaseCardPage} />
++            <Route path="/card/tenant/:id" component={TenantCardPage} />
++            <Route path="/card/owner/:id" component={OwnerCardPage} />
++            {/* ------------------------------------------ */}
++
++            {/* -------- Reports Pages -------- */}
++            <Route path="/reports/create" component={ReportsCreatePage} />
++            <Route path="/reports/saved" component={ReportsSavedPage} />
++            <Route path="/reports/templates" component={ReportsTemplatesPage} />
++            {/* ------------------------------- */}
++
++            {/* -------- Admin Pages -------- */}
++            <Route path="/admin/sync" component={AdminSyncPage} />
++            <Route path="/admin/geocode" component={AdminGeocodeManagementPage} />
++            <Route path="/admin/transfers" component={AdminTransferManagementPage} />
++
++            {/* -------- Systems Pages -------- */}
++            <Route path="/systems/integrations" component={IntegrationsHealthPage} />
++            {/* ----------------------------- */}
++
++            {/* -------- Owner Transfer -------- */}
++            <Route path="/owners/transfer" component={OwnerTransferPage} />
++            <Route path="/owners/transfer/detail" component={OwnerTransferDetailPage} />
++            {/* -------------------------------- */}
++
++            {/* Keep any other existing routes you have here.
+              Do NOT route to the old mock pages (Properties.tsx, etc.). */}
+ 
+-          {/* 404 */}
+-          <Route>
+-            <NotFound />
+-          </Route>
+-        </Switch>
+-      </main>
+-      <ToastContainer />
++            {/* 404 */}
++            <Route>
++              <NotFound />
++            </Route>
++          </Switch>
++        </main>
++        <ToastContainer />
+       </div>
+     </div>
+   );
+diff --git a/src/components/DataTable.tsx b/src/components/DataTable.tsx
+index cada0fb9..bbf47c5e 100644
+--- a/src/components/DataTable.tsx
++++ b/src/components/DataTable.tsx
+@@ -92,12 +92,12 @@ function downloadCSV(filename: string, rows: any[], columns: DataColumn[]) {
+           v == null
+             ? ""
+             : typeof v === "string"
+-            ? v
+-            : typeof v === "number"
+-            ? String(v)
+-            : typeof v === "boolean"
+-            ? (v ? "true" : "false")
+-            : String(v);
++              ? v
++              : typeof v === "number"
++                ? String(v)
++                : typeof v === "boolean"
++                  ? (v ? "true" : "false")
++                  : String(v);
+         // simple CSV escape
+         const needsQuote = /[",\n]/.test(text);
+         return needsQuote ? `"${text.replace(/"/g, '""')}"` : text;
+@@ -428,14 +428,27 @@ export default function DataTable<Row = any>(props: DataTableProps<Row>) {
+           {!loading && error && (
+             <tr>
+               <td className="is-empty" colSpan={colMeta.length + (rowActions ? 1 : 0)}>
+-                {error}
++                <div className="flex flex-col items-center p-8 bg-red-950/20 border border-red-900/50 rounded-lg m-4">
++                  <span className="text-red-400 font-bold text-lg mb-2">Error Loading Data</span>
++                  <span className="text-red-300/80">{error}</span>
++                </div>
+               </td>
+             </tr>
+           )}
+-          {!loading && !error && current.length === 0 && (
++          {!loading && !error && rows.length === 0 && (
+             <tr>
+               <td className="is-empty" colSpan={colMeta.length + (rowActions ? 1 : 0)}>
+-                No results.
++                <div className="flex flex-col items-center p-12 text-center bg-white/5 border border-white/10 rounded-lg m-4">
++                  <span className="text-neutral-200 font-semibold mb-1">No records found</span>
++                  <span className="text-neutral-400 text-sm">The endpoint returned successfully, but there are zero entries to display.</span>
++                </div>
++              </td>
++            </tr>
++          )}
++          {!loading && !error && rows.length > 0 && current.length === 0 && (
++            <tr>
++              <td className="is-empty" colSpan={colMeta.length + (rowActions ? 1 : 0)}>
++                No results match your current filters.
+               </td>
+             </tr>
+           )}
+@@ -459,7 +472,7 @@ export default function DataTable<Row = any>(props: DataTableProps<Row>) {
+                     c.render ? c.render(v, row) : v == null ? "—" : (v as any);
+                   const isRight = c.align === "right" || c.type === "number";
+                   const isFirstCell = cellIdx === 0;
+-                  
++
+                   if (isFirstCell) {
+                     return (
+                       <td key={c.key} className={`min-w-[120px] ${isRight ? "is-right" : ""}`}>
+@@ -480,7 +493,7 @@ export default function DataTable<Row = any>(props: DataTableProps<Row>) {
+                       </td>
+                     );
+                   }
+-                  
++
+                   return (
+                     <td key={c.key} className={isRight ? "is-right" : undefined}>
+                       {content}
+diff --git a/src/components/DevErrorBanner.tsx b/src/components/DevErrorBanner.tsx
+new file mode 100644
+index 00000000..5b4deda1
+--- /dev/null
++++ b/src/components/DevErrorBanner.tsx
+@@ -0,0 +1,47 @@
++import React, { useEffect, useState } from 'react';
++
++/**
++ * Genesis-grade W4 Guardrail:
++ * Shows a DEV-only banner when API endpoints return non-200.
++ * Gating: import.meta.env.DEV and ?ui=devtools URL param.
++ */
++export function DevErrorBanner() {
++    const [error, setError] = useState<{ status: number; url: string; message: string } | null>(null);
++
++    useEffect(() => {
++        // Only mount listener in DEV memory (but ensure it complies with env logic)
++        const handleApiError = (e: Event) => {
++            const customEvent = e as CustomEvent;
++            if (customEvent.detail) {
++                setError(customEvent.detail);
++            }
++        };
++
++        window.addEventListener('ecc-api-error', handleApiError);
++        return () => window.removeEventListener('ecc-api-error', handleApiError);
++    }, []);
++
++    // Gating requirements: DEV env AND ?ui=devtools requested
++    const isDevProcess = import.meta.env.DEV;
++    const isDevToolsRequested = typeof window !== 'undefined' && window.location.search.includes('ui=devtools');
++
++    if (!isDevProcess || !isDevToolsRequested || !error) {
++        return null;
++    }
++
++    return (
++        <div className="bg-red-900 border-b border-red-500 text-white p-3 text-sm flex items-center justify-between z-50 fixed top-0 left-0 right-0 w-full shadow-lg">
++            <div className="flex items-center gap-3">
++                <span className="font-bold bg-red-800 px-2 py-1 rounded text-xs select-all">HTTP {error.status}</span>
++                <span className="font-mono text-red-200 truncate max-w-[300px] select-all">{error.url}</span>
++                <span className="font-medium text-red-50">{error.message}</span>
++            </div>
++            <button
++                onClick={() => setError(null)}
++                className="text-red-300 hover:text-white px-2 rounded hover:bg-red-800 transition-colors"
++            >
++                Dismiss
++            </button>
++        </div>
++    );
++}
+diff --git a/src/lib/http.ts b/src/lib/http.ts
+index 4fbb9b74..38a91e2e 100644
+--- a/src/lib/http.ts
++++ b/src/lib/http.ts
+@@ -9,18 +9,45 @@ export function isAbortError(e: unknown) {
+ export async function fetchJSON<T>(input: RequestInfo, init?: RequestInit & { signal?: AbortSignal }) {
+   try {
+     const res = await fetch(input, init);
+-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
++    if (!res.ok) {
++      let bodyText = await res.text();
++      let errorMsg = `HTTP ${res.status}`;
++
++      try {
++        const parsed = JSON.parse(bodyText);
++        if (parsed.error === 'Server misconfigured') {
++          errorMsg = `Server misconfigured: Missing ${parsed.missing_env?.join(', ')}`;
++        } else if (parsed.error) {
++          errorMsg = `HTTP ${res.status}: ${parsed.error}`;
++        }
++      } catch (e) {
++        // Not JSON, ignore
++      }
++
++      // Dispatch global error event for DEV banner
++      if (typeof window !== 'undefined') {
++        window.dispatchEvent(new CustomEvent('ecc-api-error', {
++          detail: {
++            status: res.status,
++            url: typeof input === 'string' ? input : (input as Request).url,
++            message: errorMsg
++          }
++        }));
++      }
++
++      throw new Error(errorMsg);
++    }
+     return (await res.json()) as T;
+   } catch (err) {
+     if (isAbortError(err) || init?.signal?.aborted) {
+       // never reject; prevents error boundaries & log spam during HMR
+-      return new Promise<T>(() => {});
++      return new Promise<T>(() => { });
+     }
+     throw err;
+   }
+ }
+ 
+-export async function jget<T=any>(u:string):Promise<T|null>{
+-  try{const r=await fetch(u); if(!r.ok) return null; return await r.json();}catch{return null;}
++export async function jget<T = any>(u: string): Promise<T | null> {
++  try { const r = await fetch(u); if (!r.ok) return null; return await r.json(); } catch { return null; }
+ }
+-export function fmtMoney(n:number|undefined|null){ if(n==null||isNaN(Number(n))) return "—"; return `$${Number(n).toLocaleString()}`;}
+\ No newline at end of file
++export function fmtMoney(n: number | undefined | null) { if (n == null || isNaN(Number(n))) return "—"; return `$${Number(n).toLocaleString()}`; }
+\ No newline at end of file

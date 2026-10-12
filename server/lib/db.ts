@@ -1,17 +1,33 @@
 import { Pool } from 'pg';
+import { requireServerEnv, getDatabaseUrl } from './env';
 
-const dbUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
+let _pool: Pool | null = null;
 
-if (!dbUrl) {
-  throw new Error('DATABASE_URL or SUPABASE_DB_URL environment variable is required');
+export function getDbPool(): Pool {
+  requireServerEnv();
+
+  if (!_pool) {
+    const dbUrl = getDatabaseUrl();
+
+    if (!dbUrl) {
+      throw new Error('Database functionality requested, but no database URL is available via DATABASE_URL, SUPABASE_DB_URL, or PG* vars.');
+    }
+
+    _pool = new Pool({
+      connectionString: dbUrl,
+      ssl: { rejectUnauthorized: false },
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
+    });
+  }
+
+  return _pool;
 }
 
-export const pool = new Pool({
-  connectionString: dbUrl,
-  ssl: { rejectUnauthorized: false },
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+// Proxy the old pool export for backwards compatibility
+export const pool = new Proxy({} as Pool, {
+  get: (target, prop) => getDbPool()[prop as keyof Pool]
 });
 
 export default pool;

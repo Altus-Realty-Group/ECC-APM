@@ -12,7 +12,7 @@ export function useDashboardKpis() {
   return useQuery({
     queryKey: ["dashboard-kpis"],
     queryFn: async ({ signal }) => {
-      const res = await fetch("/api/occupancy-dashboard", { signal });
+      const res = await fetch("/api/dashboard/kpi/summary", { signal });
       if (!res.ok) throw new Error(`Failed KPIs: ${res.status}`);
       const data = (await res.json()) as DashboardKpis;
       return data;

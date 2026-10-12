@@ -1,21 +1,20 @@
 ---
-name: Bug Report
-about: Something broke or behaves incorrectly
+name: Bug
+about: Report a defect or regression in Replit_Front_End_ECC
 labels: bug, frontend
 ---
 
-### What happened
-<!-- describe -->
+## Summary
 
-### Steps to reproduce
+## Expected Behavior
+
+## Actual Behavior
+
+## Reproduction Steps
 1.
 2.
+3.
 
-### Expected
-<!-- describe -->
+## Scope / Impact
 
-### Screenshots/Logs
-<!-- optional -->
-
-### Impact
-<!-- user/system impact -->
+## Evidence

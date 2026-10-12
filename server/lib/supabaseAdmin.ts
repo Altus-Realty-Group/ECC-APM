@@ -1,15 +1,26 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { requireServerEnv } from './env';
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+let _sbAdmin: SupabaseClient | null = null;
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+export function getSupabaseAdmin(): SupabaseClient {
+  requireServerEnv();
+
+  if (!_sbAdmin) {
+    const url = process.env.SUPABASE_URL!;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE!;
+
+    _sbAdmin = createClient(url, key, {
+      auth: { persistSession: false },
+    });
+  }
+
+  return _sbAdmin;
 }
 
-export const sbAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { persistSession: false },
+// Proxy the old exports so imports don't break, but they will throw on access if env is missing instead of on import
+export const sbAdmin = new Proxy({} as SupabaseClient, {
+  get: (target, prop) => getSupabaseAdmin()[prop as keyof SupabaseClient]
 });
 
-// Keep the old export for backwards compatibility
 export const supabaseAdmin = sbAdmin;

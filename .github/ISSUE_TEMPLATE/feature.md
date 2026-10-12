@@ -1,18 +1,20 @@
 ---
-name: Feature Request
-about: Propose a new capability or page
+name: Feature
+about: Request a new Replit_Front_End_ECC capability or enhancement
 labels: enhancement, frontend
 ---
 
-### Problem / Opportunity
-<!-- Why this matters -->
+## Summary
 
-### Proposal
-<!-- What should be built -->
+## Problem To Solve
 
-### Acceptance Criteria
-- [ ] 
-- [ ] 
+## Proposed Outcome
 
-### Additional context
-<!-- links, mockups -->
+## Scope Boundaries
+- In scope:
+  -
+- Out of scope:
+  -
+
+## Acceptance Criteria
+- [ ]

@@ -6,9 +6,13 @@ import { installOwnerRoutes } from './routes/owners';
 import { integrations } from './routes/admin/integrations';
 import { sync } from './routes/admin/sync';
 import ownerTransferRouter from './routes/ownerTransfer.js';
+import { installPropertyRoutes } from './routes/properties.js'; // Ensure file exists or logic remains valid
+import syncHealth from './routes/syncHealth.js';
+import m365Router from './routes/m365.js';
 import entitiesRouter from './routes/entities.js';
 import rpcRouter from './routes/rpc';
 import { startAutoSyncLoop } from './lib/sync/auto';
+import { supabaseGuard } from './lib/supabaseGuard.js';
 import bff from "./bff.js";
 import * as path from "path";
 
@@ -27,7 +31,7 @@ const corsOptions = {
   origin: function (origin: any, callback: any) {
     // Allow requests with no origin (mobile apps, curl, etc.)
     if (!origin) return callback(null, true);
-    
+
     // Define allowed origins
     const allowedOrigins = [
       'https://258f1742-e4c0-4f32-8eb6-bd862a90d7be-00-24bv9skxcb4sk.us-east-2.replit.dev', // Replit dev
@@ -36,11 +40,11 @@ const corsOptions = {
       'http://localhost:3000', // Alternative local dev
       'http://0.0.0.0:5000'    // Replit internal
     ];
-    
+
     // Add custom allowed origins from env
     const customOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
     allowedOrigins.push(...customOrigins);
-    
+
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -70,12 +74,160 @@ if (hasBffConfig) {
     });
   });
 }
-installOwnerRoutes(app);
-app.use('/api/admin/sync', sync); // Enhanced sync controls with SSE, DLQ, circuit breaker
-app.use('/api/admin/integrations', integrations);
+import { getMissingServerEnv, serverEnvPresence } from './lib/env.js';
+import { getRouteManifest } from './lib/routeRegistry.js';
+import { setContract } from './lib/contractHeaders.js';
+import { installPropertyRoutes } from './routes/properties.js';
+import { installOwnerRoutes as installOwnerRoutesNew } from './routes/owners.js'; // Renamed to avoid conflict with existing import
+
+// GLOBAL T1 HEADER MIDDLEWARE
+app.use((req, res, next) => {
+  const method = req.method;
+  const cleanPath = req.path;
+  const registry = getRouteManifest();
+
+  const match = registry.find(r => {
+    if (r.method !== method) return false;
+    if (r.path === cleanPath) return true;
+    if (r.path.includes(':')) {
+      const pattern = r.path.replace(/:[^\/]+/g, '[^/]+');
+      return new RegExp('^' + pattern + '$').test(cleanPath);
+    }
+    return false;
+  });
+
+  if (match) {
+    res.locals.ecc = {
+      handler: match.handler,
+      contract: match.contract_name || match.contract_family || 'SYSTEM',
+      version: match.contract_version || 'v1',
+      canonical: match.canonical ?? false
+    };
+  } else {
+    res.locals.ecc = { handler: 'unhandled', contract: 'SYSTEM', version: 'v1', canonical: null };
+  }
+
+  const originalJson = res.json;
+  res.json = function (body) {
+    if (!res.headersSent) {
+      res.setHeader('x-ecc-handler', res.locals.ecc.handler || 'unhandled');
+      res.setHeader('x-ecc-contract', res.locals.ecc.contract || 'SYSTEM');
+      res.setHeader('x-ecc-contract-version', res.locals.ecc.version || 'v1');
+      res.setHeader('x-ecc-route-canonical', String(res.locals.ecc.canonical !== null ? res.locals.ecc.canonical : 'unknown'));
+    }
+
+    if (res.statusCode === 404 && res.locals.ecc.handler === 'unhandled') {
+      if (!body || typeof body === 'string' || body.error === 'Not found') {
+        body = { ok: false, message: "Not found" };
+      }
+    }
+    return originalJson.call(this, body);
+  };
+
+  const originalSend = res.send;
+  res.send = function (body) {
+    if (!res.headersSent) {
+      res.setHeader('x-ecc-handler', res.locals.ecc.handler || 'unhandled');
+      res.setHeader('x-ecc-contract', res.locals.ecc.contract || 'SYSTEM');
+      res.setHeader('x-ecc-contract-version', res.locals.ecc.version || 'v1');
+      res.setHeader('x-ecc-route-canonical', String(res.locals.ecc.canonical !== null ? res.locals.ecc.canonical : 'unknown'));
+    }
+    return originalSend.call(this, body);
+  };
+
+  next();
+});
+
+/** Built-in route manifest for ECC-ROUTE-LOCK-01 */
+app.get("/api/_meta/routes", (req, res) => {
+  setContract(req, res, '/api/_meta/routes');
+  res.json({
+    ok: true,
+    routes: getRouteManifest()
+  });
+});
+
+/** Health check — pure env presence, does not crash or throw */
+app.get("/api/health", (req, res) => {
+  console.log('HIT API HEALTH HANDLER');
+  const missing = getMissingServerEnv(); // Only checks Supabase credentials now
+  const envInfo = serverEnvPresence();
+
+  if (missing.length === 0) {
+    const warnings = envInfo.DATABASE_URL === 'missing' ? ["database_url_unset_using_supabase_only"] : [];
+    setContract(req, res, '/api/health');
+    return res.json({ ok: true, mode: 'ready', warnings, env: envInfo });
+  } else {
+    // 503 allows monitoring tools to see degraded but app stays alive
+    setContract(req, res, '/api/health');
+    return res.status(503).json({
+      ok: false,
+      mode: 'degraded',
+      error: 'Server misconfigured',
+      missing_env: missing,
+      env: envInfo
+    });
+  }
+});
+
+app.get("/api/diag/env", (req, res) => {
+  // Use new env summary where possible, fallback to old inline format
+  setContract(req, res, '/api/diag/env');
+  res.json({ env: serverEnvPresence() });
+});
+
+
+// Canonical Admin/Control Mounts
+const markCanonical = (req: any, res: any, next: any) => { res.locals.ecc.canonical = true; next(); };
+app.use('/api/control/sync/health', markCanonical, syncHealth);
+app.use('/api/control/sync', markCanonical, sync);
+app.use('/api/control/integrations', markCanonical, integrations);
+
+// T2: 501 Placeholders for unimplemented endpoints
+app.post('/api/control/sync/reset-lock', (req, res) => {
+  res.locals.ecc = { handler: 'not_implemented', contract: 'ADMIN_SYNC', version: 'v1', canonical: true };
+  res.status(501).json({ ok: false, message: 'Not implemented' });
+});
+app.post('/api/control/sync/quick-run', (req, res) => {
+  res.locals.ecc = { handler: 'not_implemented', contract: 'ADMIN_SYNC', version: 'v1', canonical: true };
+  res.status(501).json({ ok: false, message: 'Not implemented' });
+});
+app.post('/api/control/integrations/m365/planner/tasks', (req, res) => {
+  res.locals.ecc = { handler: 'not_implemented', contract: 'WORKFLOW', version: 'v1', canonical: true };
+  res.status(501).json({ ok: false, message: 'Not implemented' });
+});
+
+// Deprecated Alias Admin Mounts
+const markAlias = (req: any, res: any, next: any) => {
+  if (!res.locals.ecc) res.locals.ecc = {};
+  res.locals.ecc.canonical = false;
+  res.locals.ecc.handler = 'alias_forward';
+  next();
+};
+app.use('/api/admin/sync/health', markAlias, syncHealth);
+app.use('/api/admin/sync', markAlias, sync);
+app.use('/api/admin/integrations', markAlias, integrations);
+
+app.post('/api/admin/sync/reset-lock', (req, res) => {
+  res.locals.ecc = { handler: 'not_implemented', contract: 'ADMIN_SYNC', version: 'v1', canonical: false };
+  res.status(501).json({ ok: false, message: 'Not implemented' });
+});
+app.post('/api/admin/sync/quick-run', (req, res) => {
+  res.locals.ecc = { handler: 'not_implemented', contract: 'ADMIN_SYNC', version: 'v1', canonical: false };
+  res.status(501).json({ ok: false, message: 'Not implemented' });
+});
+app.post('/api/admin/integrations/m365/planner/tasks', (req, res) => {
+  res.locals.ecc = { handler: 'not_implemented', contract: 'WORKFLOW', version: 'v1', canonical: false };
+  res.status(501).json({ ok: false, message: 'Not implemented' });
+});
+
 app.use('/api', ownerTransferRouter);
 app.use("/api/entities", entitiesRouter);
 app.use("/api/rpc", rpcRouter);
+
+// LEGACY 410 MOUNTS
+installPropertyRoutes(app);
+installOwnerRoutesNew(app); // Using the renamed import
 
 // --- alias-aware env helpers (top of file, after imports) ---
 function mask(v?: string) {
@@ -88,9 +240,9 @@ function pickKey(...candidates: string[]) {
 }
 
 // Prefer server-only keys; include public aliases for completeness
-const KEY_SUPABASE_URL  = pickKey("SUPABASE_URL","NEXT_PUBLIC_SUPABASE_URL","PUBLIC_SUPABASE_URL");
-const KEY_ANON          = pickKey("SUPABASE_ANON_KEY","NEXT_PUBLIC_SUPABASE_ANON_KEY","PUBLIC_SUPABASE_ANON_KEY");
-const KEY_SERVICE_ROLE  = pickKey("SUPABASE_SERVICE_ROLE_KEY","SUPABASE_SERVICE_ROLE","SERVICE_ROLE");
+const KEY_SUPABASE_URL = pickKey("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL", "PUBLIC_SUPABASE_URL");
+const KEY_ANON = pickKey("SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "PUBLIC_SUPABASE_ANON_KEY");
+const KEY_SERVICE_ROLE = pickKey("SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE", "SERVICE_ROLE");
 
 function envSummary() {
   return {
@@ -183,6 +335,8 @@ function makeSupabase(): {
 const supa = makeSupabase();
 
 function sendErr(res: express.Response, http: number, err: any) {
+  console.error('[sendErr route]', res.req?.path);
+  console.error('[sendErr STACK]', typeof err === 'object' && err ? err.stack : err);
   const body = {
     ok: false,
     message: err?.message || String(err),
@@ -194,43 +348,14 @@ function sendErr(res: express.Response, http: number, err: any) {
   return res.status(http).json(body);
 }
 
-/** Health check — shows if we’re connected and why not */
-app.get("/api/health", async (_req, res) => {
-  if (!supa.client) {
-    return res.status(500).json({
-      ok: false,
-      supabase: "disconnected",
-      reason: supa.error,
-      restUrl: supa.restUrl,
-      rawUrlSample: (process.env.SUPABASE_URL || "").slice(0, 80),
-    });
-  }
-  try {
-    const { error } = await supa.client
-      .from(TABLE.properties)
-      .select("id", { head: true, count: "exact" })
-      .limit(1);
-    if (error) throw error;
-    res.json({ ok: true, supabase: "connected", restUrl: supa.restUrl });
-  } catch (e: any) {
-    return sendErr(res, 500, e);
-  }
-});
 
-app.get("/api/diag/env", (_req, res) => {
-  res.json(envSummary());
-});
 
-/** Health sync alias - UI compatibility */
-app.get("/api/health/sync", async (req, res) => {
-  // Redirect to main health endpoint for UI compatibility
-  req.url = "/api/health";
-  req.path = "/api/health";
-  return app._router.handle(req, res);
-});
+
+
 
 /** Config integrations endpoint - public endpoint for UI */
-app.get("/api/config/integrations", async (_req, res) => {
+app.get("/api/config/integrations", async (req, res) => {
+  setContract(req, res, '/api/config/integrations');
   res.json({
     ok: true,
     integrations: {
@@ -251,7 +376,7 @@ app.get("/api/config/integrations", async (_req, res) => {
     },
     endpoints: [
       '/api/portfolio/properties',
-      '/api/portfolio/units', 
+      '/api/portfolio/units',
       '/api/portfolio/leases',
       '/api/portfolio/tenants',
       '/api/portfolio/owners',
@@ -267,31 +392,31 @@ app.post("/api/geocode/properties", async (req, res) => {
 
   try {
     const { properties: propertiesToGeocode } = req.body;
-    
+
     if (!Array.isArray(propertiesToGeocode)) {
       return sendErr(res, 400, "Properties array is required");
     }
 
     // Import geocoding function
     const { geocodeAddress: geocode } = await import("./lib/geocode");
-    
+
     const results = [];
-    
+
     for (const property of propertiesToGeocode) {
-      const addressToGeocode = property.property_address || 
-                             property.address || 
-                             property.street_address || 
-                             property.full_address || 
-                             property.name;
-      
+      const addressToGeocode = property.property_address ||
+        property.address ||
+        property.street_address ||
+        property.full_address ||
+        property.name;
+
       if (!addressToGeocode) {
         results.push({ id: property.id, success: false, error: "No address available" });
         continue;
       }
-      
+
       try {
         const result = await geocode(addressToGeocode);
-        
+
         if (result) {
           // Try to update the property in Supabase
           const { error: updateError } = await supa.client
@@ -301,22 +426,22 @@ app.post("/api/geocode/properties", async (req, res) => {
 
           if (updateError) {
             // If database update fails (columns don't exist), still return the geocoded result
-            results.push({ 
-              id: property.id, 
-              success: true, 
-              lat: result.lat, 
-              lng: result.lng, 
+            results.push({
+              id: property.id,
+              success: true,
+              lat: result.lat,
+              lng: result.lng,
               provider: result.provider,
               dbUpdateFailed: true,
-              error: updateError.message 
+              error: updateError.message
             });
           } else {
-            results.push({ 
-              id: property.id, 
-              success: true, 
-              lat: result.lat, 
-              lng: result.lng, 
-              provider: result.provider 
+            results.push({
+              id: property.id,
+              success: true,
+              lat: result.lat,
+              lng: result.lng,
+              provider: result.provider
             });
           }
         } else {
@@ -326,11 +451,25 @@ app.post("/api/geocode/properties", async (req, res) => {
         results.push({ id: property.id, success: false, error: error.message });
       }
     }
-    
+
     res.json({ results });
   } catch (e: any) {
     return sendErr(res, 500, e);
   }
+});
+
+/** Middleware to ensure Server Environment is valid before handling portfolio & accounting routes */
+app.use(['/api/portfolio', '/api/maintenance', '/api/accounting', '/api/geocode'], (req, res, next) => {
+  console.log('HIT API HEALTH HANDLER');
+  const missing = getMissingServerEnv();
+  if (missing.length > 0) {
+    return res.status(503).json({
+      ok: false,
+      error: 'Server misconfigured',
+      missing_env: missing
+    });
+  }
+  next();
 });
 
 /** Properties with computed units & occupancy */
@@ -347,8 +486,8 @@ app.get("/api/portfolio/properties", async (req, res) => {
     if (propsError) throw propsError;
 
     // build property maps by id and by doorloop_id
-    const byId = new Map((propertiesData??[]).map(p => [String(p.id), p]));
-    const byDL = new Map((propertiesData??[]).filter(p => p.doorloop_id).map(p => [String(p.doorloop_id), p]));
+    const byId = new Map((propertiesData ?? []).map(p => [String(p.id), p]));
+    const byDL = new Map((propertiesData ?? []).filter(p => p.doorloop_id).map(p => [String(p.doorloop_id), p]));
 
     // Get units data for occupancy calculation
     const { data: unitsData, error: unitsError } = await supa.client
@@ -373,15 +512,15 @@ app.get("/api/portfolio/properties", async (req, res) => {
         (unit.doorloop_property_id && byDL.get(String(unit.doorloop_property_id))) ||
         null;
       const propKey = p ? String(p.id) : String(unit.property_id ?? '');
-      
+
       if (!propKey) return;
-      
+
       if (!unitsByProperty.has(propKey)) {
         unitsByProperty.set(propKey, 0);
         occupiedByProperty.set(propKey, 0);
       }
       unitsByProperty.set(propKey, unitsByProperty.get(propKey) + 1);
-      
+
       if (unit.status && ['occupied', 'occ', 'active'].includes(unit.status.toLowerCase())) {
         occupiedByProperty.set(propKey, occupiedByProperty.get(propKey) + 1);
       }
@@ -409,7 +548,8 @@ app.get("/api/portfolio/properties", async (req, res) => {
       };
     });
 
-    res.json(properties);
+    setContract(req, res, '/api/portfolio/properties');
+    res.json({ data: properties, meta: { totalCount: properties.length } });
   } catch (e: any) {
     return sendErr(res, 500, e);
   }
@@ -428,8 +568,8 @@ app.get("/api/portfolio/units", async (req, res) => {
 
     // build property maps by id and by doorloop_id
     const { data: propertiesData } = await supa.client.from(TABLE.properties).select("id, name, doorloop_id").limit(5000);
-    const byId = new Map((propertiesData??[]).map(p => [String(p.id), p]));
-    const byDL = new Map((propertiesData??[]).filter(p => p.doorloop_id).map(p => [String(p.doorloop_id), p]));
+    const byId = new Map((propertiesData ?? []).map(p => [String(p.id), p]));
+    const byDL = new Map((propertiesData ?? []).filter(p => p.doorloop_id).map(p => [String(p.doorloop_id), p]));
 
     const units: UnitOut[] = (data || []).map((row: any) => {
       // when attributing a unit to a property:
@@ -450,7 +590,8 @@ app.get("/api/portfolio/units", async (req, res) => {
       };
     });
 
-    res.json(units);
+    setContract(req, res, '/api/portfolio/units');
+    res.json({ data: units, meta: { totalCount: units.length } });
   } catch (e: any) {
     return sendErr(res, 500, e);
   }
@@ -482,8 +623,8 @@ app.get("/api/portfolio/leases", async (req, res) => {
     const propertyMap = new Map((propertiesRes.data || []).map((p: any) => [p.id, p.name || "—"]));
     const unitMap = new Map((unitsRes.data || []).map((u: any) => [u.id, u.unit_number || "—"]));
     const tenantMap = new Map((tenantsRes.data || []).map((t: any) => [
-      t.id, 
-      t.display_name || t.full_name || 
+      t.id,
+      t.display_name || t.full_name ||
       (t.first_name && t.last_name ? `${t.first_name} ${t.last_name}` : "—")
     ]));
 
@@ -498,7 +639,8 @@ app.get("/api/portfolio/leases", async (req, res) => {
       rent: row.rent_cents ? row.rent_cents / 100 : 0
     }));
 
-    res.json(leases);
+    setContract(req, res, '/api/portfolio/leases');
+    res.json({ data: leases, meta: { totalCount: leases.length } });
   } catch (e: any) {
     return sendErr(res, 500, e);
   }
@@ -537,14 +679,14 @@ app.get("/api/portfolio/tenants", async (req, res) => {
         propertyName = propRes.data?.name;
         unitLabel = unitRes.data?.unit_number;
       }
-      
+
       return {
         id: tenant.id,
-        name: tenant.display_name || tenant.full_name || 
-              (tenant.first_name && tenant.last_name ? `${tenant.first_name} ${tenant.last_name}` : "—"),
+        name: tenant.display_name || tenant.full_name ||
+          (tenant.first_name && tenant.last_name ? `${tenant.first_name} ${tenant.last_name}` : "—"),
         email: tenant.primary_email || tenant.email || (tenant.emails_json?.[0]?.address) || null,
-        phone: tenant.primary_phone || tenant.phone || tenant.phone_number || 
-               (tenant.phones_json?.[0]?.number) || null,
+        phone: tenant.primary_phone || tenant.phone || tenant.phone_number ||
+          (tenant.phones_json?.[0]?.number) || null,
         propertyName,
         unitLabel,
         type: tenant.type || "LEASE_TENANT",
@@ -552,7 +694,8 @@ app.get("/api/portfolio/tenants", async (req, res) => {
       };
     }));
 
-    res.json(tenants);
+    setContract(req, res, '/api/portfolio/tenants');
+    res.json({ data: tenants, meta: { totalCount: tenants.length } });
   } catch (e: any) {
     return sendErr(res, 500, e);
   }
@@ -572,15 +715,16 @@ app.get("/api/portfolio/owners", async (req, res) => {
     const owners: OwnerOut[] = (data || []).map((row: any) => ({
       id: row.id,
       company: row.company_name || row.business_name || "—",
-      name: row.display_name || row.full_name || 
-            (row.first_name && row.last_name ? `${row.first_name} ${row.last_name}` : "—"),
+      name: row.display_name || row.full_name ||
+        (row.first_name && row.last_name ? `${row.first_name} ${row.last_name}` : "—"),
       email: row.primary_email || row.email || (row.emails_json?.[0]?.address) || null,
-      phone: row.primary_phone || row.phone || row.phone_number || 
-             (row.phones_json?.[0]?.number) || null,
+      phone: row.primary_phone || row.phone || row.phone_number ||
+        (row.phones_json?.[0]?.number) || null,
       active: Boolean(row.active)
     }));
 
-    res.json(owners);
+    setContract(req, res, '/api/portfolio/owners');
+    res.json({ data: owners, meta: { totalCount: owners.length } });
   } catch (e: any) {
     return sendErr(res, 500, e);
   }
@@ -589,7 +733,7 @@ app.get("/api/portfolio/owners", async (req, res) => {
 /** Maintenance work orders endpoint */
 app.get("/api/maintenance/workorders", async (req, res) => {
   if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
-  
+
   try {
     // For now, return structured mock data since maintenance table may not exist
     const workOrders = [
@@ -618,8 +762,9 @@ app.get("/api/maintenance/workorders", async (req, res) => {
         title: 'Water heater malfunction'
       }
     ];
-    
-    res.json(workOrders);
+
+    setContract(req, res, '/api/maintenance/workorders');
+    res.json({ data: workOrders, meta: { totalCount: workOrders.length } });
   } catch (e: any) {
     return sendErr(res, 500, e);
   }
@@ -628,15 +773,15 @@ app.get("/api/maintenance/workorders", async (req, res) => {
 /** Accounting transactions endpoint */
 app.get("/api/accounting/transactions", async (req, res) => {
   if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
-  
+
   try {
     // Generate realistic transaction data for the last 90 days
     const transactions = [];
     const now = new Date();
-    
+
     for (let i = 0; i < 90; i++) {
       const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-      
+
       // Add rent income every 1st of month
       if (date.getDate() === 1) {
         transactions.push({
@@ -645,7 +790,7 @@ app.get("/api/accounting/transactions", async (req, res) => {
           posted_on: date.toISOString()
         });
       }
-      
+
       // Add random expenses
       if (Math.random() > 0.85) {
         transactions.push({
@@ -655,8 +800,9 @@ app.get("/api/accounting/transactions", async (req, res) => {
         });
       }
     }
-    
-    res.json(transactions);
+
+    setContract(req, res, '/api/accounting/transactions');
+    res.json({ data: transactions, meta: { totalCount: transactions.length } });
   } catch (e: any) {
     return sendErr(res, 500, e);
   }
@@ -665,19 +811,20 @@ app.get("/api/accounting/transactions", async (req, res) => {
 /** Debug endpoint for SQL queries */
 app.get("/api/portfolio/_debug/sql", async (req, res) => {
   if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
-  
+
   const query = String(req.query.q || "");
   const limit = Math.min(parseInt(String(req.query.limit || "10")), 50);
-  
+
   if (!query.toLowerCase().startsWith("select")) {
     return res.status(400).json({ error: "SELECT queries only" });
   }
-  
+
   try {
-    const { data, error } = await supa.client.rpc('exec_sql', { 
-      query_text: `${query} LIMIT ${limit}` 
+    const { data, error } = await supa.client.rpc('exec_sql', {
+      query_text: `${query} LIMIT ${limit}`
     });
     if (error) throw error;
+    setContract(req, res, '/api/portfolio/_debug/sql');
     res.json(data || []);
   } catch (e: any) {
     // Fallback to table queries if RPC doesn't work
@@ -685,6 +832,7 @@ app.get("/api/portfolio/_debug/sql", async (req, res) => {
       if (query.includes("FROM properties")) {
         const { data, error } = await supa.client.from(TABLE.properties).select("*").limit(limit);
         if (error) throw error;
+        setContract(req, res, '/api/portfolio/_debug/sql');
         res.json(data || []);
       } else {
         return sendErr(res, 400, "RPC not available, use table-specific queries");
@@ -696,13 +844,14 @@ app.get("/api/portfolio/_debug/sql", async (req, res) => {
 });
 
 /** POST /api/owner-transfer/initiate - Initiate owner transfer */
-app.post("/api/owner-transfer/initiate", async (req, res) => {
+app.post("/api/owner-transfer/initiate", supabaseGuard, async (req, res) => {
   if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
 
   try {
     const input: InitiateInput = req.body;
     const result = await initiateTransfer(input);
-    
+
+    setContract(req, res, '/api/owner-transfer/initiate');
     res.status(201).json({
       transferId: result.transferId,
       reportUrl: result.reportUrl ? result.reportUrl : `/api/owner-transfer/${result.transferId}/report`,
@@ -717,12 +866,13 @@ app.post("/api/owner-transfer/initiate", async (req, res) => {
 });
 
 /** POST /api/owner-transfer/approve-accounting - Mark approved by accounting */
-app.post("/api/owner-transfer/approve-accounting", async (req, res) => {
+app.post("/api/owner-transfer/approve-accounting", supabaseGuard, async (req, res) => {
   if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
 
   try {
     const { transferId, actorId } = req.body;
     await markApprovedByAccounting(transferId, actorId);
+    setContract(req, res, '/api/owner-transfer/approve-accounting');
     res.json({ ok: true, message: "Transfer approved by accounting" });
   } catch (e: any) {
     if (e.name === 'ZodError') {
@@ -733,15 +883,16 @@ app.post("/api/owner-transfer/approve-accounting", async (req, res) => {
 });
 
 /** POST /api/owner-transfer/authorize - Authorize transfer execution (admin only) */
-app.post("/api/owner-transfer/authorize", async (req, res) => {
+app.post("/api/owner-transfer/authorize", supabaseGuard, async (req, res) => {
   if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
 
   try {
     // TODO: Add proper admin role checking here
     // For now, we assume the request is authorized if it reaches this point
-    
+
     const { transferId, actorId } = req.body;
     await authorizeExecution(transferId, actorId);
+    setContract(req, res, '/api/owner-transfer/authorize');
     res.json({ ok: true, message: "Transfer authorized for execution" });
   } catch (e: any) {
     if (e.name === 'ZodError') {
@@ -752,12 +903,13 @@ app.post("/api/owner-transfer/authorize", async (req, res) => {
 });
 
 /** POST /api/owner-transfer/execute - Execute transfer with dry-run support */
-app.post("/api/owner-transfer/execute", async (req, res) => {
+app.post("/api/owner-transfer/execute", supabaseGuard, async (req, res) => {
   if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
 
   try {
     const { transferId, dryRun = true, actorId } = req.body;
     const result = await executeTransfer(transferId, { dryRun });
+    setContract(req, res, '/api/owner-transfer/execute');
     res.json({
       ok: true,
       applied: result.applied,
@@ -772,7 +924,7 @@ app.post("/api/owner-transfer/execute", async (req, res) => {
 });
 
 /** GET /api/owner-transfer/:id/report - Download Excel report */
-app.get("/api/owner-transfer/:id/report", async (req, res) => {
+app.get("/api/owner-transfer/:id/report", supabaseGuard, async (req, res) => {
   if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
 
   try {
@@ -783,11 +935,11 @@ app.get("/api/owner-transfer/:id/report", async (req, res) => {
 
     // Generate the report
     const report = await generateAccountingReport(transferId);
-    
+
     // Set headers for file download
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${report.filename}"`);
-    
+
     // Send the buffer directly
     res.send(report.buffer);
   } catch (e: any) {
@@ -796,7 +948,7 @@ app.get("/api/owner-transfer/:id/report", async (req, res) => {
 });
 
 /** GET /api/owner-transfer/:id - Get transfer details */
-app.get("/api/owner-transfer/:id", async (req, res) => {
+app.get("/api/owner-transfer/:id", supabaseGuard, async (req, res) => {
   if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
 
   try {
@@ -806,6 +958,7 @@ app.get("/api/owner-transfer/:id", async (req, res) => {
     }
 
     const details = await getTransferDetails(transferId);
+    setContract(req, res, '/api/owner-transfer/:id');
     res.json(details);
   } catch (e: any) {
     return sendErr(res, 500, e);
@@ -813,6 +966,20 @@ app.get("/api/owner-transfer/:id", async (req, res) => {
 });
 
 app.use("/api", (_req, res) => res.status(404).json({ ok: false, message: "Not found" }));
+
+// T2: Global JSON Error Envelope
+app.use((err: any, req: any, res: any, next: any) => {
+  if (res.headersSent) return next(err);
+
+  const status = err.status || err.statusCode || 500;
+  res.status(status).json({
+    ok: false,
+    error: err.message || 'Server error',
+    code: err.code || 'ECC_UNHANDLED',
+    route: `${req.method} ${req.path}`
+  });
+});
+
 app.get("/", (_req, res) => res.type("text/plain").send("ECC Dev API running"));
 
 app.listen(PORT, '0.0.0.0', () => {
@@ -820,7 +987,7 @@ app.listen(PORT, '0.0.0.0', () => {
   if (!supa.client) {
     console.warn(`[Dev API] Supabase not ready: ${supa.error}`);
   }
-  
+
   // Start auto-sync after server is listening (idempotent; logs if disabled)
   // DISABLED for testing - auto-sync causing server crashes
   try {
@@ -829,10 +996,17 @@ app.listen(PORT, '0.0.0.0', () => {
   } catch (e) {
     console.warn(`[Dev API] Auto-sync disabled:`, e);
   }
-  
+
   if (!supa.client) {
     console.warn(`[Dev API] Raw SUPABASE_URL sample: ${(process.env.SUPABASE_URL || "").slice(0, 80)}…`);
   } else {
     console.log(`[Dev API] Supabase REST URL: ${supa.restUrl}`);
   }
 });
+
+
+
+
+
+
+

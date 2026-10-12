@@ -92,12 +92,12 @@ function downloadCSV(filename: string, rows: any[], columns: DataColumn[]) {
           v == null
             ? ""
             : typeof v === "string"
-            ? v
-            : typeof v === "number"
-            ? String(v)
-            : typeof v === "boolean"
-            ? (v ? "true" : "false")
-            : String(v);
+              ? v
+              : typeof v === "number"
+                ? String(v)
+                : typeof v === "boolean"
+                  ? (v ? "true" : "false")
+                  : String(v);
         // simple CSV escape
         const needsQuote = /[",\n]/.test(text);
         return needsQuote ? `"${text.replace(/"/g, '""')}"` : text;
@@ -428,14 +428,27 @@ export default function DataTable<Row = any>(props: DataTableProps<Row>) {
           {!loading && error && (
             <tr>
               <td className="is-empty" colSpan={colMeta.length + (rowActions ? 1 : 0)}>
-                {error}
+                <div className="flex flex-col items-center p-8 bg-red-950/20 border border-red-900/50 rounded-lg m-4">
+                  <span className="text-red-400 font-bold text-lg mb-2">Error Loading Data</span>
+                  <span className="text-red-300/80">{error}</span>
+                </div>
               </td>
             </tr>
           )}
-          {!loading && !error && current.length === 0 && (
+          {!loading && !error && rows.length === 0 && (
             <tr>
               <td className="is-empty" colSpan={colMeta.length + (rowActions ? 1 : 0)}>
-                No results.
+                <div className="flex flex-col items-center p-12 text-center bg-white/5 border border-white/10 rounded-lg m-4">
+                  <span className="text-neutral-200 font-semibold mb-1">No records found</span>
+                  <span className="text-neutral-400 text-sm">The endpoint returned successfully, but there are zero entries to display.</span>
+                </div>
+              </td>
+            </tr>
+          )}
+          {!loading && !error && rows.length > 0 && current.length === 0 && (
+            <tr>
+              <td className="is-empty" colSpan={colMeta.length + (rowActions ? 1 : 0)}>
+                No results match your current filters.
               </td>
             </tr>
           )}
@@ -459,7 +472,7 @@ export default function DataTable<Row = any>(props: DataTableProps<Row>) {
                     c.render ? c.render(v, row) : v == null ? "—" : (v as any);
                   const isRight = c.align === "right" || c.type === "number";
                   const isFirstCell = cellIdx === 0;
-                  
+
                   if (isFirstCell) {
                     return (
                       <td key={c.key} className={`min-w-[120px] ${isRight ? "is-right" : ""}`}>
@@ -480,7 +493,7 @@ export default function DataTable<Row = any>(props: DataTableProps<Row>) {
                       </td>
                     );
                   }
-                  
+
                   return (
                     <td key={c.key} className={isRight ? "is-right" : undefined}>
                       {content}

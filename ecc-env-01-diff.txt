@@ -1,0 +1,223 @@
+diff --git a/server/index.ts b/server/index.ts
+index 619d6ba4..0c93a125 100644
+--- a/server/index.ts
++++ b/server/index.ts
+@@ -75,10 +75,12 @@ import { getMissingServerEnv, serverEnvPresence } from './lib/env.js';
+ /** Health check — pure env presence, does not crash or throw */
+ app.get("/api/health", (_req, res) => {
+   console.log('HIT API HEALTH HANDLER');
+-  const missing = getMissingServerEnv();
++  const missing = getMissingServerEnv(); // Only checks Supabase credentials now
++  const envInfo = serverEnvPresence();
+ 
+   if (missing.length === 0) {
+-    return res.json({ ok: true, mode: 'ready', env: serverEnvPresence() });
++    const warnings = envInfo.DATABASE_URL === 'missing' ? ["database_url_unset_using_supabase_only"] : [];
++    return res.json({ ok: true, mode: 'ready', warnings, env: envInfo });
+   } else {
+     // 503 allows monitoring tools to see degraded but app stays alive
+     return res.status(503).json({
+@@ -86,7 +88,7 @@ app.get("/api/health", (_req, res) => {
+       mode: 'degraded',
+       error: 'Server misconfigured',
+       missing_env: missing,
+-      env: serverEnvPresence()
++      env: envInfo
+     });
+   }
+ });
+diff --git a/server/lib/db.ts b/server/lib/db.ts
+index b5d4a12b..3a3984d5 100644
+--- a/server/lib/db.ts
++++ b/server/lib/db.ts
+@@ -1,5 +1,5 @@
+ import { Pool } from 'pg';
+-import { requireServerEnv } from './env';
++import { requireServerEnv, getDatabaseUrl } from './env';
+ 
+ let _pool: Pool | null = null;
+ 
+@@ -7,7 +7,11 @@ export function getDbPool(): Pool {
+   requireServerEnv();
+ 
+   if (!_pool) {
+-    const dbUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
++    const dbUrl = getDatabaseUrl();
++
++    if (!dbUrl) {
++      throw new Error('Database functionality requested, but no database URL is available via DATABASE_URL, SUPABASE_DB_URL, or PG* vars.');
++    }
+ 
+     _pool = new Pool({
+       connectionString: dbUrl,
+diff --git a/server/lib/env.ts b/server/lib/env.ts
+index 39c57292..b0eb4c62 100644
+--- a/server/lib/env.ts
++++ b/server/lib/env.ts
+@@ -4,30 +4,37 @@
+ 
+ export const requiredServerEnv = [
+   'SUPABASE_URL',
+-  'SUPABASE_SERVICE_ROLE_KEY',
+-  'DATABASE_URL'
++  'SUPABASE_SERVICE_ROLE_KEY'
+ ];
+ 
+ /**
+  * Checks for missing required server environment variables.
+  * Fallbacks are checked implicitly (e.g. SUPABASE_SERVICE_ROLE instead of SUPABASE_SERVICE_ROLE_KEY).
+  */
++export function getDatabaseUrl(): string | null {
++  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
++  if (process.env.SUPABASE_DB_URL) return process.env.SUPABASE_DB_URL;
++
++  const { PGUSER, PGPASSWORD, PGHOST, PGPORT, PGDATABASE } = process.env;
++  if (PGUSER && PGPASSWORD && PGHOST && PGDATABASE) {
++    const port = PGPORT || '5432';
++    return `postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${port}/${PGDATABASE}`;
++  }
++
++  return null;
++}
++
+ export function getMissingServerEnv(): string[] {
+   const missing: string[] = [];
+-  
++
+   if (!process.env.SUPABASE_URL) {
+     missing.push('SUPABASE_URL');
+   }
+-  
++
+   const hasServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE;
+   if (!hasServiceRole) {
+     missing.push('SUPABASE_SERVICE_ROLE_KEY');
+   }
+-  
+-  const hasDbUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
+-  if (!hasDbUrl) {
+-    missing.push('DATABASE_URL');
+-  }
+ 
+   return missing;
+ }
+@@ -39,7 +46,7 @@ export function serverEnvPresence(): Record<string, 'present' | 'missing'> {
+   return {
+     SUPABASE_URL: process.env.SUPABASE_URL ? 'present' : 'missing',
+     SUPABASE_SERVICE_ROLE_KEY: (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE) ? 'present' : 'missing',
+-    DATABASE_URL: (process.env.DATABASE_URL || process.env.SUPABASE_DB_URL) ? 'present' : 'missing',
++    DATABASE_URL: getDatabaseUrl() ? 'present' : 'missing',
+     VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL ? 'present' : 'missing',
+     VITE_API_BASE: process.env.VITE_API_BASE ? 'present' : 'missing'
+   };
+diff --git a/server/routes/ownerTransfer.ts b/server/routes/ownerTransfer.ts
+index d37f811f..d28e96aa 100644
+--- a/server/routes/ownerTransfer.ts
++++ b/server/routes/ownerTransfer.ts
+@@ -1,41 +1,46 @@
+ import { Router, Request, Response } from 'express';
+ import pool from '../lib/db.js';
++import { getDatabaseUrl } from '../lib/env.js';
+ 
+ const router = Router();
+ 
+ // GET /api/owner-transfer/:id - returns { transfer, audit } or 404
+ router.get('/owner-transfer/:id', async (req: Request, res: Response) => {
++  if (!getDatabaseUrl()) {
++    return res.status(501).json({ ok: false, error: 'db_unconfigured_for_this_route', message: 'This route requires a direct Postgres connection' });
++  }
++
+   const { id } = req.params;
+-  
++
+   try {
+     const transferQuery = `
+       SELECT * FROM owner_transfers 
+       WHERE id = $1
+     `;
+-    
++
+     const auditQuery = `
+       SELECT * FROM owner_transfer_audit 
+       WHERE transfer_id = $1 
+       ORDER BY created_at DESC
+     `;
+-    
++
+     const [transferResult, auditResult] = await Promise.all([
+       pool.query(transferQuery, [id]),
+       pool.query(auditQuery, [id])
+     ]);
+-    
++
+     if (transferResult.rows.length === 0) {
+       return res.status(404).json({
+         error: 'Transfer not found',
+         message: `No transfer found for id=${id}`
+       });
+     }
+-    
++
+     const transfer = transferResult.rows[0];
+     const audit = auditResult.rows;
+-    
++
+     res.json({ transfer, audit });
+-    
++
+   } catch (error) {
+     console.error('Error fetching owner transfer:', error);
+     res.status(500).json({
+@@ -47,41 +52,45 @@ router.get('/owner-transfer/:id', async (req: Request, res: Response) => {
+ 
+ // POST /api/owner-transfer/:id/audit - inserts an audit row, returns it
+ router.post('/owner-transfer/:id/audit', async (req: Request, res: Response) => {
++  if (!getDatabaseUrl()) {
++    return res.status(501).json({ ok: false, error: 'db_unconfigured_for_this_route', message: 'This route requires a direct Postgres connection' });
++  }
++
+   const { id } = req.params;
+   const { action, actor = 'system', detail = {} } = req.body;
+-  
++
+   if (!action) {
+     return res.status(400).json({
+       error: 'Bad request',
+       message: 'action field is required'
+     });
+   }
+-  
++
+   try {
+     // Verify transfer exists
+     const transferCheck = await pool.query(
+       'SELECT id FROM owner_transfers WHERE id = $1',
+       [id]
+     );
+-    
++
+     if (transferCheck.rows.length === 0) {
+       return res.status(404).json({
+         error: 'Transfer not found',
+         message: `No transfer found for id=${id}`
+       });
+     }
+-    
++
+     const auditQuery = `
+       INSERT INTO owner_transfer_audit (transfer_id, action, actor, detail)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *
+     `;
+-    
++
+     const result = await pool.query(auditQuery, [id, action, actor, detail]);
+     const auditRow = result.rows[0];
+-    
++
+     res.status(201).json(auditRow);
+-    
++
+   } catch (error) {
+     console.error('Error creating audit entry:', error);
+     res.status(500).json({

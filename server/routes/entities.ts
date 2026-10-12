@@ -1,10 +1,13 @@
 import { Router } from 'express';
-import { getServerClient } from '../db';
+import { getServerClient } from '../db.js';
+import { setContract } from '../lib/contractHeaders.js';
+import { supabaseGuard } from '../lib/supabaseGuard.js';
 
 export const entities = Router();
+entities.use(supabaseGuard);
 
 function parseFilters(q: any) {
-  const filters: Array<[string,string,any]> = [];
+  const filters: Array<[string, string, any]> = [];
   for (const [key, value] of Object.entries(q)) {
     const [op, val] = String(value).split('.');
     filters.push([key, op, val]);
@@ -19,7 +22,8 @@ entities.get('/:table/:id', async (req, res) => {
   const supa = getServerClient();
   const { data, error } = await supa.from(table).select('*').eq('id', id).single();
   if (error || !data) return res.status(404).json({ error: 'not found' });
-  res.json(data);
+  setContract(req, res, '/api/entities/:table/:id');
+  res.json({ data: [data], meta: { totalCount: 1 } });
 });
 
 entities.get('/:table', async (req, res) => {
@@ -40,9 +44,10 @@ entities.get('/:table', async (req, res) => {
       default: break;
     }
   }
-  const { data, error } = await q; 
+  const { data, error } = await q;
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data || []);
+  setContract(req, res, '/api/entities/:table');
+  res.json({ data: data || [], meta: { totalCount: (data || []).length } });
 });
 
 export default entities;

@@ -1,17 +1,18 @@
 // server/routes/rpc.ts
 import { Router } from 'express';
-import { getServerClient } from '../db';
+import { getServerClient } from '../db.js';
+import { setContract } from '../lib/contractHeaders.js';
 
 export const rpc = Router();
 
 // ---------- helpers (place near top of rpc.ts) ----------
 const s = (v: any, d = '') => (v ?? d);
 const n = (v: any, d = 0) => (typeof v === 'number' ? v : (v == null || Number.isNaN(Number(v)) ? d : Number(v)));
-const cents = (v: any) => (typeof v === 'number' ? Math.round(v) : (v == null ? null : Math.round(Number(v)*100)));
-const ok   = (res: any, body: any) => res.status(200).json(body);
+const cents = (v: any) => (typeof v === 'number' ? Math.round(v) : (v == null ? null : Math.round(Number(v) * 100)));
+const ok = (res: any, body: any) => res.status(200).json(body);
 const fail = (res: any, code: number, msg: string) => res.status(code).json({ error: msg });
 
-async function getOneByMulti(sb: any, table: string, id: string|number, alts: string[] = []) {
+async function getOneByMulti(sb: any, table: string, id: string | number, alts: string[] = []) {
   const key = Number.isFinite(Number(id)) ? Number(id) : id;
   const byId = await sb.from(table).select('*').eq('id', key).limit(1);
   if (byId.error) throw byId.error;
@@ -27,9 +28,9 @@ async function getOneByMulti(sb: any, table: string, id: string|number, alts: st
 function addrFrom(p: any) {
   return {
     line1: s(p?.address1 ?? p?.address_line1 ?? p?.line1 ?? p?.address_street1 ?? p?.property_address),
-    city:  s(p?.city ?? p?.address_city),
+    city: s(p?.city ?? p?.address_city),
     state: s(p?.state ?? p?.address_state),
-    zip:   s(p?.zip ?? p?.zipcode ?? p?.address_zip),
+    zip: s(p?.zip ?? p?.zipcode ?? p?.address_zip),
   };
 }
 
@@ -45,7 +46,7 @@ rpc.get('/diag/ids', async (_req, res) => {
       owner: await grab('owners'),
       tenant: await grab('tenants'),
     });
-  } catch (e:any) { fail(res, 500, e?.message || 'diag error'); }
+  } catch (e: any) { fail(res, 500, e?.message || 'diag error'); }
 });
 
 // ---------- DEBUG: check leases table columns ----------
@@ -54,7 +55,7 @@ rpc.get('/debug_leases', async (_req, res) => {
     const supabase = getServerClient();
     const l1 = await supabase.from('leases').select('*').limit(1);
     ok(res, { sample: l1.data?.[0] ?? null, error: l1.error });
-  } catch (e:any) { fail(res, 500, e?.message || 'debug error'); }
+  } catch (e: any) { fail(res, 500, e?.message || 'debug error'); }
 });
 
 // ---------- SIMPLE TEST: try basic leases queries ----------  
@@ -63,11 +64,11 @@ rpc.get('/simple_lease_test', async (_req, res) => {
     const supabase = getServerClient();
     const l1 = await supabase.from('leases').select('id,status').limit(1);
     const l2 = await supabase.from('leases').select('id,status,rent').limit(1);
-    ok(res, { 
+    ok(res, {
       withoutRent: { data: l1.data, error: l1.error },
       withRent: { data: l2.data, error: l2.error }
     });
-  } catch (e:any) { fail(res, 500, e?.message || 'simple test error'); }
+  } catch (e: any) { fail(res, 500, e?.message || 'simple test error'); }
 });
 
 // ---------- PROPERTY ----------
@@ -93,8 +94,8 @@ rpc.get('/get_property_card', async (req, res) => {
 
     const activeCount = leases.filter(x => String(x?.status).toUpperCase() === 'ACTIVE').length;
     const rents = leases.map(x => x?.rent_cents)
-                        .filter((v: any) => typeof v === 'number');
-    const avgRentCents = rents.length ? Math.round(rents.reduce((a:number,b:number)=>a+b,0)/rents.length) : null;
+      .filter((v: any) => typeof v === 'number');
+    const avgRentCents = rents.length ? Math.round(rents.reduce((a: number, b: number) => a + b, 0) / rents.length) : null;
 
     return ok(res, {
       property: {
@@ -110,7 +111,7 @@ rpc.get('/get_property_card', async (req, res) => {
         avgRentCents,
       },
     });
-  } catch (e:any) { fail(res, 500, e?.message || 'server error'); }
+  } catch (e: any) { fail(res, 500, e?.message || 'server error'); }
 });
 
 // ---------- UNIT ----------
@@ -148,7 +149,7 @@ rpc.get('/get_unit_card', async (req, res) => {
         rentCents: n(lease.rent_cents, 0)
       } : null,
     });
-  } catch (e:any) { fail(res, 500, e?.message || 'server error'); }
+  } catch (e: any) { fail(res, 500, e?.message || 'server error'); }
 });
 
 // ---------- LEASE ----------
@@ -183,7 +184,7 @@ rpc.get('/get_lease_card', async (req, res) => {
       tenant: tenant ? { id: n(tenant.id), display_name: s(tenant.display_name ?? tenant.name) } : null,
       property: property ? { id: n(property.id), name: s(property.name) } : null,
     });
-  } catch (e:any) { fail(res, 500, e?.message || 'server error'); }
+  } catch (e: any) { fail(res, 500, e?.message || 'server error'); }
 });
 
 // ---------- OWNER ----------
@@ -203,11 +204,11 @@ rpc.get('/get_owner_card', async (req, res) => {
 
     return ok(res, {
       owner: { id: n(owner.id), display_name: s(owner.display_name ?? owner.name) },
-      properties: rows.map((p:any) => ({
+      properties: rows.map((p: any) => ({
         id: n(p.id), name: s(p.name), address: addrFrom(p),
       })),
     });
-  } catch (e:any) { fail(res, 500, e?.message || 'server error'); }
+  } catch (e: any) { fail(res, 500, e?.message || 'server error'); }
 });
 
 // ---------- TENANT ----------
@@ -224,11 +225,11 @@ rpc.get('/get_tenant_card', async (req, res) => {
       .select('id,status,unit_id,property_id,tenant_id,rent_cents,start_date,end_date')
       .eq('tenant_id', tenant.id)).data || [];
 
-    const active = leases.find((x:any) => String(x?.status).toUpperCase() === 'ACTIVE') ?? null;
+    const active = leases.find((x: any) => String(x?.status).toUpperCase() === 'ACTIVE') ?? null;
 
     return ok(res, {
       tenant: { id: n(tenant.id), display_name: s(tenant.display_name ?? tenant.name) },
-      leases: leases.map((L:any) => ({
+      leases: leases.map((L: any) => ({
         id: n(L.id), status: s(L.status, 'UNKNOWN'),
         rentCents: n(L.rent_cents, 0),
         unit_id: n(L.unit_id, 0), property_id: n(L.property_id, 0),
@@ -238,7 +239,34 @@ rpc.get('/get_tenant_card', async (req, res) => {
         rentCents: n(active.rent_cents, 0)
       } : null,
     });
-  } catch (e:any) { fail(res, 500, e?.message || 'server error'); }
+  } catch (e: any) { fail(res, 500, e?.message || 'server error'); }
+});
+
+// ---------- GENERIC POST RPC ----------
+rpc.post('/:functionName', async (req, res) => {
+  try {
+    const { functionName } = req.params;
+    const payload = req.body || {};
+
+    if (!process.env.SUPABASE_URL && !process.env.SUPABASE_REST_URL) {
+      if (!res.locals.ecc) res.locals.ecc = {};
+      res.locals.ecc.handler = 'rpc_guard';
+      res.locals.ecc.contract = 'SYSTEM';
+      res.locals.ecc.canonical = true;
+      return res.status(501).json({ ok: false, error: "supabaseUrl is required" });
+    }
+
+    const supabase = getServerClient();
+
+    const { data, error } = await supabase.rpc(functionName, payload);
+
+    setContract(req, res, '/api/rpc/:functionName');
+
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(200).json(data || {});
+  } catch (e: any) {
+    return res.status(500).json({ error: e?.message || 'rpc error' });
+  }
 });
 
 export default rpc;

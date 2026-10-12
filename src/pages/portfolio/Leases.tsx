@@ -1,8 +1,8 @@
 import * as React from "react";
-import DataTable, { Column } from "../../../components/DataTable";
-import { useCollection } from "../../../features/data/useCollection";
-import { money, shortDate } from "../../../utils/format";
-import { indexBy } from "../../../utils/dict";
+import DataTable, { Column } from "../../components/DataTable";
+import { useCollection } from "../../features/data/useCollection";
+import { money, shortDate } from "../../utils/format";
+import { indexBy } from "../../utils/dict";
 
 type Lease = {
   id: string | number;
@@ -130,3 +130,5 @@ export default function LeasesPage() {
     </div>
   );
 }
+
+

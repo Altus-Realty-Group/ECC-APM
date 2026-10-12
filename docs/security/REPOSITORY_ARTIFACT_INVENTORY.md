@@ -34,4 +34,4 @@ These files remain tracked for a later, separately reviewed disposition decision
 
 ## Security status
 
-The environment files removed from the current snapshot contained placeholder values, not usable credentials. Earlier Git history is not rewritten; any credential ever committed there should still be treated as exposed and rotated. Rotation and history cleanup remain outside this PR's authorization.
+The prior inventory described the removed environment values as placeholders. That historical assertion was not independently revalidated in this PM review; environment values were not read or printed. Snapshot removal is not a secret-clearance finding. Earlier Git history is not rewritten; any credential ever committed there should still be treated as exposed and rotated. Rotation and history cleanup remain outside this PR's authorization.

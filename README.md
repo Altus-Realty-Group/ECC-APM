@@ -7,10 +7,10 @@ This is the ECC frontend and local adapter/proxy surface. It consumes backend co
 ## Current Standards
 
 - Identity: ECC-APM / ecc-apm.
-- Security: No tracked secrets. `.env.example` is placeholder only. Secrets remain in approved runtime stores.
+- Security: Do not commit secrets. This hygiene snapshot removes tracked environment/cache files and retains a placeholder template. Historical exposure and remaining archives are not independently cleared by this review. Use approved runtime stores.
 - Storage/Privacy: Business originals and archives retained until evidenced disposition. No irreversible deletion or history rewrite.
 - UI: Black/white/gold. No orange. Accessible high-contrast financial UI.
-- Contracts: Frontend consumes backend. Source first; verified database preferred; API fallback; calculation last.
+- Contracts: GitHub owns code truth. Operational data uses verified database truth first, authoritative API fallback second, calculation last. Frontend consumes owned backend contracts.
 - Workflow: Narrow, evidence-based PRs. No direct-main authoring.
 - Cost: Metered Actions; disclose triggers, bounds, and expected minutes.
 
@@ -26,7 +26,7 @@ Node requirement (from package.json engines): `^20.19.0 || >=22.12.0`.
 
 ### API configuration (traced, no target changes)
 
-- `VITE_API_BASE` is read by `src/lib/api.ts`, `src/lib/config.ts`, and related clients. Default falls back to `/api`.
+- `VITE_API_BASE` is read by `src/lib/api.ts` and `src/lib/config.ts`, but their defaults differ: `api.ts` uses an empty `BASE` for relative `api()` paths and separately exports `/api` as `API_BASE`; `config.ts` defaults to `/api`. Several direct `/api/...` fetches do not use this setting. Verify the affected caller; the variable is not a universal target switch.
 - In local Vite dev (`vite.config.js`), `/api` is proxied to `https://ecc-triage-node-staging.azurewebsites.net` (changeOrigin true). This is the remote staging proxy; it does not claim live runtime or database alignment.
 - Local API server runs in parallel via the `dev` script for full-stack local work. No production targets or credentials are modified here.
 
@@ -37,7 +37,7 @@ See `docs/security/REPOSITORY_ARTIFACT_INVENTORY.md` and `docs/recovery/PR_DISPO
 Historical snapshots and `.archive/` are inventoried and retained pending evidenced disposition. Git history is not rewritten. Removed env/cache/upload files from the hygiene snapshot are not recommended for restoration.
 
 ### Rollback
-Revert individual commits on this branch. Close unmerged PRs. Do not restore removed env or cache artifacts.
+Revert reviewed docs changes or restore selected source paths from preserved commits. Reversing the full hygiene removal would restore tracked environment/cache artifacts and requires a separate security-reviewed decision. Never blindly restore the complete removed snapshot.
 
 ## Stale Material
 

@@ -14,8 +14,8 @@ export default function TenantsPage() {
 
     return {
       rows: mapped,
-      loading: tenants.loading,
-      error: tenants.error,
+      loading: tenants.isLoading,
+      error: tenants.error ? String(tenants.error.message ?? tenants.error) : undefined,
     };
   }, [tenants]);
 

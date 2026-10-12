@@ -3,7 +3,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Router } from "wouter";
-import staticLocation from "wouter/static-location";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Sidebar from "../../src/components/Sidebar";
 import { KpiCard } from "../../src/features/dashboard/components/KpiCard";
@@ -12,21 +11,31 @@ import HeroBlock from "../../src/pages/card/property/HeroBlock";
 import CanonicalDenseTableShell from "../../src/features/command-surface/CanonicalDenseTableShell";
 import StateNotice from "../../src/components/ui/StateNotice";
 import { HttpError } from "../../src/lib/http";
+import { ContractError } from "../../src/lib/dataState";
 import { PropertyCard } from "../../src/shared/card-contracts";
+import PropertyCardPage from "../../src/pages/card/property/index";
+import PropertiesPage from "../../src/pages/portfolio/Properties";
+import UnitsPage from "../../src/pages/portfolio/Units";
+import Overview from "../../src/pages/card/property/Overview";
 import { NAV_SECTIONS, navLeafPaths } from "../../src/config/navigation";
 import { normalizeDashboardKpis } from "../../src/features/dashboard/kpiAdapter";
 
 const at = (path: string, node: React.ReactNode) =>
-  renderToStaticMarkup(<Router hook={staticLocation(path)}>{node}</Router>);
+  renderToStaticMarkup(<Router ssrPath={path}>{node}</Router>);
 
 const DEV_COPY = /\bT[0-5]\b|TanStack|Type A|proof shell|resolver|BFF|\bStub\b|war-room|will (appear|render) here/i;
+
+/** Attribute-order-independent: is there an <a> with this href (and optionally this attribute)? */
+function anchor(html: string, href: string, attr?: string): boolean {
+  return [...html.matchAll(/<a\b[^>]*>/g)].some((m) => m[0].includes(`href="${href}"`) && (!attr || m[0].includes(attr)));
+}
 
 /* ---------------- Sidebar ---------------- */
 test("sidebar renders every group as a real button and every direct link as an anchor", () => {
   const html = at("/dashboard", <Sidebar />);
   const groups = NAV_SECTIONS.filter((s) => s.children?.length);
   assert.equal((html.match(/<button[^>]*class="ecc-nav-row/g) ?? []).length, groups.length);
-  assert.match(html, /<a[^>]*href="\/dashboard"[^>]*aria-current="page"/);
+  assert.ok(anchor(html, "/dashboard", 'aria-current="page"'), "dashboard link is the current page");
   assert.doesNotMatch(html, /role="list"|ecc-row-clickable/, "no clickable divs");
 });
 
@@ -36,7 +45,7 @@ test("active section is expanded with aria-expanded and exposes its child links"
   for (const c of NAV_SECTIONS.find((s) => s.title === "Portfolio")!.children!) {
     assert.match(html, new RegExp(`href="${c.path}"`));
   }
-  assert.match(html, /href="\/portfolio\/units"[^>]*aria-current="page"|aria-current="page"[^>]*href="\/portfolio\/units"/);
+  assert.ok(anchor(html, "/portfolio/units", 'aria-current="page"'));
 });
 
 test("rendering at different locations is stable (hook order does not depend on data)", () => {
@@ -196,4 +205,99 @@ test("operator copy is correctly pluralized (no 'propertys')", async () => {
   for (const f of ["src/pages/portfolio/Properties.tsx", "src/pages/portfolio/Units.tsx"]) {
     assert.doesNotMatch(fs.readFileSync(f, "utf8"), /propertys|unitss/i, f);
   }
+});
+
+/* ---------------- Denied refresh must not keep access-controlled data on screen ---------------- */
+function seeded(key: unknown[], data: unknown, error?: Error) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false, retryOnMount: false, refetchOnMount: false } } });
+  qc.setQueryData(key, data);
+  if (error) {
+    const q = qc.getQueryCache().find({ queryKey: key })!;
+    q.setState({ ...q.state, status: "error", error, fetchStatus: "idle" } as any);
+  }
+  return qc;
+}
+const denied403 = () => new HttpError("HTTP 403", 403);
+const card = (name: string) => PropertyCard.parse({ property: { id: 7, name, type: "Residential", address: { line1: "1 Elm St", city: "Indy", state: "IN", zip: "46201" } }, kpis: { units: 5, activeLeases: 4, occupancyPct: 80, avgRentCents: 100000 } });
+const renderIn = (qc: QueryClient, path: string, node: React.ReactNode) =>
+  at(path, <QueryClientProvider client={qc}>{node}</QueryClientProvider>);
+
+test("dashboard: cached figures are NOT rendered after a denied refresh", () => {
+  const cached = normalizeDashboardKpis({ propertiesTotal: 9, unitsTotal: 90, occupancyRate: 0.5, revenue30dCents: 12345, lastUpdated: new Date().toISOString() });
+  const html = renderIn(seeded(["dashboard-kpis"], cached, denied403()), "/dashboard", <DashboardPage />);
+  assert.match(html, /state-denied/);
+  assert.doesNotMatch(html, /ecc-kpi-card__value|\$123\.45|occupancy-trend/);
+});
+
+test("dashboard: a malformed payload shows a contract error with no figures", () => {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false, retryOnMount: false, refetchOnMount: false } } });
+  const q = qc.getQueryCache().build(qc, { queryKey: ["dashboard-kpis"] });
+  q.setState({ status: "error", error: new ContractError("propertiesTotal must be a non-negative integer"), fetchStatus: "idle", data: undefined } as any);
+  const html = renderIn(qc, "/dashboard", <DashboardPage />);
+  assert.match(html, /state-error/);
+  assert.match(html, /unexpected format/);
+  assert.doesNotMatch(html, /ecc-kpi-card__value/);
+});
+
+test("dashboard: a future source time is flagged and never shown as 'Updated'", () => {
+  const future = new Date(Date.now() + 3 * 3600_000).toISOString();
+  const html = dashboard({ propertiesTotal: 1, unitsTotal: 1, occupancyRate: 1, revenue30dCents: 1, lastUpdated: future });
+  assert.match(html, /state-timestamp/);
+  assert.match(html, /in the future/);
+  assert.doesNotMatch(html, /Updated \d/);
+});
+
+test("property card: cached details are NOT rendered after a denied refresh", () => {
+  const html = renderIn(seeded(["card", "property", 7], card("Secret Court"), denied403()), "/card/property/7", <PropertyCardPage />);
+  assert.match(html, /state-denied/);
+  assert.match(html, />Retry</);
+  assert.doesNotMatch(html, /Secret Court|1 Elm St|kpi-units/);
+});
+
+test("property card: transient failure keeps the same-session card and says the refresh failed", () => {
+  const html = renderIn(seeded(["card", "property", 7], card("Elm Court"), new HttpError("HTTP 503", 503)), "/card/property/7", <PropertyCardPage />);
+  assert.match(html, /latest refresh failed/);
+  assert.match(html, /Elm Court/);
+});
+
+test("property card: no Contacts / Key Dates / owner / class / status / DoorLoop presentation (not in the contract)", () => {
+  const html = renderIn(seeded(["card", "property", 7], card("Elm Court")), "/card/property/7", <PropertyCardPage />);
+  assert.doesNotMatch(html, /Contacts|Key Dates|Created:|Updated:|DoorLoop|>Owner<|>Class<|>Status<|rr-contacts|rr-dates/);
+  assert.match(html, /Elm Court/);
+  const overview = renderToStaticMarkup(<Overview data={card("Elm Court")} />);
+  assert.match(overview, />Type<[\s\S]*Residential/);
+  assert.match(overview, />Active Leases<[\s\S]*>4</);
+});
+
+test("property card contract: invalid counts/cents are rejected, nulls stay null", () => {
+  for (const kpis of [{ units: -1 }, { units: 1.5 }, { activeLeases: -3 }, { avgRentCents: 10.5 }, { avgRentCents: -1 }, { occupancyPct: -5 }, { units: "5" }]) {
+    assert.equal(PropertyCard.safeParse({ property: { id: 7, address: {} }, kpis }).success, false, JSON.stringify(kpis));
+  }
+  const ok = PropertyCard.parse({ property: { id: 7, address: {} }, kpis: { units: 0, occupancyPct: 140 } });
+  assert.equal(ok.kpis.units, 0);
+  assert.equal(ok.kpis.activeLeases, null);
+  assert.equal(ok.kpis.occupancyPct, 140);
+});
+
+const propRows = [{ id: 12, name: "Elm Court", street_1: "1 Elm St", city: "Indy", state: "IN", units: 40, occupancy_pct: 90 }];
+const unitRows = [{ id: 31, label: "Apt 4B", property_name: "Elm Court", beds: 2, baths: 1, market_rent_cents: 150000, status: "VACANT" }];
+
+test("properties list: cached rows, averages and counts are NOT rendered after a denied refresh", () => {
+  const html = renderIn(seeded(["portfolio", "properties"], propRows, denied403()), "/portfolio/properties", <PropertiesPage />);
+  assert.match(html, /state-denied/);
+  assert.doesNotMatch(html, /Elm Court|1 Elm St|Indy|90%|card\/property\/12/);
+  assert.match(html, /Average occupancy not reported/);
+  assert.match(html, /0 loaded/);
+  assert.match(html, /Selected IDs: none/);
+});
+
+test("units list: cached rows are NOT rendered after a denied refresh", () => {
+  const html = renderIn(seeded(["portfolio", "units"], unitRows, denied403()), "/portfolio/units", <UnitsPage />);
+  assert.match(html, /state-denied/);
+  assert.doesNotMatch(html, /Apt 4B|Elm Court|\$1,500|card\/unit\/31/);
+});
+
+test("lists still show data when access is fine (guard does not over-hide)", () => {
+  assert.match(renderIn(seeded(["portfolio", "properties"], propRows), "/portfolio/properties", <PropertiesPage />), /Elm Court/);
+  assert.match(renderIn(seeded(["portfolio", "units"], unitRows), "/portfolio/units", <UnitsPage />), /Apt 4B/);
 });

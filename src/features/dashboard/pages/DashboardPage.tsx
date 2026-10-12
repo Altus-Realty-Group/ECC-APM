@@ -21,8 +21,20 @@ export default function DashboardPage() {
       <div className="p-6">
         <StateNotice
           kind={denied ? "denied" : "error"}
-          title={denied ? "You don't have access to the portfolio summary." : "The portfolio summary could not be loaded."}
-          detail={denied ? "Ask an administrator to confirm your access, then try again." : "Check your connection and try again."}
+          title={
+            denied
+              ? "You don't have access to the portfolio summary."
+              : status.contractViolation
+                ? "The portfolio summary came back in an unexpected format."
+                : "The portfolio summary could not be loaded."
+          }
+          detail={
+            denied
+              ? "No figures are shown. Ask an administrator to confirm your access, then try again."
+              : status.contractViolation
+                ? "No figures are shown because they could not be trusted. Try again; if it keeps happening, report it to the data owner."
+                : "Check your connection and try again."
+          }
           onRetry={retry}
           retrying={isFetching}
         />
@@ -36,7 +48,11 @@ export default function DashboardPage() {
 
   const updatedText = data.lastUpdated
     ? `Updated ${new Date(data.lastUpdated).toLocaleString()}`
-    : "Update time not reported";
+    : status.freshness === "future"
+      ? "The reported update time is in the future, so freshness cannot be confirmed"
+      : status.freshness === "invalid"
+        ? "The reported update time is not valid, so freshness cannot be confirmed"
+        : "Update time not reported";
   const series = data.series.map((p) => ({ date: p.date, value: p.occupancy * 100 }));
 
   return (
@@ -65,8 +81,12 @@ export default function DashboardPage() {
         <StateNotice kind="partial" title={`Some figures were not reported: ${status.missing.join(", ")}.`} />
       ) : null}
 
-      {status.stale === true ? (
+      {status.freshness === "stale" ? (
         <StateNotice kind="stale" title="These figures may be out of date." detail={updatedText} onRetry={retry} retrying={isFetching} />
+      ) : null}
+
+      {status.freshness === "future" || status.freshness === "invalid" ? (
+        <StateNotice kind="partial" title="The data source's update time can't be trusted." detail={updatedText} testId="state-timestamp" />
       ) : null}
 
       <div className="ecc-kpi-grid">
@@ -79,7 +99,7 @@ export default function DashboardPage() {
       <Sparkline data={series} />
 
       <p className="ecc-muted" data-testid="dashboard-freshness">
-        Source: portfolio summary feed. {status.stale === true ? "" : updatedText}
+        Source: portfolio summary feed. {status.freshness === "stale" ? "" : updatedText}
       </p>
     </div>
   );

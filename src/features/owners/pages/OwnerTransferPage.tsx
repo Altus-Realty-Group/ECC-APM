@@ -274,10 +274,10 @@ export default function OwnerTransferPage(){
               </button>
               <button
                 onClick={onCreate}
-                disabled={transferHook.isLoading || !canNext1}
+                disabled={transferHook.loading || !canNext1}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] bg-[var(--gold)] text-[var(--bg)] hover:bg-[var(--gold-700)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
               >
-                {transferHook.isLoading ? "Creating..." : "Create Transfer"}
+                {transferHook.loading ? "Creating..." : "Create Transfer"}
               </button>
             </div>
           </div>

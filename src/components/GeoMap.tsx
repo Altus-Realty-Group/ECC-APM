@@ -1,6 +1,24 @@
 import React from "react";
-import Section from "./Section";
-import { googleMapsHref, isFiniteNumber } from "../lib/format";
+
+function isFiniteNumber(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v);
+}
+
+function googleMapsHref(address: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
+
+function Section({ title, actions, children }: { title: string; actions?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="ecc-object" style={{ padding: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>{title}</h3>
+        {actions}
+      </div>
+      {children}
+    </section>
+  );
+}
 
 export default function GeoMap({
   title = "Map & Location",

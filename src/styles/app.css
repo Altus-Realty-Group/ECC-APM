@@ -247,9 +247,16 @@ button { background: transparent; border: 0; padding: 0; cursor: pointer; color:
 .ecc-sidebar.is-collapsed { width: var(--rail-collapsed); }
 .ecc-main { min-height: 0; }
 
-/* Small screens: the rail starts narrow so content keeps its width. */
+/* Small screens: an expanded rail overlays the page instead of squeezing it; the 64px rail keeps its slot. */
 @media (max-width: 1024px) {
-  .ecc-sidebar.is-expanded { width: min(var(--rail-expanded), 80vw); }
+  /* transform would trap the fixed overlay inside the 64px slot, so it is dropped in this state */
+  .ecc-sidebar.is-expanded { width: var(--rail-collapsed); transform: none; }
+  .ecc-sidebar.is-expanded .ecc-sidebar__inner {
+    position: fixed; top: 0; bottom: 0; left: 0; z-index: 1100;
+    width: min(var(--rail-expanded), 85vw); box-shadow: var(--shadow-2);
+    display: flex; flex-direction: column;
+    background: var(--nav-bg); border-right: 1px solid var(--border); color: var(--nav-fg);
+  }
 }
 
 /* ==== Shared operator-state + touch helpers ==== */
@@ -271,3 +278,9 @@ button { background: transparent; border: 0; padding: 0; cursor: pointer; color:
 .ecc-kpi-card__label { font-size: 13px; color: var(--text-subtle); }
 .ecc-kpi-card__value { font-size: 28px; font-weight: 700; color: var(--text); margin-top: 4px; }
 .ecc-kpi-card__note { font-size: 12px; color: var(--text-subtle); margin-top: 4px; }
+
+/* Asset card tabs and actions: 44px touch targets; the active tab is white text with a gold underline. */
+.ecc-card-tab, .ecc-card-action { min-height: 44px; min-width: 44px; padding: 0 12px; background: transparent; border: 0; cursor: pointer; color: var(--text-subtle); }
+.ecc-card-action { border: 1px solid var(--border); border-radius: 12px; color: var(--text); }
+.ecc-card-tab.is-active { color: var(--text); border-bottom: 2px solid var(--gold); font-weight: 600; }
+.ecc-card-tab:focus-visible, .ecc-card-action:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }

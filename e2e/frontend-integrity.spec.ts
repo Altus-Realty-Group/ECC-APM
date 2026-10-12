@@ -93,6 +93,39 @@ test.describe("navigation integrity", () => {
     expect(b.y + b.height).toBeLessThanOrEqual(vp.height);
   });
 
+  for (const key of ["Enter", "Space"] as const) {
+    test(`collapsed rail: ${key} on a group opens the flyout AND focuses its first item; Escape returns focus`, async ({ page }) => {
+      await mockApi(page);
+      await page.goto("/dashboard");
+      await page.getByRole("button", { name: "Collapse navigation" }).click();
+      const trigger = page.getByRole("button", { name: "Reports" });
+      await trigger.focus();
+      await page.keyboard.press(key);
+      const menu = page.getByRole("menu", { name: "Reports" });
+      await expect(menu).toBeVisible();
+      await expect(page.getByRole("menuitem", { name: "Create" })).toBeFocused();
+      await page.keyboard.press("ArrowDown");
+      await expect(page.getByRole("menuitem", { name: "Saved" })).toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(menu).toHaveCount(0);
+      await expect(trigger).toBeFocused();
+      // pressing the key again toggles it closed rather than trapping focus
+      await page.keyboard.press(key);
+      await expect(menu).toBeVisible();
+      await page.keyboard.press(key === "Enter" ? "Escape" : "Escape");
+      await expect(menu).toHaveCount(0);
+    });
+  }
+
+  test("collapsed rail: a pointer click opens the flyout without stealing focus into it", async ({ page }) => {
+    await mockApi(page);
+    await page.goto("/dashboard");
+    await page.getByRole("button", { name: "Collapse navigation" }).click();
+    await page.getByRole("button", { name: "Reports" }).click();
+    await expect(page.getByRole("menu", { name: "Reports" })).toBeVisible();
+    await expect(page.getByRole("menuitem").first()).not.toBeFocused();
+  });
+
   test("outside click closes the flyout; choosing an item navigates", async ({ page }) => {
     await mockApi(page);
     await page.goto("/dashboard");
@@ -133,6 +166,23 @@ test.describe("navigation integrity", () => {
 
 test.describe("touch", () => {
   test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+
+  test("a phone starts on the narrow rail; expanding it overlays the page instead of squeezing content", async ({ page }) => {
+    await mockApi(page);
+    await page.goto("/dashboard");
+    await expect(page.locator("aside.ecc-sidebar")).toHaveClass(/is-collapsed/);
+    const mainCollapsed = await box(page.locator("main#main"));
+    expect(mainCollapsed.width).toBeGreaterThan(300);
+    await page.getByRole("button", { name: "Expand navigation" }).tap();
+    const inner = await box(page.locator(".ecc-sidebar__inner"));
+    expect(inner.x).toBe(0);
+    expect(inner.width).toBeGreaterThan(250);
+    const mainExpanded = await box(page.locator("main#main"));
+    expect(mainExpanded.width).toBe(mainCollapsed.width); // content did not shrink; the rail overlays it
+    await page.getByRole("button", { name: "Reports" }).tap();
+    await page.getByRole("link", { name: "Saved" }).tap();
+    await expect(page).toHaveURL(/\/reports\/saved$/);
+  });
 
   test("tap opens the flyout on the collapsed rail; targets are >= 44px", async ({ page }) => {
     await mockApi(page);
@@ -191,6 +241,32 @@ test.describe("dashboard states: null vs zero, denied, error, retry", () => {
     expect((await box(page.getByRole("button", { name: "Retry" }))).height).toBeGreaterThanOrEqual(44);
   });
 
+  for (const [label, body] of [
+    ["negative count", { propertiesTotal: -5, unitsTotal: 10 }],
+    ["occupancy as percent", { propertiesTotal: 1, occupancyRate: 93.4 }],
+    ["fractional cents", { revenue30dCents: 12.5 }],
+    ["series out of range", { series: [{ date: "2026-10-01", occupancy: 7 }] }],
+    ["array instead of object", []],
+    ["envelope without object", { data: [] }],
+  ] as const) {
+    test(`malformed dashboard payload (${label}) is a contract error with no figures`, async ({ page }) => {
+      await mockApi(page, { "/api/dashboard/kpi/summary": () => ({ body }) });
+      await page.goto("/dashboard");
+      await expect(page.getByTestId("state-error")).toContainText("unexpected format");
+      await expect(page.getByTestId("kpi.properties")).toHaveCount(0);
+      await expect(page.getByTestId("kpi.units")).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+    });
+  }
+
+  test("a future source timestamp is flagged and never shown as 'Updated'", async ({ page }) => {
+    const future = new Date(Date.now() + 3 * 3600_000).toISOString();
+    await mockApi(page, { "/api/dashboard/kpi/summary": () => ({ body: { propertiesTotal: 1, unitsTotal: 1, occupancyRate: 1, revenue30dCents: 1, lastUpdated: future } }) });
+    await page.goto("/dashboard");
+    await expect(page.getByTestId("state-timestamp")).toContainText("in the future");
+    await expect(page.getByTestId("dashboard-freshness")).not.toContainText(/Updated \d/);
+  });
+
   test("stale data is flagged", async ({ page }) => {
     await mockApi(page, { "/api/dashboard/kpi/summary": () => ({ body: { propertiesTotal: 1, unitsTotal: 1, occupancyRate: 1, revenue30dCents: 1, lastUpdated: "2026-01-01T00:00:00Z" } }) });
     await page.goto("/dashboard");
@@ -242,5 +318,78 @@ test.describe("operator journey: properties list -> property card", () => {
     await mockApi(page, { "/api/portfolio/properties": () => ({ body: { data: rows, meta: { totalCount: 1 } } }) });
     await page.goto("/portfolio/properties");
     await expect(page.getByRole("link", { name: "Elm Court" })).toBeVisible();
+  });
+});
+
+
+test.describe("session boundary: cached data, selections and late responses", () => {
+  const rowsA = [{ id: 12, name: "Previous Account Court", street_1: "1 Elm St", city: "Indy", state: "IN", units: 40, occupancy_pct: 90 }];
+  const rowsB = [{ id: 99, name: "New Account Plaza", street_1: "9 Oak St", city: "Indy", state: "IN", units: 5, occupancy_pct: 50 }];
+
+  test("boundary event clears rows and selections and reloads under the new session; a LATE old response is ignored", async ({ page }) => {
+    let calls = 0;
+    let releaseStale!: () => void;
+    const staleGate = new Promise<void>((r) => { releaseStale = r; });
+    await page.route("**/api/portfolio/properties", async (route) => {
+      calls += 1;
+      if (calls === 1) return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(rowsA) });
+      if (calls === 2) { // request started under the old session, answered late
+        await staleGate;
+        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(rowsA) });
+      }
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(rowsB) });
+    });
+    await page.route("**/api/**", (r) => (r.request().url().includes("/portfolio/properties") ? r.fallback() : r.fulfill({ status: 200, contentType: "application/json", body: "[]" })));
+
+    await page.goto("/portfolio/properties");
+    await expect(page.getByRole("link", { name: "Previous Account Court" })).toBeVisible();
+    await page.getByRole("checkbox", { name: /Select property Previous Account Court/ }).check();
+    await expect(page.getByText("1 selected").first()).toBeVisible();
+
+    // account switch #1: refetch begins (call 2) and is held open
+    await page.evaluate(() => window.dispatchEvent(new Event("ecc:session-boundary")));
+    await expect(page.getByRole("link", { name: "Previous Account Court" })).toHaveCount(0);
+    await expect(page.getByText("0 selected").first()).toBeVisible();
+    // account switch #2 supersedes it; the new session's data (call 3) loads
+    await page.evaluate(() => window.dispatchEvent(new Event("ecc:session-boundary")));
+    await expect(page.getByRole("link", { name: "New Account Plaza" })).toBeVisible();
+    // now the stale call-2 response (old identity) finally arrives
+    releaseStale();
+    await page.waitForTimeout(400);
+    await expect(page.getByRole("link", { name: "Previous Account Court" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "New Account Plaza" })).toBeVisible();
+    await expect(page.getByText("0 selected").first()).toBeVisible();
+    await expect(page.getByText("Selected IDs: none")).toBeVisible();
+  });
+
+  test("a denied (403) properties response shows no rows, totals or selection and offers Retry", async ({ page }) => {
+    await mockApi(page, { "/api/portfolio/properties": () => ({ status: 403, body: { error: "forbidden" } }) });
+    await page.goto("/portfolio/properties");
+    await expect(page.getByTestId("state-denied")).toBeVisible();
+    await expect(page.getByRole("link")).not.toContainText(["Previous Account Court"]);
+    await expect(page.getByText("0 loaded")).toBeVisible();
+    await expect(page.getByText("Average occupancy not reported")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+  });
+
+  test("cached dashboard figures disappear when the session boundary fires", async ({ page }) => {
+    await mockApi(page, { "/api/dashboard/kpi/summary": () => ({ body: { propertiesTotal: 4, unitsTotal: 40, occupancyRate: 0.9, revenue30dCents: 5, lastUpdated: new Date().toISOString() } }) });
+    await page.goto("/dashboard");
+    await expect(page.getByTestId("kpi.properties")).toContainText("4");
+    // next load for the new identity is denied
+    await page.unroute("**/api/**");
+    await mockApi(page, { "/api/dashboard/kpi/summary": () => ({ status: 403, body: { error: "forbidden" } }) });
+    await page.evaluate(() => window.dispatchEvent(new Event("ecc:session-boundary")));
+    await expect(page.getByTestId("state-denied")).toBeVisible();
+    await expect(page.getByTestId("kpi.properties")).toHaveCount(0);
+  });
+
+  test("property card shows only contract fields: no Contacts, Key Dates, owner, class, status or DoorLoop", async ({ page }) => {
+    await mockApi(page, { "/api/rpc/get_property_card": () => ({ body: { property: { id: 12, name: "Elm Court", type: "Residential", address: { line1: "1 Elm St", city: "Indianapolis", state: "IN", zip: "46201" }, owner: { display_name: "Not In Contract" }, created_at: "2020-01-01" }, kpis: { units: 5, activeLeases: 4, occupancyPct: 80, avgRentCents: 100000 } } }) });
+    await page.goto("/card/property/12");
+    await expect(page.getByTestId("kpi-units")).toContainText("5");
+    const body = page.locator("main#main");
+    for (const t of ["Contacts", "Key Dates", "Created:", "Updated:", "DoorLoop", "Not In Contract"]) await expect(body).not.toContainText(t);
+    await expect(body).toContainText("1 Elm St, Indianapolis, IN, 46201");
   });
 });

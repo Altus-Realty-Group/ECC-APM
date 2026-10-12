@@ -63,11 +63,11 @@ export default function TransferPreflightCheck({ transferId, onCheckComplete }: 
         <h3 className="text-lg font-semibold text-neutral-100">Preflight Checks</h3>
         <button
           onClick={runPreflightCheck}
-          disabled={transferHook.isLoading || !transferId}
+          disabled={transferHook.loading || !transferId}
           className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           data-testid="run-preflight-check-btn"
         >
-          {transferHook.isLoading ? 'Checking...' : 'Run Check'}
+          {transferHook.loading ? 'Checking...' : 'Run Check'}
         </button>
       </div>
 
@@ -114,7 +114,7 @@ export default function TransferPreflightCheck({ transferId, onCheckComplete }: 
         </div>
       ) : (
         <div className="text-neutral-400 text-sm text-center py-4">
-          {transferHook.isLoading ? 'Running preflight checks...' : 'Click "Run Check" to validate transfer'}
+          {transferHook.loading ? 'Running preflight checks...' : 'Click "Run Check" to validate transfer'}
         </div>
       )}
     </div>

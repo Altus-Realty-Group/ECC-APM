@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Pause, Play, Copy, Trash2, Filter, AlertCircle, Info, Activity, Zap, Download } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useShowToast } from "@/features/systems/integrations/useShowToast";
 
 interface LogEvent {
   id?: string;
@@ -48,17 +48,18 @@ export default function LiveLogs({
   const eventSourceRef = useRef<EventSource | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const autoScrollEnabled = useRef(!isPaused);
-  const { showToast } = useToast();
+  const { showToast } = useShowToast();
 
   // Format timestamp
   const formatTimestamp = (timestamp: number) => {
-    return new Date(timestamp).toLocaleTimeString('en-US', { 
+    const date = new Date(timestamp);
+    const base = date.toLocaleTimeString('en-US', {
       hour12: false,
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
-      fractionalSecondDigits: 3
+      second: '2-digit'
     });
+    return `${base}.${String(date.getMilliseconds()).padStart(3, '0')}`;
   };
 
   // Filter logs based on current filters

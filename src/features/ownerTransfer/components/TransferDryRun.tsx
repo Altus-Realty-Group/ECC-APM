@@ -51,11 +51,11 @@ export default function TransferDryRun({ transferId }: TransferDryRunProps) {
         <div className="flex gap-2">
           <button
             onClick={runDryRun}
-            disabled={transferHook.isLoading || !transferId}
+            disabled={transferHook.loading || !transferId}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500/10 text-green-300 hover:bg-green-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             data-testid="run-dry-run-btn"
           >
-            {transferHook.isLoading ? 'Running...' : 'Preview Changes'}
+            {transferHook.loading ? 'Running...' : 'Preview Changes'}
           </button>
           {result && (
             <>
@@ -136,7 +136,7 @@ export default function TransferDryRun({ transferId }: TransferDryRunProps) {
         </div>
       ) : (
         <div className="text-neutral-400 text-sm text-center py-8">
-          {transferHook.isLoading ? 'Generating preview...' : 'Click "Preview Changes" to see what will be modified'}
+          {transferHook.loading ? 'Generating preview...' : 'Click "Preview Changes" to see what will be modified'}
         </div>
       )}
     </div>

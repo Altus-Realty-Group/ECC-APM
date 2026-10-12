@@ -1,5 +1,5 @@
 import React from "react";
-import { moneyCents } from "../../lib/format";
+import { formatCurrencyFromCents as moneyCents } from "../../lib/format";
 
 export type LedgerEntry = {
   id: string | number;

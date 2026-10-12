@@ -1,7 +1,16 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useOwnerTransfer } from "./hooks/useOwnerTransfer";
 
 type Opt = { id:number|string; name?:string };
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="space-y-2">
+      <h2 className="text-lg font-semibold">{title}</h2>
+      {children}
+    </section>
+  );
+}
 
 export default function OwnerTransferPage(){
   const {loading,error,searchOwners,getContext,initiate,approve,authorize,executeNow} = useOwnerTransfer();
@@ -12,7 +21,7 @@ export default function OwnerTransferPage(){
 
   async function pick(term:string, set:(v:Opt)=>void, withCtx=false) {
     const r = await searchOwners(term);
-    const first = r?.results?.[0] || r?.[0] || null;
+    const first = (Array.isArray(r) ? r[0] : r?.results?.[0]) || null;
     if (first) {
       set(first);
       if (withCtx) setContext(await getContext(first.id));

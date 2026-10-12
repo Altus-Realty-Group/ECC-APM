@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
+import { accessGuard, useResetOnAccessLoss } from "@/lib/useAccessGuard";
 import { useAllUnits } from "../../lib/ecc-resolvers";
 import { formatCurrencyFromCents, BLANK } from "@/lib/format";
 import CanonicalDenseTableShell from "@/features/command-surface/CanonicalDenseTableShell";
@@ -31,7 +32,11 @@ export default function Units() {
   const [q, setQ] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const { data, isLoading, isFetching, error, refetch } = useAllUnits();
+  const query = useAllUnits();
+  const { isLoading, isFetching, error, refetch } = query;
+  // After a 401/403 TanStack keeps the previous rows; they must not be shown, summarized or selectable.
+  const { data, denied } = accessGuard(query);
+  const epoch = useResetOnAccessLoss(denied, () => setSelectedIds([]));
 
   const rows = useMemo(() => {
     if (!data) return [];
@@ -76,7 +81,7 @@ export default function Units() {
             onSelectionChange={(ids) => setSelectedIds(Array.from(new Set(ids)))}
           />
         </div>
-        <TriageBoardShell items={selectedRows} config={UNIT_SURFACE_CONFIG} />
+        <TriageBoardShell key={epoch} items={selectedRows} config={UNIT_SURFACE_CONFIG} />
       </div>
     </section>
   );

@@ -1,45 +1,57 @@
 import { Link, useRoute } from "wouter";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { CardShell } from "@/components/cardkit/CardShell";
-import RightRailPanel from "@/components/cardkit/RightRailPanel";
 import StateNotice from "@/components/ui/StateNotice";
-import { BLANK } from "@/lib/format";
-import { errorKind } from "@/lib/dataState";
+import { errorKind, isContractError } from "@/lib/dataState";
+import { accessGuard } from "@/lib/useAccessGuard";
 import HeroBlock from "./HeroBlock";
 import Overview from "./Overview";
 import { usePropertyCard } from "@/lib/ecc-resolvers";
 
-const shown = (v: unknown) => (typeof v === "string" && v.trim() ? v : BLANK);
-
 export default function PropertyCardPage() {
-  const [, params] = useRoute("/card/property/:id");
+  const [, routeParams] = useRoute("/card/property/:id");
+  // wouter's inferred params type collapses to null here; widen it explicitly (guardrail pins Number(params?.id)).
+  const params: { id?: string } | null = routeParams;
   const idNum = Number(params?.id);
   const q = usePropertyCard(idNum);
+  const backLink = <Link href="/portfolio/properties" className="ecc-btn ecc-touch">Back to properties</Link>;
   if (!Number.isFinite(idNum)) {
     return (
-      <div className="p-6">
+      <div className="p-6 space-y-3">
         <StateNotice kind="error" title="That property link is not valid." testId="prop-invalid" />
-        <Link href="/portfolio/properties" className="ecc-btn ecc-touch">Back to properties</Link>
+        {backLink}
       </div>
     );
   }
 
   const retry = () => { void q.refetch(); };
-  const backLink = <Link href="/portfolio/properties" className="ecc-btn ecc-touch">Back to properties</Link>;
+  // After a 401/403 TanStack keeps the previous card; it must not be rendered once access is denied.
+  const { data, denied } = accessGuard(q);
 
-  if (q.isLoading) {
+  if (q.isLoading && !denied) {
     return <div className="p-6"><StateNotice kind="loading" title="Loading property…" /></div>;
   }
 
-  const { data } = q;
   if (!data) {
-    const denied = errorKind(q.error) === "denied";
+    const unreadable = !denied && isContractError(q.error);
     return (
       <div className="p-6 space-y-3">
         <StateNotice
           kind={denied ? "denied" : "error"}
-          title={denied ? "You don't have access to this property." : "This property could not be loaded."}
-          detail={denied ? "Ask an administrator to confirm your access." : "Check your connection and try again."}
+          title={
+            denied
+              ? "You don't have access to this property."
+              : unreadable
+                ? "This property came back in an unexpected format."
+                : "This property could not be loaded."
+          }
+          detail={
+            denied
+              ? "No property details are shown. Ask an administrator to confirm your access."
+              : unreadable
+                ? "The details could not be trusted, so none are shown. Try again."
+                : "Check your connection and try again."
+          }
           onRetry={retry}
           retrying={q.isFetching}
         />
@@ -49,9 +61,7 @@ export default function PropertyCardPage() {
   }
 
   const property = data.property;
-  const owner = (data as any).owner;
-
-  const breadcrumbs = ["Portfolio", "Properties", property?.name || `Property #${idNum}`];
+  const breadcrumbs = ["Portfolio", "Properties", property.name || `Property #${idNum}`];
 
   const tabs = [
     { id: "overview", title: "Overview", element: <Overview data={data} />, testid: "tab-overview" },
@@ -60,30 +70,18 @@ export default function PropertyCardPage() {
     { id: "files", title: "Files", lazy: () => import("./Files"), props: { data }, testid: "tab-files" },
   ];
 
-  const rightRail = (
-    <div className="space-y-4">
-      <RightRailPanel title="Key Dates" data-testid="rr-dates">
-        <div className="text-sm">Created: {shown((property as any)?.created_at)}</div>
-        <div className="text-sm">Updated: {shown((property as any)?.updated_at)}</div>
-      </RightRailPanel>
-      <RightRailPanel title="Contacts" data-testid="rr-contacts">
-        <div className="text-sm">{shown(owner?.display_name)}</div>
-      </RightRailPanel>
-    </div>
-  );
-
   return (
     <ErrorBoundary>
-      {q.isError ? (
+      {q.isError && errorKind(q.error) !== "denied" ? (
         <StateNotice kind="error" title="Showing the last loaded details; the latest refresh failed." onRetry={retry} retrying={q.isFetching} />
       ) : null}
-      {/* No Export/Edit actions: neither workflow exists yet, so no control is offered. */}
+      {/* No Export/Edit actions (no workflow) and no Contacts/Key Dates panels: the property card
+          contract and its server handler return neither owner nor created/updated dates. */}
       <CardShell
-        title={property?.name || `Property #${idNum}`}
+        title={property.name || `Property #${idNum}`}
         hero={<HeroBlock data={data} />}
         tabs={tabs}
         breadcrumbs={breadcrumbs}
-        rightRail={rightRail}
       />
     </ErrorBoundary>
   );

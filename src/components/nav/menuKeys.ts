@@ -39,3 +39,11 @@ export function clampToViewport(
   if (ny + h > vh - 8) ny = Math.max(8, vh - h - 8);
   return { x: nx, y: ny };
 }
+
+/**
+ * A click with detail === 0 was not made with a pointer: it is the click browsers synthesize for Enter or
+ * Space on a button (and what assistive tech sends). Pointer and touch clicks report detail >= 1.
+ */
+export function isKeyboardInitiatedClick(detail: number): boolean {
+  return detail === 0;
+}

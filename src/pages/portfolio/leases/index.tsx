@@ -13,8 +13,8 @@ export default function LeasesPage() {
     
     return {
       rows: mapped,
-      loading: leases.loading,
-      error: leases.error,
+      loading: leases.isLoading,
+      error: leases.error ? String(leases.error.message ?? leases.error) : undefined,
     };
   }, [leases]);
 

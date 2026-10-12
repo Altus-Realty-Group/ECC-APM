@@ -10,7 +10,7 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  TooltipProps
+  TooltipContentProps
 } from 'recharts';
 import { ChartContainer } from './ChartContainer';
 import { ActionButton } from './ActionButton';
@@ -22,7 +22,7 @@ interface FinancialsAndLeasingProps {
 }
 
 // Custom Tooltip for Cash Flow Chart
-function CashFlowTooltip({ active, payload, label }: TooltipProps<number, string>) {
+function CashFlowTooltip({ active, payload, label }: TooltipContentProps<number, string>) {
   if (!active || !payload || !payload.length) return null;
   
   const income = payload.find(p => p.dataKey === 'income')?.value || 0;
@@ -190,7 +190,7 @@ export function FinancialsAndLeasing({ cashflow90, leasingFunnel30 }: Financials
                 tick={{ fontSize: 12, fill: 'var(--text-dim)' }}
                 tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
               />
-              <Tooltip content={<CashFlowTooltip />} />
+              <Tooltip content={CashFlowTooltip} />
               
               <Bar 
                 dataKey="income"

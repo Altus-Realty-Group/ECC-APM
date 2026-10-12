@@ -1,7 +1,7 @@
 # Claude assignment ECC-C4-V1
 
 Owner: Claude Code. Status: awaiting manual handoff; execution unconfirmed.
-Base: 50ea0bd10a26566ce007e68fc56e8ae977a5924a. Repository: Altus-Realty-Group/Replit_Front_End_ECC.
+Base: 50ea0bd10a26566ce007e68fc56e8ae977a5924a. Repository: Altus-Realty-Group/ECC-APM (repository ID 1058195656; historical name Altus-Realty-Group/Replit_Front_End_ECC, preserved here as history; see docs/recovery/REPOSITORY_IDENTITY.md).
 
 Implement frontend integrity in this PR. Read AGENTS.md, canonical master plan, component adoption plan and proposed restart addendum in #112. Inspect current App, active Sidebar, navigation and affected resolvers before changes.
 

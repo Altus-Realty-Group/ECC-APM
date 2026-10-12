@@ -82,7 +82,7 @@ export function LeasingFunnel({ funnel }: LeasingFunnelProps) {
                   <div className="flex items-center gap-4">
                     <span className="number-sm">{step.value}</span>
                     <ActionButton
-                      size="sm"
+                      size="small"
                       onClick={() => window.open(step.route, '_blank')}
                     >
                       View

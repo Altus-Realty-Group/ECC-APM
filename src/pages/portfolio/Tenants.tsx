@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import FilterBar from "../../components/FilterBar";
-import DataTable, { Column } from "../../components/DataTable";
+import DataTable, { type DataColumn } from "../../components/DataTable";
 import { useAllTenants } from "../../lib/ecc-resolvers";
 import { formatNumber, formatPercent, formatCurrencyFromCents, BLANK } from "@/lib/format";
 
@@ -43,13 +43,13 @@ export default function Tenants() {
     );
   }, [data, q]);
 
-  const columns: Column<TenantRow>[] = [
+  const columns: DataColumn<TenantRow>[] = [
     { key: "name", header: "Tenant" },
     { key: "property", header: "Property" },
-    { key: "unit", header: "Unit", width: 100 },
+    { key: "unit", header: "Unit" },
     { key: "email", header: "Email" },
-    { key: "phone", header: "Phone", width: 150 },
-    { key: "status", header: "Status", width: 110 },
+    { key: "phone", header: "Phone" },
+    { key: "status", header: "Status" },
   ];
 
   return (

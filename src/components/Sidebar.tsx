@@ -10,7 +10,7 @@ import {
   NAV_SECTIONS, activeSectionTitle, isPathActive,
   type IconName, type NavLeaf, type NavSection,
 } from "@/config/navigation";
-import { clampToViewport, menuKeyAction, opensFlyoutFromTrigger } from "./nav/menuKeys";
+import { clampToViewport, isKeyboardInitiatedClick, menuKeyAction, opensFlyoutFromTrigger } from "./nav/menuKeys";
 
 const LOGO_WIDE = "/brand/altus-logo.png";
 const LOGO_SQUARE = "/brand/altus-mark.png";
@@ -32,11 +32,19 @@ function SafeImg({ src, alt, style }: { src: string; alt: string; style?: React.
   return <img src={src} alt={alt} style={{ display: "block", ...style }} onError={() => setOk(false)} draggable={false} />;
 }
 
+/** Small screens start on the narrow rail so content keeps its width; a saved choice always wins. */
+const SMALL_SCREEN = "(max-width: 1024px)";
+function initialCollapsed(): boolean {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved !== null) return JSON.parse(saved) === true;
+  } catch { /* storage unavailable: fall through to the viewport default */ }
+  try { return typeof window !== "undefined" && window.matchMedia(SMALL_SCREEN).matches; }
+  catch { return false; }
+}
+
 function useCollapsed() {
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "false") === true; }
-    catch { return false; }
-  });
+  const [collapsed, setCollapsed] = useState<boolean>(initialCollapsed);
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(collapsed)); } catch { /* storage unavailable */ }
   }, [collapsed]);
@@ -192,11 +200,12 @@ function NavGroupRow({
 
   const closeFlyout = useCallback(() => { clearTimers(); onFlyoutChange(false); }, [onFlyoutChange]);
 
-  const onClick = () => {
+  const onClick = (e: React.MouseEvent) => {
     if (!collapsed) { onToggleExpanded(); return; }
-    // Click covers mouse, touch, Enter and Space. Keyboard users get focus moved into the menu.
-    if (flyoutOpen) closeFlyout();
-    else openFlyout(false);
+    if (flyoutOpen) { closeFlyout(); return; }
+    // Enter/Space arrive as a click with detail 0: move focus to the first item, like ArrowRight/Down.
+    // Mouse and touch keep focus where it is so a tap does not pop a focus ring.
+    openFlyout(isKeyboardInitiatedClick(e.detail));
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {

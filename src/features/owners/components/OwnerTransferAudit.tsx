@@ -3,6 +3,11 @@ import { format } from "date-fns";
 import { api } from "../../../lib/api";
 import { fetchJSON } from "@/lib/http";
 
+interface IntegrationsConfig {
+  ok?: boolean;
+  integrations?: { admin?: { available?: boolean } };
+}
+
 interface OwnerTransferAuditProps {
   ownerId: string;
 }
@@ -20,7 +25,7 @@ export default function OwnerTransferAudit({ ownerId }: OwnerTransferAuditProps)
   // Feature flag check for admin access
   const { data: config } = useQuery({
     queryKey: ["/api/config/integrations"],
-    queryFn: ({ signal }) => fetchJSON("/api/config/integrations", { signal }),
+    queryFn: ({ signal }) => fetchJSON<IntegrationsConfig>("/api/config/integrations", { signal }),
   });
 
   const adminEnabled = config?.ok && config?.integrations?.admin?.available;

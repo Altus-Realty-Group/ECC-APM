@@ -11,7 +11,7 @@ export default function OwnerTransferDetailPage() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get("id");
   const transferHook = useOwnerTransfer();
-  const toast = useToast();
+  const { addToast } = useToast();
   
   const [transfer, setTransfer] = useState<Transfer | null>(null);
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
@@ -41,10 +41,10 @@ export default function OwnerTransferDetailPage() {
     if (!id) return;
     const success = await transferHook.approveAccounting(Number(id));
     if (success) {
-      toast.success("Approved. Audit logged.");
+      addToast({ type: "success", title: "Approved. Audit logged." });
       await loadTransfer(); // Refresh data
     } else {
-      toast.error("Authorization failed. Check admin token.");
+      addToast({ type: "error", title: "Authorization failed. Check admin token." });
     }
   }
 
@@ -52,10 +52,10 @@ export default function OwnerTransferDetailPage() {
     if (!id) return;
     const success = await transferHook.authorizeTransfer(Number(id));
     if (success) {
-      toast.success("Authorized for execution");
+      addToast({ type: "success", title: "Authorized for execution" });
       await loadTransfer(); // Refresh data
     } else {
-      toast.error("Authorization failed. Check admin token.");
+      addToast({ type: "error", title: "Authorization failed. Check admin token." });
     }
   }
 
@@ -63,10 +63,10 @@ export default function OwnerTransferDetailPage() {
     if (!id) return;
     const success = await transferHook.executeTransfer(Number(id));
     if (success) {
-      toast.success("Transfer completed successfully");
+      addToast({ type: "success", title: "Transfer completed successfully" });
       await loadTransfer(); // Refresh data
     } else {
-      toast.error("Execution failed. Check admin token.");
+      addToast({ type: "error", title: "Execution failed. Check admin token." });
     }
   }
 
@@ -102,7 +102,7 @@ export default function OwnerTransferDetailPage() {
               <div className="pt-3 flex gap-2 justify-end">
                 {transferHook.canApproveAccounting(transfer) && (
                   <button 
-                    disabled={transferHook.isLoading} 
+                    disabled={transferHook.loading} 
                     onClick={handleApproveAccounting} 
                     className="inline-flex items-center gap-2 px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)] hover:bg-[var(--surface)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     data-testid="approve-accounting-btn"
@@ -113,7 +113,7 @@ export default function OwnerTransferDetailPage() {
                 )}
                 {transferHook.canAuthorize(transfer) && (
                   <button 
-                    disabled={transferHook.isLoading} 
+                    disabled={transferHook.loading} 
                     onClick={handleAuthorize} 
                     className="inline-flex items-center gap-2 px-3 py-2 rounded-[var(--radius-md)] bg-[var(--gold)] text-[var(--bg)] hover:bg-[var(--gold-700)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
                     data-testid="authorize-btn"
@@ -124,7 +124,7 @@ export default function OwnerTransferDetailPage() {
                 )}
                 {transferHook.canExecute(transfer) && (
                   <button 
-                    disabled={transferHook.isLoading} 
+                    disabled={transferHook.loading} 
                     onClick={handleExecute} 
                     className="inline-flex items-center gap-2 px-3 py-2 rounded-[var(--radius-md)] bg-[var(--success)] text-[var(--bg)] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
                     data-testid="execute-now-btn"

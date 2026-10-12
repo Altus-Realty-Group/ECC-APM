@@ -1,10 +1,14 @@
 import React from "react";
-import { joinAddress, humanize } from "../../../lib/format";
 import { money } from "../../../lib/ecc-api-client";
 import { createWorkOrder } from "../../../lib/bff";
 import { HERO_KPI_TEST_IDS } from "@/features/dashboard/constants/testIds";
 // Satisfy guardrail requirement
 import {} from "../../../lib/ecc-resolvers";
+
+// Join non-empty address parts with ", ".
+function joinAddress(parts: Array<string | null | undefined>): string {
+  return parts.filter((p): p is string => typeof p === "string" && p.trim() !== "").join(", ");
+}
 
 interface HeroProps {
   data: {

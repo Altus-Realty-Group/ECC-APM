@@ -1,5 +1,5 @@
 # R1-G: Cards and dashboard recovery
-Owner: Grok. Status: assignment seed, implementation not started/accepted.
+Owner: Codex, reassigned by Dion on 2026-10-13. Status: first UI slice implemented; review and browser proof pending.
 Read the campaign plan and incoming-file standard in the Codex governance PR before implementation. Start from this independent branch, whose base is main at 1c8fd1022f46cd26ad0df748ffc053c0ed2c9542.
 
 Objective: recover richer entity-card and dashboard presentation into current ECC-APM using current verified frontend contracts. Select strongest active-export implementation per feature; retain the current data/session/access safeguards. Finish one bounded card/dashboard vertical slice, validate it, freeze it for review and continue pending slices after accepted dependencies.

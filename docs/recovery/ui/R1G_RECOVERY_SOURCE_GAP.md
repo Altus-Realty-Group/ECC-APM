@@ -2,9 +2,9 @@
 
 Lane: R1-G V1  
 Date: 2026-10-13  
-Status: Dropbox recovery sources unavailable from this environment.
+Status: Superseded by Codex takeover and private local recovery sources on 2026-10-13. See R1G_DELIVERY.md. The earlier Grok access failure below is retained as history, not a current implementation blocker.
 
-The assigned Dropbox folder (https://www.dropbox.com/scl/fo/cclt4ic22siuc1wc49ob6/ANA-ZHqnd5YuOG79gD28Dl0?rlkey=t87tjru886duu8l3078p1z81l&dl=0) requires authentication. Browser and open_page both returned a signup/login wall. No recovery export contents were inspected.
+The assigned Dropbox folder ([private recovery folder; access link omitted]) requires authentication. Browser and open_page both returned a signup/login wall. No recovery export contents were inspected.
 
 ## Current code inspected (seed head e6f397fed9737b301b1bcfdbf90358e40e58a795)
 

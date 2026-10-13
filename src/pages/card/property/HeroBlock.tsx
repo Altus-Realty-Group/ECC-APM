@@ -1,7 +1,9 @@
 import { KPIRow } from "@/components/cardkit/KPIRow";
 import { KPI } from "@/components/cardkit/KPI";
+import { formatCurrencyFromCents } from "@/lib/format";
+import type { PropertyCardData } from "@/shared/card-contracts";
 
-export default function HeroBlock({ data }: { data: any }) {
+export default function HeroBlock({ data }: { data: PropertyCardData }) {
   const n = (v?: number | null) => (typeof v === "number" ? v : undefined);
 
   return (
@@ -39,7 +41,7 @@ export default function HeroBlock({ data }: { data: any }) {
           label="Avg Rent"
           value={
             typeof data.kpis?.avgRentCents === "number"
-              ? `$${Math.round(data.kpis.avgRentCents / 100).toLocaleString()}`
+              ? formatCurrencyFromCents(data.kpis.avgRentCents)
               : "—"
           }
         />

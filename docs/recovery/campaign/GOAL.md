@@ -32,6 +32,7 @@ recursive agents or new provider jobs. No continuing/background execution claime
 | R1-C / Claude | operations adapters/views/tests / PR129 | foundation review; bfb9be72, verify success | Keep domains unverified and zero requests; evaluate correction stack before integration |
 | R1-C V2 / Claude; independent review Codex | same operations slice / PR131; base bfb9be72 | reviewed at 89cc1a2c, verify success | Local repeat: 111 unit, 16 dependency, typecheck/guardrail/build and 6/6 desktop/390px gated-route journeys. Grouped per-lease sums/overflow and loading path repaired. No live operations activated |
 | R2-LINKED / Codex | four entity Linked/index modules, scoped components/tests/docs / PR132 | source implemented and local verified; 5e03ec41 | 102 unit, 16 dependency, typecheck/guardrail/build; 2/2 browser journeys incl keyboard links and simulated 403/retry; required exact-head verify success |
+| R2-SESSION / Codex PM review | five scoped operations source/test/doc files / PR133; base 89cc1a2c | verified source/query lifecycle; aebe38ca, required verify success | Shared TanStack/epoch/access guard replaces local state; 113 unit, 16 dependency, typecheck/guardrail/build and six gate browser journeys pass. No real domain activated |
 | R2-SOURCE / Codex | private archive inspection; derived findings in this record | inspected subset, source-only | Removed Claude's extraction barrier for selected historical evidence via findings below. No raw source publication; full active-tree duplicate reconciliation still pending |
 | CONTRACT-AUTHORITY / Codex + Dion/backend owner | source-only discovery, issue119; no target mutation | blocked | Identify the current approved backend/database/environment, contract owner and authorized read access; then verify real records, scopes and payloads before any activation |
 | NAVIGATION / Codex | src/config/navigation.ts, Sidebar, App routes | pending usable domain/contract proof | Recover hierarchy by real destinations, not link all 46 planned stubs. Related journeys are restored in PR132; no claim of complete navigation |
@@ -67,12 +68,12 @@ claiming Claude read those files or that all exports have been audited.
 - Usable navigation/cards: Related tabs and real-ID navigation pass local fixture
   journeys. Whole historical menu and all legal/files/financial tabs not restored.
 - Access/session: current card guards reused; simulated denied recovery passes.
-  Before any verified operations domain is activated, review component-local
-  state in OperationsRecoveryPage: session epoch currently resets it in an effect,
-  and domain denials are handled outside the shared TanStack cache. Require immediate
-  removal of prior-session rows and cross-domain denied-cache isolation with a
-  mounted lifecycle regression. Current unverified production gate holds zero data;
-  the six browser checks prove that gate only, not activated-domain session safety.
+  Codex repaired operations component-local state in PR133 using the existing query
+  provider, epoch keys and shared denial purge. QueryObserver/client regressions prove
+  observed prior-session row removal, cross-domain/portfolio purge and rejection of
+  late previous-session responses. These are query lifecycle fixtures; populated
+  mounted browser journeys against actual deployed authentication remain required.
+  Current production domains stay unverified and make zero network requests.
 - Runtime/business acceptance: blocked. The source startup intentionally returns
   BACKEND_NOT_CONNECTED for unbound API/BFF requests. A useful unavailable message
   does not restore missing records. Issue119 remains open, owning backend identity
@@ -91,3 +92,29 @@ Next dependency requiring owner evidence: canonical current backend/database and
 environment for ECC records, plus its responsible owner/authorized read path.
 Codex retains acceptance and source review; do not ask the owner to re-upload the
 archives or redo source comparison already available here.
+
+## Integration closure checkpoint
+
+Local integration rehearsal, not a remote merge or deployment:
+`1f4b91c003d03961c51c3ebf9ce6e7b369bcd663`, combining exact product heads
+PR130 `123662d0`, PR132 `5e03ec41`, PR133 `aebe38ca` (includes PR131/129),
+and prior governance checkpoint `f7dcba33`, on the main base. No merge conflicts.
+Typecheck, 123 unit tests (15 files), 16 dependency checks, guardrail/build and
+whitespace check passed. Ten focused Playwright journeys passed with zero retries
+on the combined built product: rent/history, four related cards/denied recovery,
+and three unavailable operations domains at desktop/390px. Chromium 153 with
+scratch-only executable and loopback overrides; fixtures only, no live writes.
+Build retains its pre-existing large-chunk warning; no performance pass inferred.
+
+All product heads above passed the existing required GitHub verify. Analyze and
+proof-pack were skipped; skipped checks are not passes. This documentation-only
+receipt needs its own current-head check. Proposed integration order is PR131 into
+PR129, PR133 into that operations stack, then independent source PRs after review
+and explicit merge authority. No branch ref/main/runtime was changed by rehearsal.
+
+Whole-goal verdict: OPEN, real-data/runtime acceptance blocked. Do not close issue119,
+restore all planned navigation links, or call unavailable operations restored.
+Next necessary owner evidence is the intended current ECC backend/database identity,
+environment and owner-approved read path. Codex can use the retained private source
+for further comparisons without requesting another source upload. Claude's completed
+V2 return is reviewed; no new Claude/background job was dispatched by this checkpoint.

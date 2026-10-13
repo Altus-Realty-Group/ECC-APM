@@ -316,3 +316,19 @@ test("owner transfer recovery pages expose no mutation controls or browser-token
     assert.doesNotMatch(html, /<(?:button|input|select)\b|localStorage|ADMIN_SYNC_TOKEN/);
   }
 });
+
+test("owner transfer recovery pages add no second <main> landmark and no links or forms", async () => {
+  for (const path of [
+    "../../src/features/ownerTransfer/OwnerTransferPage",
+    "../../src/features/owners/pages/OwnerTransferPage",
+    "../../src/features/owners/pages/OwnerTransferDetailPage",
+    "../../src/features/admin/pages/AdminTransferManagementPage",
+  ]) {
+    const { default: Page } = await import(path);
+    const html = renderToStaticMarkup(<Page />);
+    assert.doesNotMatch(html, /<main\b|role="main"/, `${path} must not nest a main landmark`);
+    assert.doesNotMatch(html, /<(?:a|form|textarea)\b|contenteditable/i, `${path} exposes an interactive element`);
+    assert.match(html, /data-testid="owner-transfer-unavailable"/);
+    assert.match(html, /<h1>Owner transfers<\/h1>/);
+  }
+});

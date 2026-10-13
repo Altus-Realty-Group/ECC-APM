@@ -76,7 +76,7 @@ Measured in Chromium against the built bundle with simulated API responses: no h
 | #88 restore Properties rows | Whitespace only; no-op; owner may close. |
 | #98 KPI strips | Deferred, not discarded (false zeros, gold label text, jargon, stale base); follow-up slice on the null-safe adapter. |
 
-## 10. Validation (source and local only)
+## 10. Validation at the V4 head (historical; current results are in section 15)
 
 Environment: Node 22.22 locally; CI uses Node 20, which is why discovery is a script (glob arguments to `node --test` need Node 21+). Fresh `rm -rf node_modules && npm ci` completed with exit 0 and did not modify the lockfile.
 
@@ -94,7 +94,7 @@ Not run: the repository's other Playwright specs and `ecc:smoke` (they need a li
 
 Simulation labels: every browser journey and every render test uses fixtures or intercepted responses. They prove UI behavior and state handling. They do not prove live data, backend contracts or deployed behavior.
 
-## 11. Compiler status and separately owned debt
+## 11. Compiler status at the V4 head (historical; the owner-transfer diagnostics were retired by PM containment, see sections 14 and 15)
 
 39 diagnostics remain: **23 are server-side** (`server/index.ts` 11, `server/lib/m365/graph.ts` 4, `server/lib/integrations/dropbox.ts` 3, one each in `server/services/ownerTransferService.ts`, `server/routes/m365.ts`, `server/routes/adminSync.ts`, `server/lib/geocode/geocode.ts`, `server/lib/dropbox.ts`). These belong to the backend owner under #119 and were not changed.
 
@@ -144,3 +144,32 @@ accepted as a passing gate. Local PM results: 9 files, 92 unit tests passing, 10
 tests passing, guardrail/build passing; frontend diagnostics zero, server diagnostics 23.
 The browser attempt failed before tests when the local preview could not start; it is
 not a browser pass. Exact-head CI must be reviewed before acceptance.
+
+
+## 15. V5 browser verification (2026-10-13)
+
+Scope: verify head `8a6c159985db0e05097d4420378a80030df396e9` (PM containment of the owner-transfer routes) in a real browser, desktop and mobile, and fix frontend regressions only. Sync was a fast-forward of the retained branch; no merge, rewrite or remote change. The final head is recorded in the PR report.
+
+Local results on the verified tree (Node 22, Vite 7.3.7, Chromium via `vite preview` of the built bundle):
+
+| Check | Result |
+| --- | --- |
+| Fresh `npm ci` | exit 0, lockfile unchanged |
+| `npm test` | 9 files, **93 tests, 93 pass** (92 at the PM head plus one landmark regression) |
+| `npm run test:dependencies` | 10/10 |
+| `npm run guardrail`, `npm run build` | PASS, PASS |
+| `tsc --noEmit -p tsconfig.json` | **exit 2, 23 diagnostics, all under `server/`, none in `src/`**. Not suppressed, not excluded, not claimed to pass. Owned by #119. |
+| Browser journeys, desktop 1280x800 | **35 of 35 pass**, run twice (before and after the fix below) |
+| Browser journeys, mobile 390x844 touch | the 3 transfer recovery journeys pass. The full suite was also run on mobile at `8a6c1599`: 27 pass, 8 do not. All 8 are desktop-sidebar tests that click "Collapse navigation"; a phone starts on the narrow rail by design (V4), so that button is labelled "Expand navigation". That is a test assumption, not an app regression, and those 8 are **not** counted as a mobile pass. The mobile-specific touch journeys pass. |
+
+Transfer recovery routes (`/owners/transfer`, `/owners/transfer/detail?id=17`, `/admin/transfers`) were additionally scanned at desktop, tablet (768x1024) and phone widths with a stricter check than the suite: every request to any URL was recorded and anything leaving the local origin aborted. Result on all nine route/viewport combinations: the "Owner transfers are unavailable" notice is shown; zero buttons, inputs, selects, textareas, forms, contenteditable regions or links in the content area; no token, storage or credential wording; **zero non-GET requests**; no page errors; no horizontal overflow; no touch target under 44px.
+
+Regression found and fixed: the unavailable notice rendered its own `<main>` inside the app shell's `<main id="main">`, giving the page two main landmarks. It is now a `<section>` (markup tag only; text, test id and behavior unchanged). A unit test now fails on the old markup and passes on the fix.
+
+Observed, not changed (outside the three transfer routes and the PM's containment decision):
+
+- `/admin/sync` is still the live Admin Sync page: it has an "Admin Token" field and, from source (`AdminSyncPage.tsx`), POSTs to `/api/admin/sync/run` and `/api/admin/sync/quick-run` with that token. It shows 11 controls, 10 under 44px at every width. The `HIDDEN_ROUTES` reason for `/admin/sync` now reads "no admin operations enabled", which this source contradicts.
+- `/admin/geocode` is still live with 4 controls under 44px.
+- Both remain unlinked from navigation and reachable by URL; hiding a link is not access control. Whether to contain them the same way is a PM decision.
+
+Evidence limits: every journey uses intercepted or fixture responses against the built bundle, in headless Chromium only. This proves frontend containment and state handling. It is not live-data, deployed-runtime, backend-authorization or aligned-preview proof, and it does not repair server authorization. It is not acceptance; PM acceptance and exact-head CI review are still required.

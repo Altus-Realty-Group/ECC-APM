@@ -118,3 +118,21 @@ Next necessary owner evidence is the intended current ECC backend/database ident
 environment and owner-approved read path. Codex can use the retained private source
 for further comparisons without requesting another source upload. Claude's completed
 V2 return is reviewed; no new Claude/background job was dispatched by this checkpoint.
+
+## Backend discovery update - 2026-10-13
+
+Dion identified this same ECC-APM repository as the next source. It contains both
+Express and Azure Function implementations; no separate backend repository is
+required just to continue source tracing. Read-only Supabase discovery located
+an existing ECC-named project and verified portfolio tables contain records.
+Live metadata also confirms legal/work-order/charge/payment tables exist; prior
+source-only absence was never proof of database absence. Detailed counts, schema
+and security findings remain in the private owner report, not public source.
+
+The remaining prerequisite is the authenticated runtime binding and authoritative
+read contract/source generation, not asking Dion again for the source repository.
+Unit label and lease-rent wire names differ from current frontend schemas; joined
+read errors/zero defaults and mixed numeric/UUID identity need scoped repairs.
+Operation generations/import readiness and current backend actor scopes must be
+verified before activating records. No live data/schema or target configuration
+changed during discovery. Shared platform documents remain orientation only.

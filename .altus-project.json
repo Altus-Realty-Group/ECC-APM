@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "project": "ECC - APM",
+  "repository": {
+    "fullName": "Altus-Realty-Group/ECC-APM",
+    "id": 1058195656,
+    "defaultBranch": "main"
+  },
+  "replit": {
+    "apps": [
+      {
+        "replId": "a9df0217-00ba-4c48-a997-181790d92461",
+        "title": "Replit_Front_End_ECC",
+        "role": "frontend",
+        "branch": "VERIFY",
+        "publishing": {
+          "policy": "gated",
+          "approvalOwner": "Dion",
+          "requires": [
+            "verified GitHub commit alignment",
+            "verified runtime process alignment",
+            "fresh no-drift comparison",
+            "no intervening runtime activity",
+            "explicit exact-release publication authorization"
+          ]
+        }
+      }
+    ]
+  },
+  "evidence": {
+    "status": "OWNER_CONFIRMED - branch and process identity unverified",
+    "discoveryDate": "2026-10-13",
+    "source": "Dion explicitly approved binding Replit workspace a9df0217-00ba-4c48-a997-181790d92461 to Altus-Realty-Group/ECC-APM and merging PR #125 after the exact workspace/merge request in the active chat.",
+    "limits": "This is workspace binding only; branch, Git/worktree and runtime process alignment remain unverified.",
+    "confirmedBy": "Dion",
+    "ownerConfirmationDate": "2026-10-13"
+  }
+}

@@ -28,11 +28,9 @@
     ]
   },
   "evidence": {
-    "status": "OWNER_CONFIRMED - branch and process identity unverified",
+    "status": "PROPOSED - exact Replit workspace confirmation pending",
     "discoveryDate": "2026-10-13",
-    "source": "Dion confirmed the discovered frontend workspace and canonical renamed GitHub repository in the active ECC recovery chat.",
-    "limits": "Owner-confirmed workspace binding is not Git commit, branch, clean worktree or running-process alignment proof.",
-    "ownerConfirmationDate": "2026-10-13",
-    "confirmedBy": "Dion"
+    "source": "Dion confirmed the canonical renamed GitHub repository. Automatic approval review did not accept that reply as explicit confirmation of this Replit workspace ID.",
+    "limits": "Workspace/repository binding remains proposed. No active runtime, branch, commit or process alignment is established."
   }
 }

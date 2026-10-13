@@ -119,3 +119,28 @@ Fixed in this correction (268 to 39, no suppression, no excluded files): about 2
 Rollback: revert this PR's commits; no data, schema, workflow, dependency or environment change was made. The session-scope layer can be removed independently by reverting `src/lib/sessionScope.ts`, `src/lib/useAccessGuard.ts`, the `queryClient.ts` factory and the `main.tsx` line; pages then behave as in V1 (without the denial guarantees).
 
 Next: (1) PM decision on the owner-transfer pages; (2) backend owner confirmation of the dashboard, collection and card contracts under #119; (3) aligned, authorized preview run of the browser journeys for runtime acceptance; (4) workflow owner to gate on `typecheck` when it can pass; (5) follow-up slices: null-safe KPI strip (from #98), the other card types' contract alignment, retiring the dead fabricated-data components.
+
+## PM review correction - 2026-10-13
+
+Current main was merged without rewriting branch history, retaining #123 scoped
+dependency fixes and #122 archive disposition. PM retired unfinished owner-transfer
+page/control bodies from the current tree; exact previous versions remain in Git
+at worker head e61104061b8c2263541bb11fb4cc4e0128e021df. Registered recovery
+routes display an explicit unavailable state. They do not search, approve, authorize,
+execute, simulate a successful preflight, download unsupported reports or instruct
+operators to store admin credentials in the browser. This is frontend containment,
+not backend authorization repair or a working transfer feature. Re-enable only after
+verified actor authorization, contract, confirmation, audit, idempotency and dry-run
+proof in the owning backend and aligned frontend.
+
+Property card validation accepts missing/null metrics as unknown, retains real zero,
+and rejects negative/fractional counts or cents. This is defensive client validation;
+it does not change server schema or assert live-contract acceptance. Occupancy over
+100 remains a backend anomaly to investigate, not a value clipped by the client.
+
+Compiler exclusions and suppressions remain unchanged. Full compiler proof stays
+non-passing while separately owned server diagnostics remain. No failed proof is
+accepted as a passing gate. Local PM results: 9 files, 92 unit tests passing, 10 dependency
+tests passing, guardrail/build passing; frontend diagnostics zero, server diagnostics 23.
+The browser attempt failed before tests when the local preview could not start; it is
+not a browser pass. Exact-head CI must be reviewed before acceptance.

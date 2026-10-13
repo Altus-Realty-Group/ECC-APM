@@ -301,3 +301,18 @@ test("lists still show data when access is fine (guard does not over-hide)", () 
   assert.match(renderIn(seeded(["portfolio", "properties"], propRows), "/portfolio/properties", <PropertiesPage />), /Elm Court/);
   assert.match(renderIn(seeded(["portfolio", "units"], unitRows), "/portfolio/units", <UnitsPage />), /Apt 4B/);
 });
+
+// Render the actual recovery components, rather than a synthetic unavailable fixture.
+test("owner transfer recovery pages expose no mutation controls or browser-token instructions", async () => {
+  for (const path of [
+    "../../src/features/ownerTransfer/OwnerTransferPage",
+    "../../src/features/owners/pages/OwnerTransferPage",
+    "../../src/features/owners/pages/OwnerTransferDetailPage",
+    "../../src/features/admin/pages/AdminTransferManagementPage",
+  ]) {
+    const {default: Page} = await import(path);
+    const html = renderToStaticMarkup(<Page />);
+    assert.match(html, /Owner transfers are unavailable/);
+    assert.doesNotMatch(html, /<(?:button|input|select)\b|localStorage|ADMIN_SYNC_TOKEN/);
+  }
+});

@@ -393,3 +393,28 @@ test.describe("session boundary: cached data, selections and late responses", ()
     await expect(body).toContainText("1 Elm St, Indianapolis, IN, 46201");
   });
 });
+
+// PM correction: recovery URLs must not mount unfinished ownership-changing controls.
+for (const path of ["/owners/transfer", "/owners/transfer/detail?id=17", "/admin/transfers"]) {
+  test(`owner transfer recovery route stays unavailable: ${path}`, async ({ page }) => {
+    const writes: string[] = [];
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await page.route("**/api/**", async route => {
+      if (route.request().method() !== "GET") writes.push(route.request().url());
+      await route.fulfill({status: 503, body: "Unavailable"});
+    });
+    await page.route("**/bff/**", async route => {
+      writes.push(route.request().url());
+      await route.fulfill({status: 503, body: "Unavailable"});
+    });
+    await page.goto(path);
+    const area = page.getByTestId("owner-transfer-unavailable");
+    await expect(area).toBeVisible();
+    await expect(area.getByText("Owner transfers are unavailable", {exact: true})).toBeVisible();
+    await expect(area.locator("button, input, select")).toHaveCount(0);
+    await expect(page.getByText(/localStorage|ADMIN_SYNC_TOKEN/)).toHaveCount(0);
+    expect(writes).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+}

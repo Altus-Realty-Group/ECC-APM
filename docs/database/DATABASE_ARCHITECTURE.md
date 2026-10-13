@@ -70,3 +70,46 @@ This bootstrap changes documentation only. It neither audits nor modifies operat
 PR #121 proposes drizzle-orm0.44.7 to0.45.4 without schema or migration edits. `shared/schema.ts` is the concrete source consumer. Dependency regressions now import actual schema exports, inspect PK/FK/decimal/array metadata, exercise existing drizzle-zod insert/status validators, and compile parameterized PostgreSQL select/join/insert queries through a proxy that throws if execution is attempted. These source checks run in the existing Verify dependency step, with no new job/provider/browser activity. Exact-head CI must pass before merge.
 
 No database connection, DDL, SQL execution, deployed identity, RLS/grant or server authorization proof is established. #119 remains open for actual backend/runtime ownership, privileged/synthetic-data findings and migration/export dependencies. Existing source schema is preserved; tests use isolated fixtures only. Rollback the package/test/documentation commit, never an applied migration. A package compatibility pass is not live database acceptance.
+
+
+
+## Migration/export transitive dependency review - 2026-10-12
+
+ECC PM scoped dependency overrides to ExcelJS's UUID (`11.1.1`) and the
+`@esbuild-kit/core-utils` loader's esbuild (`0.25.12`). Direct ExcelJS,
+Drizzle kit and ORM versions, source schema, services and runtime targets
+remain unchanged. Upstream advisories are GHSA-w5hq-g745-h8pq and
+GHSA-67mh-4wv8-2f99. Scope these overrides to their actual consumers;
+remove them when upstream dependencies resolve patched compatible versions.
+
+Source consumer: `server/services/ownerTransferService.ts` generates an
+ExcelJS Summary sheet using transfer ID, old/new owner IDs, effective date
+and status. An isolated dependency test round-trips those column values
+without importing the service, loading credentials or invoking storage/DB.
+Extended icon-set formatting also exercises ExcelJS's CommonJS UUID v4
+consumer. A loader test compiles and evaluates isolated TypeScript using
+the exact scoped esbuild dependency.
+
+Drizzle kit generated SQL from existing `shared/schema.ts` into a temporary
+directory: 10 tables, no database connection or SQL execution. Generated
+files are validation artifacts only and are not committed or applied.
+The local audit changed from six moderate findings to zero known findings
+in this registry snapshot. This is package evidence, not live security,
+authorization, report completeness or migration acceptance. Backend
+ownership and the service's accounting-sheet TODO remain tracked in #119.
+Rollback this dependency/test/documentation commit; no database rollback
+is involved. Exact-head CI is required before merge.
+
+## Frontend transfer containment - PM review 2026-10-13
+
+The three registered transfer/admin recovery routes now render an unavailable
+notice. Their previous controls called absent hook methods or assumed an
+unverified ownership-changing contract. The dormant alternate page and dry-run/
+preflight components use the same notice. No write request, fake successful check,
+unsupported report download or browser admin-token instruction remains in those
+components. Previous source is recoverable at worker head
+`e61104061b8c2263541bb11fb4cc4e0128e021df`. This retires frontend controls only,
+not database records or backend endpoints. Verified backend contract, actor
+authorization, confirmation, audit and idempotency are prerequisites to restore
+those controls. #119 remains the backend ownership dependency; full typecheck
+continues reporting 23 server diagnostics rather than excluding them.

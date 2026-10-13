@@ -72,10 +72,10 @@ export const HIDDEN_ROUTES: HiddenRoute[] = [
     path: "/owners/transfer",
     reason:
       "Page crashes on load (references the removed Section component) and, once repaired, exposes an immediate " +
-      "Execute owner-transfer action with no confirmation. Needs an owner decision and a verified transfer contract.",
+      "Unavailable recovery route; verified backend transfer authorization and contract required before enabling.",
   },
   { path: "/owners/transfer/detail", reason: "Detail view of the owner-transfer workflow above." },
-  { path: "/admin/sync", reason: "Admin surface; Dion-only gating is not implemented in the frontend." },
+  { path: "/admin/sync", reason: "Unavailable transfer recovery route; no admin operations enabled." },
   { path: "/admin/geocode", reason: "Admin surface; Dion-only gating is not implemented in the frontend." },
   { path: "/admin/transfers", reason: "Admin surface; Dion-only gating is not implemented in the frontend." },
 ];

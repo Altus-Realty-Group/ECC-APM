@@ -1,72 +1,13 @@
-run = "npm run dev"
-modules = ["nodejs-20", "postgresql-16"]
-
-[env]
-CI = "true"
-NPM_CONFIG_AUDIT = "false"
-NPM_CONFIG_FUND = "false"
+run = "npm run start:replit"
+modules = ["nodejs-20"]
+hidden = [".cache", ".vite", "dist", "node_modules", "snapshots", ".archive"]
 
 [packager]
-install = "npm ci || npm install"
+install = "npm ci --no-audit --no-fund"
 
-hidden = [".cache", ".vite", "dist", "node_modules"]
+[packager.features]
+guessImports = false
 
 [[ports]]
 localPort = 5000
-externalPort = 5173
-
-[[ports]]
-localPort = 5173
 externalPort = 80
-
-[[ports]]
-localPort = 5174
-externalPort = 3000
-
-[[ports]]
-localPort = 5175
-externalPort = 3001
-
-[[ports]]
-localPort = 5176
-externalPort = 3002
-
-[[ports]]
-localPort = 5177
-externalPort = 3003
-
-[[ports]]
-localPort = 5178
-externalPort = 4200
-
-[[ports]]
-localPort = 8787
-externalPort = 5000
-
-[workflows]
-runButton = "run"
-
-[[workflows.workflow]]
-name = "run"
-mode = "sequential"
-author = 41942539
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "rm -rf .vite dist"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm install --no-audit --no-fund"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "PORT=${PORT:-5173} npm run dev"
-
-[nix]
-channel = "stable-25_05"
-packages = ["pnpm", "jq"]
-
-[agent]
-integrations = ["javascript_supabase==1.0.0", "javascript_database==1.0.0"]
-expertMode = true

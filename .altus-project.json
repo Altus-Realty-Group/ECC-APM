@@ -7,7 +7,14 @@
     "defaultBranch": "main"
   },
   "replit": {
-    "apps": [
+    "apps": [],
+    "pendingImport": {
+      "name": "ECC-APM (v1.0)",
+      "sourceBranch": "main",
+      "role": "frontend",
+      "status": "AWAITING_OWNER_IMPORT"
+    },
+    "historicalApps": [
       {
         "replId": "a9df0217-00ba-4c48-a997-181790d92461",
         "title": "Replit_Front_End_ECC",
@@ -23,16 +30,16 @@
             "no intervening runtime activity",
             "explicit exact-release publication authorization"
           ]
-        }
+        },
+        "active": false,
+        "supersededBy": "Fresh import requested by Dion on 2026-10-13"
       }
     ]
   },
   "evidence": {
-    "status": "OWNER_CONFIRMED - branch and process identity unverified",
-    "discoveryDate": "2026-10-13",
-    "source": "Dion explicitly approved binding Replit workspace a9df0217-00ba-4c48-a997-181790d92461 to Altus-Realty-Group/ECC-APM and merging PR #125 after the exact workspace/merge request in the active chat.",
-    "limits": "This is workspace binding only; branch, Git/worktree and runtime process alignment remain unverified.",
-    "confirmedBy": "Dion",
-    "ownerConfirmationDate": "2026-10-13"
+    "status": "FRESH_IMPORT_PENDING",
+    "date": "2026-10-13",
+    "source": "Dion requested a new Replit workspace imported from GitHub as ECC-APM (v1.0).",
+    "limits": "No new workspace ID or live runtime proof exists. The old binding is historical only."
   }
 }

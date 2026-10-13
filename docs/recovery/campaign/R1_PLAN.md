@@ -13,7 +13,7 @@ All three builds now expose source in Dropbox /Altus Corporation/Software/ECC Re
 |---|---|---|---|
 | Codex | R1-PM | src/config/navigation.ts; src/components/Sidebar.tsx; src/App.tsx route registration; recovery tooling/docs | Provenance/standards gates, route and navigation reconciliation, independent acceptance |
 | Claude Code | R1-C | new src/features/recovery/operations/**; src/lib/recovery/**; docs/recovery/operations/**; tests/unit/recovery-operations* | Authoritative frontend adapter contracts and repaired legal/work-order/ledger candidates |
-| Codex (reassigned by Dion 2026-10-13) | R1-G | current src/pages/card/**; src/features/dashboard/**; new src/components/recovery/**; docs/recovery/ui/**; tests/unit/recovery-ui*; e2e/recovery-ui* | Repaired cards and dashboard components with usable mobile/desktop behavior |
+| Codex (reassigned by Dion 2026-10-13) | R1-G | current src/pages/card/**; src/features/dashboard/**; new src/components/recovery/**; docs/recovery/ui/**; tests/unit/recovery-ui* and recovery-linked-cards*; e2e/recovery-ui* and recovery-linked-cards* | Repaired cards and dashboard components with usable mobile/desktop behavior |
 
 Shared App.tsx, navigation, contracts under src/contracts, queryClient/session boundaries, existing common styles, lockfiles, workflows and package files are PM-owned. Workers submit exact requested shared edits in their own docs; PM integrates after review. Do not independently edit another lane. Existing backend files are inspection-only in this frontend ownership repository; do not invent backend contracts or mutate another repo.
 
@@ -48,7 +48,7 @@ Each ported/rebuilt feature must have an entry under its lane provenance ledger:
 Mandatory source checks: npm run typecheck, npm test, npm run test:dependencies, npm run build and existing guardrails; targeted browser proof at desktop and mobile for changed UI. Run tests locally before triggering existing bounded CI once on a reviewable head.
 Return exact branch/base/head, PR, changed files, checks/results, current contract evidence, remaining ledger, next action and lane integrity.
 Codex retains independent review, shared-file integration and acceptance. No merges or publishing are authorized by this assignment.
-External worker prompts must be sent manually by Dion; a PR is not delivery. Claude acknowledged and returned R1-C V1 for review; V2 corrections remain the operations assignment. Grok's source-access blocker is superseded by Dion's explicit reassignment to Codex. Codex is implementing R1-G directly in this conversation.
+Goal ECC-RECOVERY-20261013 is owned in the initiating chat. Claude's V2 return was discovered as PR131, stacked on PR129; actual branch/diff/CI and local proof are reviewed by Codex rather than treating dispatch or acknowledgment as completion. No direct Claude dispatch/status connector is available in this session; future assignment delivery must be verified, not inferred from a PR document. Codex performs accessible independent work directly. Grok's source-access blocker is superseded by Dion's explicit reassignment to Codex. See GOAL.md for current acceptance, exact revisions, dependencies and work orders.
 
 ## Rollback
 Revert individual source PRs; do not migrate or delete original export files. Tooling is manual and read-only. No database or runtime change is bundled with this campaign seed.

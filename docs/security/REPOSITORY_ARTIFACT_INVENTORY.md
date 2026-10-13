@@ -1,37 +1,42 @@
 # ECC Repository Artifact Inventory
 
-Status date: 2026-08-06
-Baseline: `main` at `5e5bd182f24c997dd743ccc5bca872ae2a64f4ff`
+Status date: 2026-10-12  
+Baseline: main `9c1bd5348950aec4f0851149f1fce36f1876a74a` (post-refresh of ECC-C5-V1).
 
-## Removed in this hygiene change
+## Prior hygiene removals (historical, from merged #104)
 
 | Path class | Tracked files removed | Reason |
 |---|---:|---|
-| `.env` | 1 | Local configuration with secret-bearing values must not be tracked. |
-| `.env.local` | 1 | Local configuration with secret-bearing values must not be tracked. |
-| `.local/**` | 33,844 | Generated pnpm package-store/cache data, not application source. |
-| `attached_assets/**` | 363 | Obsolete Replit/chat uploads with no active application-source references. |
-| **Total** | **34,209** | |
+| `.env` / `.env.local` | 2 | Local configuration removed from the tracked snapshot; values were not independently inspected or verified as placeholders. |
+| `.local/**` | 33,844 | Generated pnpm package-store/cache. |
+| `attached_assets/**` | 363 | Obsolete Replit/chat uploads; no active source references. |
+| **Total** | **34,209** | Snapshot-only; history not rewritten. |
 
-The removals affect only the current branch snapshot. Git history is not rewritten, and credentials are not rotated by this change.
+## ECC-C5-V1 measured remaining artifacts
 
-## Remaining tracked backup and generated artifacts
+Historical counts reconciled: 38 ZIP + 7 bak/backup + 1 TGZ.  
+After removal of inactive historical code backups (one identical; six differing versions retained in Git) and refresh from current main: 38 ZIP + 1 TGZ remain tracked.
 
-These files remain tracked for a later, separately reviewed disposition decision:
+### Removed (proven redundant code backups)
 
-| Artifact class | Count | Approximate bytes | Examples / scope | Recommended disposition |
-|---|---:|---:|---|---|
-| `snapshots/*.zip` | 38 | 1,872,115 | Historical ECC UI/navigation recovery archives | Verify whether any snapshot is authoritative; otherwise remove in a dedicated archival PR. |
-| `*.bak` / `*.backup` | 7 | Not separately measured | `package.json.bak`, server and script backups, `vite.config.js.backup` | Compare each file to canonical source, retain provenance outside the code tree if needed, then remove. |
-| Root `*.tgz` archive | 1 | 358,403 | `estate_backup_20250829_073941.tgz` | Validate ownership and contents without exposing secrets, then archive outside Git or remove. |
+See `docs/recovery/ARCHIVE_DISPOSITION.md` for individual bytes and former blob SHAs.  
+Files removed: package.json.bak, vite.config.js.backup, scripts/guardrail-check.mjs.bak, server/index.ts.bak, server/index.ts.backup, server/lib/mapping.ts.bak, server/routes/rpc.ts.bak.
+
+### Retained (recovery originals — uncertain unique value)
+
+- 38 files under `snapshots/*.zip` (total 1,872,115 bytes). Historical ECC UI/navigation recovery archives.  
+- Root `estate_backup_20250829_073941.tgz` (358,403 bytes). Full Replit-era backup.  
+
+Individual paths, bytes, and blob SHAs are listed in the disposition document.  
+Disposition: retained pending owner external-archive or future dedicated removal decision. Safe member-name inspection performed; no secrets or private business records printed. Next action: owner confirmation of unique recovery value.
 
 ## Current controls
 
-- `.env`, `.env.*` (except `.env.example`), `.local/`, package caches, and `attached_assets/` are ignored.
-- Common logs, temporary files, backup suffixes, and generated archives are ignored to prevent new accidental additions.
-- `.env.example` contains a placeholder only and no runtime value.
-- Required runtime values must remain in the approved runtime secret/configuration store.
+- `.env`, `.env.*` (except `.env.example`), `.local/`, package caches, and `attached_assets/` are ignored.  
+- Common logs, temporary files, backup suffixes, and generated archives are ignored to prevent new accidental additions.  
+- `.env.example` contains a placeholder only.  
+- Required runtime values must be held in approved secret stores; live storage was not verified.
 
 ## Security status
 
-The prior inventory described the removed environment values as placeholders. That historical assertion was not independently revalidated in this PM review; environment values were not read or printed. Snapshot removal is not a secret-clearance finding. Earlier Git history is not rewritten; any credential ever committed there should still be treated as exposed and rotated. Rotation and history cleanup remain outside this PR's authorization.
+No environment values or secrets were read or printed. Archive retention is not a secret-clearance finding. Earlier Git history is not rewritten; any credential ever committed should still be treated as exposed and rotated outside this authorization.

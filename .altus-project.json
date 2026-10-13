@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "project": "ECC - APM",
+  "repository": {
+    "fullName": "Altus-Realty-Group/ECC-APM",
+    "id": 1058195656,
+    "defaultBranch": "main"
+  },
+  "replit": {
+    "apps": [
+      {
+        "replId": "a9df0217-00ba-4c48-a997-181790d92461",
+        "title": "Replit_Front_End_ECC",
+        "role": "frontend",
+        "branch": "VERIFY",
+        "publishing": {
+          "policy": "gated",
+          "approvalOwner": "Dion",
+          "requires": [
+            "verified GitHub commit alignment",
+            "verified runtime process alignment",
+            "fresh no-drift comparison",
+            "no intervening runtime activity",
+            "explicit exact-release publication authorization"
+          ]
+        }
+      }
+    ]
+  },
+  "evidence": {
+    "status": "PROPOSED — owner confirmation required before merge",
+    "discoveryDate": "2026-10-13",
+    "source": "Replit candidate discovery; no bound-app inspection performed",
+    "limits": "Title match is not app/repository alignment. Branch and process identity remain unverified."
+  }
+}

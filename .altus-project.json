@@ -28,9 +28,11 @@
     ]
   },
   "evidence": {
-    "status": "PROPOSED — owner confirmation required before merge",
+    "status": "OWNER_CONFIRMED - branch and process identity unverified",
     "discoveryDate": "2026-10-13",
-    "source": "Replit candidate discovery; no bound-app inspection performed",
-    "limits": "Title match is not app/repository alignment. Branch and process identity remain unverified."
+    "source": "Dion confirmed the discovered frontend workspace and canonical renamed GitHub repository in the active ECC recovery chat.",
+    "limits": "Owner-confirmed workspace binding is not Git commit, branch, clean worktree or running-process alignment proof.",
+    "ownerConfirmationDate": "2026-10-13",
+    "confirmedBy": "Dion"
   }
 }

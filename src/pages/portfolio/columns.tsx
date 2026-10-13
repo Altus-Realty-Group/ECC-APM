@@ -1,5 +1,5 @@
 import React from "react";
-import { money, percent, shortDate, dash } from "../../utils/format";
+import { money, shortDate } from "../../utils/format";
 import ProgressBar from "@/components/cardkit/ProgressBar";
 import StatusTag from "@/components/cardkit/StatusTag";
 import { DataColumn } from "../../components/DataTable";
@@ -33,7 +33,7 @@ export function mapProperty(src:any): PropertyRow {
   };
 }
 
-export const PROPERTY_COLUMNS = [
+export const PROPERTY_COLUMNS: DataColumn<PropertyRow>[] = [
   { key:"name",  header:"PROPERTY", type:"text", render:(value:any, r:PropertyRow)=><strong>{r.name}</strong> },
   { key:"type",  header:"TYPE", type:"text" },
   { key:"class", header:"CLASS", type:"text" },
@@ -71,7 +71,7 @@ export function mapUnit(src:any): UnitRow {
   };
 }
 
-export const UNIT_COLUMNS = [
+export const UNIT_COLUMNS: DataColumn<UnitRow>[] = [
   { key:"property", header:"PROPERTY", type:"text" },
   { key:"unit", header:"UNIT", type:"text" },
   { key:"beds", header:"BEDS", align:"right", type:"number" },
@@ -109,7 +109,7 @@ export function mapLease(src:any): LeaseRow {
   };
 }
 
-export const LEASE_COLUMNS = [
+export const LEASE_COLUMNS: DataColumn<LeaseRow>[] = [
   { key:"property", header:"PROPERTY", type:"text" },
   { key:"unit", header:"UNIT", type:"text" },
   { key:"tenants", header:"TENANT(S)", type:"text", render:(value:any, r:LeaseRow)=><strong>{r.tenants}</strong> },
@@ -145,7 +145,7 @@ export function mapTenant(src:any): TenantRow {
   };
 }
 
-export const TENANT_COLUMNS = [
+export const TENANT_COLUMNS: DataColumn<TenantRow>[] = [
   { key:"name", header:"TENANT", type:"text" },
   { key:"email", header:"EMAIL", type:"text" },
   { key:"phone", header:"PHONE", type:"text" },
@@ -177,8 +177,8 @@ export function mapOwner(src:any): OwnerRow {
   };
 }
 
-export const OWNER_COLUMNS = [
-  { key:"company", header:"COMPANY", type:"text", render:(_v: any, r: any) => <strong>{r.company ?? ""}</strong> },
+export const OWNER_COLUMNS: DataColumn<OwnerRow>[] = [
+  { key:"company", header:"COMPANY", type:"text", render:(_v: any, r: OwnerRow) => <strong>{r.company}</strong> },
   { key:"name", header:"OWNER", type:"text" },
   { key:"email", header:"EMAIL", type:"text" },
   { key:"phone", header:"PHONE", type:"text" },

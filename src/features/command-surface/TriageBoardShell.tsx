@@ -37,7 +37,7 @@ const LANE_META: Record<LaneKey, { title: string; icon: React.ReactNode; hint: s
   escalate: {
     title: "Escalate",
     icon: <AlertTriangle size={15} />,
-    hint: "Flag for follow-up outside this local proof shell",
+    hint: "Flag for follow-up",
   },
 };
 
@@ -170,7 +170,7 @@ export default function TriageBoardShell({ items, config }: Props) {
   if (!items.length) {
     return (
       <aside className="ecc-triage-shell ecc-object">
-        <p className="ecc-command-surface__eyebrow">T5 Drilldown Rail</p>
+        <p className="ecc-command-surface__eyebrow">Review</p>
         <div className="ecc-command-empty-panel">{config.triageEmptyLabel}</div>
       </aside>
     );
@@ -180,10 +180,10 @@ export default function TriageBoardShell({ items, config }: Props) {
     <aside className="ecc-triage-shell ecc-object">
       <div className="ecc-triage-shell__header">
         <div>
-          <p className="ecc-command-surface__eyebrow">T5 Optional Drilldown Rail</p>
+          <p className="ecc-command-surface__eyebrow">Review</p>
           <h2 className="ecc-triage-shell__title">{config.triageTitle}</h2>
         </div>
-        <span className="ecc-triage-shell__count">{allIds.length} cards in motion</span>
+        <span className="ecc-triage-shell__count">{allIds.length} selected</span>
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>

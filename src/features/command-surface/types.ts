@@ -25,4 +25,6 @@ export type CommandSurfaceConfig = {
   triageTitle: string;
   triageEmptyLabel: string;
   focusCommandLabel: string;
+  /** Optional link target for a row's primary cell, e.g. (id) => `/card/property/${id}`. */
+  rowHref?: (id: string) => string;
 };

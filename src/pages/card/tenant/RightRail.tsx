@@ -1,4 +1,5 @@
 import React from 'react';
+import { Section, MiniCard } from './CardParts';
 // ECC Guardrail compliance
 
 export default function RightRail({ activeLease }:{ activeLease?: any|null }) {
@@ -7,8 +8,8 @@ export default function RightRail({ activeLease }:{ activeLease?: any|null }) {
       <Section title="Active Lease">
         {activeLease ? (
           <MiniCard
-            title={`Lease ${activeLease.doorloop_id ?? activeLease.id}`}
-            subtitle={[activeLease.start_date, activeLease.end_date].filter(Boolean).join(' – ') || undefined}
+            title={`Lease #${activeLease.id}`}
+            subtitle={activeLease.status || undefined}
             href={`/card/lease/${activeLease.id}`}
           />
         ) : <div className="opacity-70 text-sm">No active lease.</div>}

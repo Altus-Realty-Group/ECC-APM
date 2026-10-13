@@ -6,6 +6,16 @@ export function isAbortError(e: unknown) {
   );
 }
 
+/** Error that keeps the HTTP status so UIs can tell "denied" from "failed". */
+export class HttpError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "HttpError";
+    this.status = status;
+  }
+}
+
 export async function fetchJSON<T>(input: RequestInfo, init?: RequestInit & { signal?: AbortSignal }) {
   try {
     const res = await fetch(input, init);
@@ -35,7 +45,7 @@ export async function fetchJSON<T>(input: RequestInfo, init?: RequestInit & { si
         }));
       }
 
-      throw new Error(errorMsg);
+      throw new HttpError(errorMsg, res.status);
     }
     return (await res.json()) as T;
   } catch (err) {

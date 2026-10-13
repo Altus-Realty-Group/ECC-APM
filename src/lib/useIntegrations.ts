@@ -12,7 +12,7 @@ export function useIntegrations(){
   const [data,setData]=useState<Integrations|null>(null);
   useEffect(()=>{ (async()=>{
     try{
-      const j = await fetchJSON("/api/config/integrations");
+      const j = await fetchJSON<{ integrations?: Integrations }>("/api/config/integrations");
       setData(j?.integrations||null);
     }catch{ setData({ m365:false, sharepoint:false, teamsDefault:false, doorloop:false, dropbox:false, corelogic:false }); }
   })(); },[]);

@@ -1,5 +1,5 @@
 import * as React from "react";
-import DataTable, { Column } from "../../components/DataTable";
+import DataTable, { type DataColumn } from "../../components/DataTable";
 import { useCollection } from "../../features/data/useCollection";
 import { money, shortDate } from "../../utils/format";
 import { indexBy } from "../../utils/dict";
@@ -89,18 +89,18 @@ export default function LeasesPage() {
     : 0;
 
   // Columns
-  const columns: Column<Row>[] = [
+  const columns: DataColumn<Row>[] = [
     { key: "tenants", header: "TENANT(S)" },
     { key: "property", header: "PROPERTY" },
     {
       key: "rent",
       header: "RENT",
-      className: "is-right",
-      render: (r) => money(r.rent),
-      sort: (a, b) => (Number.isFinite(Number(a.rent)) ? Number(a.rent) : 0) - (Number.isFinite(Number(b.rent)) ? Number(b.rent) : 0),
+      align: "right",
+      type: "number",
+      render: (_v, r) => money(r.rent),
     },
-    { key: "start", header: "START", render: (r) => shortDate(r.start) },
-    { key: "end", header: "END", render: (r) => shortDate(r.end) },
+    { key: "start", header: "START", type: "date", render: (_v, r) => shortDate(r.start) },
+    { key: "end", header: "END", type: "date", render: (_v, r) => shortDate(r.end) },
     { key: "status", header: "STATUS" },
   ];
 

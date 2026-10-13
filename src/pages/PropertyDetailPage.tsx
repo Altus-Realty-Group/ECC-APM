@@ -2,7 +2,7 @@ import { useRoute } from "wouter";
 // AssetCard removed - will be rebuilt
 
 export default function PropertyDetailPage(){
-  const [match, params] = useRoute("/portfolio/properties/:id");
+  const [match, params] = useRoute<{ id: string }>("/portfolio/properties/:id");
   const id = params?.id;
   
   // Add null-check to prevent crashes

@@ -5,9 +5,11 @@ import RightRailPanel from "@/components/cardkit/RightRailPanel";
 import HeroBlock from "./HeroBlock";
 import Overview from "./Overview";
 import { useOwnerCard } from "@/lib/ecc-resolvers";
+import { BLANK, formatNumber } from "@/lib/format";
 
 export default function OwnerCardPage() {
-  const [, params] = useRoute("/card/owner/:id");
+  const [, routeParams] = useRoute("/card/owner/:id");
+  const params: { id?: string } | null = routeParams;
   const idNum = Number(params?.id);
   const q = useOwnerCard(idNum);
   if (!Number.isFinite(idNum)) return <div data-testid="owner-invalid">Invalid owner id</div>;
@@ -31,13 +33,8 @@ export default function OwnerCardPage() {
 
   const rightRail = (
     <div className="space-y-4">
-      <RightRailPanel title="Contact Info" data-testid="rr-contact">
-        <div className="text-sm text-neutral-300">Email: {owner?.email}</div>
-        <div className="text-sm text-neutral-300">Phone: {owner?.phone}</div>
-      </RightRailPanel>
       <RightRailPanel title="Portfolio" data-testid="rr-portfolio">
-        <div className="text-sm text-neutral-300">Properties: {properties.length}</div>
-        <div className="text-sm text-neutral-300">Since: {owner?.created_at}</div>
+        <div className="text-sm text-neutral-300">Properties: {data ? formatNumber(properties.length) : BLANK}</div>
       </RightRailPanel>
     </div>
   );

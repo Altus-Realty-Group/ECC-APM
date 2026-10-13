@@ -1,3 +1,4 @@
+export {};
 declare global {
   interface Window { __ECC_NET_CALLS?: any[]; __ECC_TAP_INSTALLED?: boolean; }
 }
@@ -6,14 +7,14 @@ declare global {
   if (url.searchParams.get('debug') !== '1') return;
   if (window.__ECC_TAP_INSTALLED) return;
   window.__ECC_TAP_INSTALLED = true;
-  const calls:any[] = window.__ECC_NET_CALLS = [];
+  const calls: any[] = window.__ECC_NET_CALLS = [];
 
   // fetch tap
-  const of = window.fetch;
-  (window as any).fetch = async (...args:any[]) => {
+  const of = window.fetch.bind(window);
+  window.fetch = async (...args: Parameters<typeof fetch>) => {
     const t0 = performance.now();
     try {
-      const res = await of(...args as any);
+      const res = await of(...args);
       calls.push({ kind:'fetch', url:String(args[0]), status:res.status, ms:Math.round(performance.now()-t0) });
       return res;
     } catch (e:any) {

@@ -322,3 +322,12 @@
     max-width: none;
   }
 }
+
+/* Touch targets: every interactive control in the table is at least 44px. */
+.ecc-hit { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; cursor: pointer; }
+.ecc-hit input[type="checkbox"] { width: 20px; height: 20px; }
+.ecc-command-table__sort, .ecc-command-table__static { min-height: 44px; }
+.ecc-command-row-link { display: inline-flex; align-items: center; min-height: 44px; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.ecc-command-row-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.ecc-command-launch, .ecc-command-search input { min-height: 44px; }
+.ecc-command-table__sort, .ecc-command-table__static { min-width: 44px; }

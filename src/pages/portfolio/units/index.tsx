@@ -13,8 +13,8 @@ export default function UnitsPage() {
     
     return {
       rows: mapped,
-      loading: units.loading,
-      error: units.error,
+      loading: units.isLoading,
+      error: units.error ? String(units.error.message ?? units.error) : undefined,
     };
   }, [units]);
 
@@ -23,7 +23,7 @@ export default function UnitsPage() {
     const total = rows.length;
     const occupied = rows.filter((r) => String(r.status).toLowerCase() === "occupied").length;
     const vacant = total - occupied;
-    const avgRent = rows.length > 0 ? rows.reduce((s, r) => s + (Number.isFinite(Number(r.marketRent)) ? Number(r.marketRent) : 0), 0) / rows.length : 0;
+    const avgRent = rows.length > 0 ? rows.reduce((s, r) => s + (Number.isFinite(Number(r.marketRent)) ? Number(r.marketRent) : 0), 0) / rows.length : null;
     return { total, occupied, vacant, avgRent };
   }, [rows]);
 
@@ -43,7 +43,7 @@ export default function UnitsPage() {
           <div className="ecc-kpi-l">Vacant</div>
         </div>
         <div className="ecc-kpi">
-          <div className="ecc-kpi-n">${kpis.avgRent.toFixed(0)}</div>
+          <div className="ecc-kpi-n">{kpis.avgRent === null ? "\u2014" : `$${kpis.avgRent.toFixed(0)}`}</div>
           <div className="ecc-kpi-l">Avg Market Rent</div>
         </div>
       </div>

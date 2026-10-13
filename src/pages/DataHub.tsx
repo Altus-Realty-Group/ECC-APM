@@ -36,6 +36,13 @@ function Table({ rows }: { rows: any[] }) {
   );
 }
 
+/** Reads transferId from an untyped mutation response; returns "" when absent. */
+function readTransferId(res: unknown): string {
+  if (typeof res !== "object" || res === null) return "";
+  const id = (res as { transferId?: unknown }).transferId;
+  return id ? String(id) : "";
+}
+
 export default function DataHub() {
   const [entity, setEntity] = useState<EntityKey>("owners");
   const [limit, setLimit]   = useState<number>(25);
@@ -62,22 +69,22 @@ export default function DataHub() {
   const doContext = () => setShouldLoadContext(true);
   const doInitiate = () => {
     mutations.initiate.mutate(undefined, {
-      onSuccess: (res) => setTransferId(res.transferId)
+      onSuccess: (res) => setTransferId(readTransferId(res))
     });
   };
   const doApprove = () => {
     mutations.approve.mutate(transferId, {
-      onSuccess: (res) => setTransferId(String(res?.transferId || transferId))
+      onSuccess: (res) => setTransferId(readTransferId(res) || transferId)
     });
   };
   const doAuthorize = () => {
     mutations.authorize.mutate(transferId, {
-      onSuccess: (res) => setTransferId(String(res?.transferId || transferId))
+      onSuccess: (res) => setTransferId(readTransferId(res) || transferId)
     });
   };
   const doExecute = () => {
     mutations.execute.mutate(transferId, {
-      onSuccess: (res) => setTransferId(String(res?.transferId || transferId))
+      onSuccess: (res) => setTransferId(readTransferId(res) || transferId)
     });
   };
 

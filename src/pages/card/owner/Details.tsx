@@ -1,4 +1,5 @@
 import React from 'react';
+import { MiniCard } from './CardParts';
 // ECC Guardrail compliance
 export default function Details({ properties }:{ properties?: any[]|null }) {
   return (
@@ -6,12 +7,10 @@ export default function Details({ properties }:{ properties?: any[]|null }) {
       <div className="font-medium">Portfolio</div>
       {properties && properties.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {properties.map((p) => (
+          {properties.map((p, i) => (
             <MiniCard 
-              key={String(p?.id ?? Math.random())}
-              title={p?.display_name || p?.street_1 || `Property #${p?.id || 'unknown'}`}
-              subtitle={[p?.city, p?.state].filter(Boolean).join(', ') || undefined}
-              countBadge={p?.units_count}
+              key={String(p?.id ?? `idx-${i}`)}
+              title={p?.name || `Property #${p?.id ?? 'unknown'}`}
               href={p?.id ? `/card/property/${p.id}` : undefined}
             />
           ))}

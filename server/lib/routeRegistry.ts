@@ -2,7 +2,7 @@ export interface RouteEntry {
     method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
     path: string;
     handler: string;
-    status: 'active' | '410_gone' | 'alias';
+    status: 'active' | '410_gone' | 'alias' | 'unavailable';
     group: string;
     replacement?: string;
     // Contract Extensions
@@ -30,19 +30,19 @@ export const ROUTE_REGISTRY: RouteEntry[] = [
     { method: 'GET', path: '/api/portfolio/leases', handler: 'server/index.ts', status: 'active', group: 'Portfolio', contract_name: 'PORTFOLIO_LIST', contract_version: 'v1', contract_family: 'GENERIC_COLLECTION', allowed_statuses: [200], canonical: true },
     { method: 'GET', path: '/api/portfolio/tenants', handler: 'server/index.ts', status: 'active', group: 'Portfolio', contract_name: 'PORTFOLIO_LIST', contract_version: 'v1', contract_family: 'GENERIC_COLLECTION', allowed_statuses: [200], canonical: true },
     { method: 'GET', path: '/api/portfolio/owners', handler: 'server/index.ts', status: 'active', group: 'Portfolio', contract_name: 'PORTFOLIO_LIST', contract_version: 'v1', contract_family: 'GENERIC_COLLECTION', allowed_statuses: [200], canonical: true },
-    { method: 'GET', path: '/api/portfolio/_debug/sql', handler: 'server/index.ts', status: 'active', group: 'Portfolio', contract_name: 'SYSTEM', contract_version: 'v1', contract_family: 'SYSTEM', allowed_statuses: [200, 400], canonical: true },
+    { method: 'GET', path: '/api/portfolio/_debug/sql', handler: 'server/lib/unavailableOperation.ts', status: 'unavailable', group: 'Portfolio', contract_name: 'SYSTEM', contract_version: 'v1', contract_family: 'SYSTEM', allowed_statuses: [503], canonical: true },
 
     // MAINTENANCE & ACCOUNTING
-    { method: 'GET', path: '/api/maintenance/workorders', handler: 'server/index.ts', status: 'active', group: 'Maintenance', contract_name: 'GENERIC_COLLECTION', contract_version: 'v1', contract_family: 'GENERIC_COLLECTION', allowed_statuses: [200], canonical: true },
-    { method: 'GET', path: '/api/accounting/transactions', handler: 'server/index.ts', status: 'active', group: 'Accounting', contract_name: 'GENERIC_COLLECTION', contract_version: 'v1', contract_family: 'GENERIC_COLLECTION', allowed_statuses: [200], canonical: true },
+    { method: 'GET', path: '/api/maintenance/workorders', handler: 'server/lib/unavailableOperation.ts', status: 'unavailable', group: 'Maintenance', contract_name: 'GENERIC_COLLECTION', contract_version: 'v1', contract_family: 'GENERIC_COLLECTION', allowed_statuses: [503], canonical: true },
+    { method: 'GET', path: '/api/accounting/transactions', handler: 'server/lib/unavailableOperation.ts', status: 'unavailable', group: 'Accounting', contract_name: 'GENERIC_COLLECTION', contract_version: 'v1', contract_family: 'GENERIC_COLLECTION', allowed_statuses: [503], canonical: true },
 
     // WORKFLOW
-    { method: 'POST', path: '/api/owner-transfer/initiate', handler: 'server/index.ts', status: 'active', group: 'Workflow', contract_name: 'WORKFLOW', contract_version: 'v1', contract_family: 'WORKFLOW', allowed_statuses: [201], canonical: true },
-    { method: 'POST', path: '/api/owner-transfer/approve-accounting', handler: 'server/index.ts', status: 'active', group: 'Workflow', contract_name: 'WORKFLOW', contract_version: 'v1', contract_family: 'WORKFLOW', allowed_statuses: [200], canonical: true },
-    { method: 'POST', path: '/api/owner-transfer/authorize', handler: 'server/index.ts', status: 'active', group: 'Workflow', contract_name: 'WORKFLOW', contract_version: 'v1', contract_family: 'WORKFLOW', allowed_statuses: [200], canonical: true },
-    { method: 'POST', path: '/api/owner-transfer/execute', handler: 'server/index.ts', status: 'active', group: 'Workflow', contract_name: 'WORKFLOW', contract_version: 'v1', contract_family: 'WORKFLOW', allowed_statuses: [200, 202], canonical: true },
-    { method: 'GET', path: '/api/owner-transfer/:id', handler: 'server/routes/ownerTransfer.ts', status: 'active', group: 'Workflow', contract_name: 'WORKFLOW', contract_version: 'v1', contract_family: 'WORKFLOW', allowed_statuses: [200], canonical: true },
-    { method: 'POST', path: '/api/owner-transfer/:id/audit', handler: 'server/routes/ownerTransfer.ts', status: 'active', group: 'Workflow', contract_name: 'WORKFLOW', contract_version: 'v1', contract_family: 'WORKFLOW', allowed_statuses: [201], canonical: true },
+    { method: 'POST', path: '/api/owner-transfer/initiate', handler: 'server/lib/unavailableOperation.ts', status: 'unavailable', group: 'Workflow', contract_name: 'WORKFLOW', contract_version: 'v1', contract_family: 'WORKFLOW', allowed_statuses: [503], canonical: true },
+    { method: 'POST', path: '/api/owner-transfer/approve-accounting', handler: 'server/lib/unavailableOperation.ts', status: 'unavailable', group: 'Workflow', contract_name: 'WORKFLOW', contract_version: 'v1', contract_family: 'WORKFLOW', allowed_statuses: [503], canonical: true },
+    { method: 'POST', path: '/api/owner-transfer/authorize', handler: 'server/lib/unavailableOperation.ts', status: 'unavailable', group: 'Workflow', contract_name: 'WORKFLOW', contract_version: 'v1', contract_family: 'WORKFLOW', allowed_statuses: [503], canonical: true },
+    { method: 'POST', path: '/api/owner-transfer/execute', handler: 'server/lib/unavailableOperation.ts', status: 'unavailable', group: 'Workflow', contract_name: 'WORKFLOW', contract_version: 'v1', contract_family: 'WORKFLOW', allowed_statuses: [503], canonical: true },
+    { method: 'GET', path: '/api/owner-transfer/:id', handler: 'server/lib/unavailableOperation.ts', status: 'unavailable', group: 'Workflow', contract_name: 'WORKFLOW', contract_version: 'v1', contract_family: 'WORKFLOW', allowed_statuses: [503], canonical: true },
+    { method: 'POST', path: '/api/owner-transfer/:id/audit', handler: 'server/lib/unavailableOperation.ts', status: 'unavailable', group: 'Workflow', contract_name: 'WORKFLOW', contract_version: 'v1', contract_family: 'WORKFLOW', allowed_statuses: [503], canonical: true },
 
     // GENERIC ENTITIES & RPC
     { method: 'GET', path: '/api/entities/:table/:id', handler: 'server/routes/entities.ts', status: 'active', group: 'Entities', contract_name: 'GENERIC_COLLECTION', contract_version: 'v1', contract_family: 'GENERIC_COLLECTION', allowed_statuses: [200], canonical: true },

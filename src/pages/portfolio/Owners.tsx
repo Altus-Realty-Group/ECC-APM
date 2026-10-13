@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import FilterBar from "../../components/FilterBar";
-import DataTable, { Column } from "../../components/DataTable";
+import DataTable, { type DataColumn } from "../../components/DataTable";
 
 type OwnerRow = {
   id: string;
@@ -28,12 +28,12 @@ export default function Owners() {
     );
   }, [q]);
 
-  const columns: Column<OwnerRow>[] = [
-    { key: "id", header: "Owner ID", width: 120 },
+  const columns: DataColumn<OwnerRow>[] = [
+    { key: "id", header: "Owner ID" },
     { key: "name", header: "Owner / Entity" },
     { key: "portfolio", header: "Portfolio" },
     { key: "email", header: "Email" },
-    { key: "phone", header: "Phone", width: 160 },
+    { key: "phone", header: "Phone" },
   ];
 
   return (

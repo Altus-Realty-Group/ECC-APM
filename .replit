@@ -11,3 +11,15 @@ guessImports = false
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[workflows]
+runButton = "ECC-APM"
+
+[[workflows.workflow]]
+name = "ECC-APM"
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run start:replit"
+waitForPort = 5000

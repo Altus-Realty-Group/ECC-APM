@@ -13,10 +13,12 @@ navigation and human journeys backed by truthful data. File counts, rendered gat
 and green source checks are not full recovery.
 
 Authorized: private-source inspection, frontend rebuilds, tests, isolated branches,
-draft PRs, independent review and shared route integration. Excluded: raw private
-exports/access links in public Git, invented data/contracts, backend activation or
-target wiring, live writes/migrations, external paid dispatch, merge and deployment.
-No new paid resources, packages or CI workflows in these product PRs.
+draft PRs, independent review and shared route integration. The stale-data recovery
+now includes source-only fixes and a reviewable read-only preview in the routed
+DoorLoop ingestion repository. Excluded: raw private exports/access links in public
+Git, invented data/contracts, backend activation or target mutation, live writes,
+migrations, vendor replay, external paid dispatch, merge and deployment. No new paid
+resources or packages; the dependency preview is manual-only and not dispatched.
 
 ## Current work orders
 
@@ -27,14 +29,14 @@ recursive agents or new provider jobs. No continuing/background execution claime
 
 | Order / owner | Permitted slice / PR | State and observed revision | Acceptance / next action |
 | --- | --- | --- | --- |
-| R1-PM / Codex | campaign docs, comparator / PR128 | review; d03e94f8 before this checkpoint, verify success | Read-only comparator fixture verified; goal checkpoint added here; independent review pending |
+| R1-PM / Codex | campaign docs, comparator / PR128 | previous checkpoint 5a1141fe; updated receipt here | Comparator fixture verified; current checkpoint CI required; whole goal remains open |
 | R1-UI / Codex | property rent/hero, dashboard history, scoped component/tests / PR130 | verified local product slice; 123662d0 | 100 unit, 16 dependency, typecheck/guardrail/build; desktop and 390px browser journeys now 2/2; required verify success. Unmerged; real-data acceptance blocked |
 | R1-C / Claude | operations adapters/views/tests / PR129 | foundation review; bfb9be72, verify success | Keep domains unverified and zero requests; evaluate correction stack before integration |
 | R1-C V2 / Claude; independent review Codex | same operations slice / PR131; base bfb9be72 | reviewed at 89cc1a2c, verify success | Local repeat: 111 unit, 16 dependency, typecheck/guardrail/build and 6/6 desktop/390px gated-route journeys. Grouped per-lease sums/overflow and loading path repaired. No live operations activated |
 | R2-LINKED / Codex | four entity Linked/index modules, scoped components/tests/docs / PR132 | source implemented and local verified; 5e03ec41 | 102 unit, 16 dependency, typecheck/guardrail/build; 2/2 browser journeys incl keyboard links and simulated 403/retry; required exact-head verify success |
 | R2-SESSION / Codex PM review | five scoped operations source/test/doc files / PR133; base 89cc1a2c | verified source/query lifecycle; aebe38ca, required verify success | Shared TanStack/epoch/access guard replaces local state; 113 unit, 16 dependency, typecheck/guardrail/build and six gate browser journeys pass. No real domain activated |
 | R2-SOURCE / Codex | private archive inspection; derived findings in this record | inspected subset, source-only | Removed Claude's extraction barrier for selected historical evidence via findings below. No raw source publication; full active-tree duplicate reconciliation still pending |
-| CONTRACT-AUTHORITY / Codex + Dion/backend owner | source-only discovery, issue119; no target mutation | blocked | Identify the current approved backend/database/environment, contract owner and authorized read access; then verify real records, scopes and payloads before any activation |
+| CONTRACT-AUTHORITY / Codex | read-only discovery, issue119; no target mutation | repository/database discovered; freshness failed | Verify runtime binding, authenticated actor scopes, authoritative source generation and reconciled current records before activation |
 | NAVIGATION / Codex | src/config/navigation.ts, Sidebar, App routes | pending usable domain/contract proof | Recover hierarchy by real destinations, not link all 46 planned stubs. Related journeys are restored in PR132; no claim of complete navigation |
 | RUNTIME / Codex | exact Replit preview identity and human real-data journeys | blocked by contract authority and unmerged source | Prove signed-in scope, expected records, refresh, retry and desktop/390px on authorized exact runtime after approved integration; fixtures cannot substitute |
 
@@ -73,11 +75,12 @@ claiming Claude read those files or that all exports have been audited.
   observed prior-session row removal, cross-domain/portfolio purge and rejection of
   late previous-session responses. These are query lifecycle fixtures; populated
   mounted browser journeys against actual deployed authentication remain required.
-  Current production domains stay unverified and make zero network requests.
-- Runtime/business acceptance: blocked. The source startup intentionally returns
-  BACKEND_NOT_CONNECTED for unbound API/BFF requests. A useful unavailable message
-  does not restore missing records. Issue119 remains open, owning backend identity
-  and live data source unverified. No source build is a deployed-authentication pass.
+  Current recovery operations domains stay unverified and make zero network requests.
+- Runtime/business acceptance: blocked. Unbound local API/BFF requests return
+  BACKEND_NOT_CONNECTED. Read-only discovery has located the existing database and
+  ingestion repository; their presence is not current-data proof. Retained data is
+  months stale. Issue119 remains open for runtime binding, access and authoritative
+  contracts. No fixture/source build is deployed-authentication or fresh-data proof.
 - Nothing merged, deployed or owner-accepted. Goal remains OPEN.
 
 ## Cost and closure
@@ -88,10 +91,9 @@ Marginal session and Actions charges are unknown; no monetary cap or zero-cost c
 No outstanding external job reservation was created by Codex; Claude subscription
 execution cost is not measured here. Retry ceiling is procedural, not invoice control.
 
-Next dependency requiring owner evidence: canonical current backend/database and
-environment for ECC records, plus its responsible owner/authorized read path.
-Codex retains acceptance and source review; do not ask the owner to re-upload the
-archives or redo source comparison already available here.
+Next owner action is the concrete bounded preview proposal below, rather than
+another repository/source-upload request. Codex retains acceptance, source review
+and dependency ownership; no re-upload or repeated source comparison is required.
 
 ## Integration closure checkpoint
 
@@ -114,10 +116,10 @@ and explicit merge authority. No branch ref/main/runtime was changed by rehearsa
 
 Whole-goal verdict: OPEN, real-data/runtime acceptance blocked. Do not close issue119,
 restore all planned navigation links, or call unavailable operations restored.
-Next necessary owner evidence is the intended current ECC backend/database identity,
-environment and owner-approved read path. Codex can use the retained private source
-for further comparisons without requesting another source upload. Claude's completed
-V2 return is reviewed; no new Claude/background job was dispatched by this checkpoint.
+Source/database discovery is complete enough to continue source work; stale-data
+recovery and runtime binding remain prerequisites. Codex retains private recovery
+references without requesting another upload. Claude's completed V2 return is
+reviewed; no new Claude/background job was dispatched by this checkpoint.
 
 ## Backend discovery update - 2026-10-13
 
@@ -137,31 +139,68 @@ Operation generations/import readiness and current backend actor scopes must be
 verified before activating records. No live data/schema or target configuration
 changed during discovery. Shared platform documents remain orientation only.
 
-## Stale DoorLoop correction - 2026-10-13
+## Stale DoorLoop recovery checkpoint - 2026-10-13
 
-Dion confirmed the retained vendor data is months stale. Read-only timestamp and
-sync/checkpoint evidence supports that finding. Existing portfolio counts prove
-presence only; they must not be used as current operating figures. Live data
-freshness is FAILED, not merely an unknown backend identity. Detailed dates and
-counts remain private.
+Dion confirmed retained vendor data is months stale; read-only telemetry supports
+that finding. Presence/counts must not become current operating figures. Live
+freshness remains FAILED. Private dates, counts, schema and security findings are
+retained in the owner report rather than public source.
 
-The dedicated ingestion owner is doorloop-sync-backend (routing-index listed).
-Source review found ignored orchestrator/health failures, success-exiting failed
-jobs, missing runner success claims, exact-minute job selection after scheduler
-queue/setup delay, and mismatched telemetry schema fields. ECC's dormant local
-loop is not the recovery owner and must not be re-enabled as a second writer.
+The routed ingestion owner is Altus-Realty-Group/doorloop-sync-backend, main
+644a2481e85d3884b6bccdb4d0c14c79877e6ac9. Codex owns the necessary dependency
+lane and independent review. All following PRs are draft, unmerged and have
+exact-head smoke and proof-pack success. Offline fixtures are not live data proof.
 
-Codex prepared dependency PR50 in that repo, head 336fe2bc: process/health failures
-now fail the job, unsupported required entities cannot advance success, and logs
-remain available. Six offline regressions, Python syntax and YAML/cadence/cost
-checks pass. Smoke passed; proof-pack failed, with no steps/logs returned by the
-connector. Exact failure annotations are not accessible through its allowed
-fetch endpoints; source CI also contains a broad backend-import token scan that
-needs separate adjudication, not an assumed diagnosis of this job failure.
-No sync dispatch, merge, vendor request, target/secret mutation or database write.
+| PR / stack base | Exact head | Repaired slice / local proof |
+| --- | --- | --- |
+| [50](https://github.com/Altus-Realty-Group/doorloop-sync-backend/pull/50) / main | 876c2d5891ed74164b74d7d987802314febb075a | Failed/unsupported jobs fail process; health/log evidence preserved; backend CI scoped correctly. 13 offline tests |
+| [51](https://github.com/Altus-Realty-Group/doorloop-sync-backend/pull/51) / PR50 | 362f39857ab3b3edfb01cd7a02f7de154458356d | Incomplete vendor reads and rejected database writes raise; bounded transport. 25 cumulative tests |
+| [52](https://github.com/Altus-Realty-Group/doorloop-sync-backend/pull/52) / PR51 | 46b4c0a5b88f9a7a5c820f57dc6301a46a9faba5 | Scheduled hourly intent survives delayed runner starts; manual compatibility retained. 31 cumulative tests |
+| [53](https://github.com/Altus-Realty-Group/doorloop-sync-backend/pull/53) / PR52 | 180bdabc7d5c85bdc8a3f35b1975b8b9476534cd | Per-job request admission; schema-shaped persisted receipts; missing completion cannot advance success. 44 cumulative tests |
+| [54](https://github.com/Altus-Realty-Group/doorloop-sync-backend/pull/54) / PR53 | 04a31c44bbab3d20132d7c9f2ec76799ce03df23 | Official paging parameters and stable complete totals; private HTTP response bodies omitted. 51 cumulative tests |
+| [55](https://github.com/Altus-Realty-Group/doorloop-sync-backend/pull/55) / PR50 independently | 7f052e217b61eb584aaa1f91781fe654a12ab1d0 | Manual-only metadata property reconciliation preview. 23 tests on its own branch |
 
-Next: finish CI diagnosis, repair deterministic job planning and schema-aligned
-write receipts in bounded dependency PRs, establish source watermarks and restore
-one authorized budgeted catch-up with reconciliation before ECC reports freshness.
-A fresh UI over old data does not satisfy this goal. The unimplemented local
-card-wire branch is held while data freshness takes priority.
+The first PR50 CI failure was inspected in authenticated GitHub logs. A frontend
+network ban scanned legitimate Python backend imports; missing artifacts were
+secondary failures. The correction retains browser restrictions and staging
+dashboard checks for API changes, runs offline backend checks, and always saves
+proof. Source and tested merge SHAs are distinguished.
+
+Official DoorLoop list documentation uses page_number/page_size and total/data,
+where the old client sent page. That mismatch can explain repeated first pages;
+it has not been reproduced against the live vendor. Stable unique totals are
+pagination proof, not a transactional snapshot or normalized freshness. Current
+task mappings and identity allocation remain unverified; unsafe payloads must not
+be replayed. Raw tasks returning no completed receipt remain failed by design.
+
+### Next concrete owner decision
+
+Approve integration of dependency PR50 and independent PR55, followed by exactly
+one read-only property preview against the approved existing project/credentials.
+The project reference must exactly match existing SUPABASE_URL before transport.
+Maximum five vendor GETs and one database GET, five runner minutes, no retries or
+redirects. Aggregate counts only; no raw identity/name artifacts or operational
+writes. The exact private project is in the owner report.
+
+This does not activate PR51-54, authorize replay, mutate targets/credentials or
+restore data. Current per-job limits are in-process; competing writers/account
+limits and actual provider/runner costs remain unknown. Maximum requests/minutes
+are not a dollar cap. There is no automatic preview trigger or background dispatch.
+
+### Work after the preview
+
+Codex will inspect the actual receipt, keep new/ambiguous identities blocked, and
+prepare the first existing-identity property repair with reconciliation. Verify
+field mappings, task receipts, normalized writes and source watermarks before a
+separately reviewable catch-up. Then restore freshness propagation and authenticated
+ECC journeys; keep legal/work-order/ledger activation gated until their contracts
+and real rows are proven. Do not activate ECC's dormant loop as a second writer.
+
+Claude R2 property-contract handoff is prepared privately: one pure dry-run plan
+with existing identities, verified field mappings, explicit unmatched/incomplete
+blockers, isolated tests and no network/write actions. It is READY FOR HANDOFF,
+not dispatched or running. Codex remains accountable if that provider is unavailable.
+The frontend card-wire branch remains unmodified while freshness takes priority.
+
+Whole-goal verdict: OPEN. No merge, runtime sync, deployment, vendor preview,
+replay or database/schema write has occurred. No unattended continuation is claimed.

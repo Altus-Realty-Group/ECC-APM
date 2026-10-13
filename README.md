@@ -1,44 +1,35 @@
-# ECC - APM (Empire Command Center for Altus Property Management)
+# ECC-APM (v1.0)
 
-Repository: Altus-Realty-Group/ECC-APM (ID 1058195656). Package name: `ecc-apm`.
+Empire Command Center for Altus Property Management. Canonical source: [Altus-Realty-Group/ECC-APM](https://github.com/Altus-Realty-Group/ECC-APM), repository ID 1058195656.
 
-This is the ECC frontend and local adapter/proxy surface. It consumes backend contracts; it does not redefine them. Replit is runtime observation only; source of truth is GitHub.
+## Fresh Replit import
 
-## Current Standards
+1. Import this GitHub repository, branch `main`, into a **new** Replit workspace named **ECC-APM (v1.0)**.
+2. Click **Run**. The checked-in startup installs locked dependencies when necessary and starts the frontend on port 5000, exposed through port 80.
+3. Open the preview. No secrets, database, vendor integration or old Replit resources are required for frontend startup.
+4. Record the new workspace URL/ID before binding or publishing it. `.altus-project.json` intentionally has no active runtime binding.
 
-- Identity: ECC-APM / ecc-apm.
-- Security: Do not commit secrets. This hygiene snapshot removes tracked environment/cache files and retains a placeholder template. Historical exposure and remaining archives are not independently cleared by this review. Use approved runtime stores.
-- Storage/Privacy: Business originals and archives retained until evidenced disposition. No irreversible deletion or history rewrite.
-- UI: Black/white/gold. No orange. Accessible high-contrast financial UI.
-- Contracts: GitHub owns code truth. Operational data uses verified database truth first, authoritative API fallback second, calculation last. Frontend consumes owned backend contracts.
-- Workflow: Narrow, evidence-based PRs. No direct-main authoring.
-- Cost: Metered Actions; disclose triggers, bounds, and expected minutes.
+The fresh workspace is a frontend foundation. `/api` and `/bff` return explicit JSON `503 BACKEND_NOT_CONNECTED`; they do not contact the old staging service or manufacture business data. Dashboard/data features will remain unavailable until backend ownership, authentication and contracts are verified and connected in a reviewed GitHub change. Historical transfer/accounting/admin placeholders remain quarantined. A successful import is not operational or production acceptance.
 
-## Setup (single install path)
+Do not import old secrets, restore caches, run legacy repair/snapshot scripts, extract recovery archives or attach old databases. The Run command does not start `server/index.ts`, vendor sync jobs or database clients.
 
-Node requirement (from package.json engines): `^20.19.0 || >=22.12.0`.
+## Local development and verification
 
-1. Use npm and package-lock.json exclusively (no pnpm).
-2. `npm ci`
-3. Optional local env: copy `.env.example` to ignored `.env.local` and set `VITE_API_BASE` only if overriding the default.
-4. `npm run guardrail && npm run build`
-5. Development: `npm run dev` (concurrently starts Vite web on 5173 and local API via `tsx server/index.ts`).
+Use Node `^20.19.0 || >=22.12.0`, npm and `package-lock.json` only.
 
-### API configuration (traced, no target changes)
+```sh
+npm ci
+npm run dev:web
+npm run typecheck
+npm test
+npm run test:dependencies
+npm run build
+```
 
-- `VITE_API_BASE` is read by `src/lib/api.ts` and `src/lib/config.ts`, but their defaults differ: `api.ts` uses an empty `BASE` for relative `api()` paths and separately exports `/api` as `API_BASE`; `config.ts` defaults to `/api`. Several direct `/api/...` fetches do not use this setting. Verify the affected caller; the variable is not a universal target switch.
-- In local Vite dev (`vite.config.js`), `/api` is proxied to `https://ecc-triage-node-staging.azurewebsites.net` (changeOrigin true). This is the remote staging proxy; it does not claim live runtime or database alignment.
-- Local API server runs in parallel via the `dev` script for full-stack local work. No production targets or credentials are modified here.
+`npm run start:replit` exercises the import startup. It uses a lockfile/Node fingerprint under ignored `node_modules` and fails if installation fails; there is no unlocked-install fallback. `npm run dev` is a legacy explicit full-stack developer command, requiring separately approved backend configuration. It is not the Replit startup. `npm run preview` serves the built frontend with the same unavailable API boundary; publishing requires separate release approval.
 
-## Recovery & Hygiene
+## Standards and preservation
 
-See `docs/security/REPOSITORY_ARTIFACT_INVENTORY.md` and `docs/recovery/PR_DISPOSITION_LEDGER.md`.
+GitHub owns source; Replit runs reviewed source. Use narrow PRs, mandatory full typecheck and existing bounded CI. UI uses black/white/gold, accessible financial information and no invented operational values. Never commit secrets or put credentials in public `VITE_*` variables.
 
-Historical snapshots and `.archive/` are inventoried and retained pending evidenced disposition. Git history is not rewritten. Removed env/cache/upload files from the hygiene snapshot are not recommended for restoration.
-
-### Rollback
-Revert reviewed docs changes or restore selected source paths from preserved commits. Reversing the full hygiene removal would restore tracked environment/cache artifacts and requires a separate security-reviewed decision. Never blindly restore the complete removed snapshot.
-
-## Stale Material
-
-Historical recovery scripts, old Replit authoring workflows, and superseded CI proposals are classified as non-authoritative. Canonical plan, AGENTS.md, and current merged documentation remain references. See ledger for individual PR dispositions.
+Business originals, 38 snapshot ZIPs and a recovery TGZ are retained as inert historical material; they are not loaded by startup and have not been independently security-cleared. See [artifact inventory](docs/security/REPOSITORY_ARTIFACT_INVENTORY.md), [archive disposition](docs/recovery/ARCHIVE_DISPOSITION.md) and [PR ledger](docs/recovery/PR_DISPOSITION_LEDGER.md). Historical Git evidence is preserved. Revert the fresh-import PR to roll back configuration; never blindly restore removed environment/cache artifacts.

@@ -2,14 +2,14 @@
 
 Owner: Grok. Lane: ECC-C5-V1.  
 Refreshed from current main `9c1bd5348950aec4f0851149f1fce36f1876a74a`.  
-Final head: `79a09aff9c64520c41ca3e71bade4f11e63272c8` (post-refresh).
+Reviewed worker head: `0966268197097b9bcb9b726e3df465d1a61d328b` (2026-10-13). Subsequent PM corrections qualify security and backup-retirement evidence.
 
 ## Reconciliation
 
 Historical inventory: 38 `snapshots/*.zip` (1,872,115 bytes), 7 `*.bak`/`*.backup`, 1 root `*.tgz`.  
 Current tracked tree after prior removal and refresh: exactly 38 ZIP + 1 TGZ. All 7 code backups were removed in the prior commit on this branch (blob SHAs recorded below). Counts match measured evidence. No new archives introduced by the refresh.
 
-## Removed code backups (proven redundant; already deleted)
+## Retired code backups (historical versions; recoverable from Git)
 
 | Path | Bytes | Former blob SHA | Classification | Disposition | Replacement source |
 |------|------:|-----------------|----------------|-------------|--------------------|
@@ -21,7 +21,7 @@ Current tracked tree after prior removal and refresh: exactly 38 ZIP + 1 TGZ. Al
 | server/lib/mapping.ts.bak | 1471 | 2dfd282f298728137c44b29301c9024cf8c65b6c | Code backup | Removed | server/lib/mapping.ts (identical) |
 | server/routes/rpc.ts.bak | 7184 | 0d0fcca3e2bd7d6cd6aaeede1eb5d9908814edb3 | Code backup | Removed | server/routes/rpc.ts (differs) |
 
-Git history retains the blobs. No business, legal, or financial content. Rollback: restore from blob SHA or revert the removal commit.
+Only mapping.ts.bak is byte-identical to its replacement. The other six are older, differing source versions; naming a replacement alone is not a byte-level redundancy proof. Their retirement removes inactive backup files from the current tree while preserving their exact historical source blobs. No active import/reference was found. No business-data clearance is claimed from a source-file comparison. Rollback: restore from blob SHA or revert the removal commit.
 
 ## Retained recovery archives (uncertain; preserved)
 

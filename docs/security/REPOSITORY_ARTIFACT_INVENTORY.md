@@ -7,7 +7,7 @@ Baseline: main `9c1bd5348950aec4f0851149f1fce36f1876a74a` (post-refresh of ECC-C
 
 | Path class | Tracked files removed | Reason |
 |---|---:|---|
-| `.env` / `.env.local` | 2 | Local configuration; placeholders only. |
+| `.env` / `.env.local` | 2 | Local configuration removed from the tracked snapshot; values were not independently inspected or verified as placeholders. |
 | `.local/**` | 33,844 | Generated pnpm package-store/cache. |
 | `attached_assets/**` | 363 | Obsolete Replit/chat uploads; no active source references. |
 | **Total** | **34,209** | Snapshot-only; history not rewritten. |
@@ -15,7 +15,7 @@ Baseline: main `9c1bd5348950aec4f0851149f1fce36f1876a74a` (post-refresh of ECC-C
 ## ECC-C5-V1 measured remaining artifacts
 
 Historical counts reconciled: 38 ZIP + 7 bak/backup + 1 TGZ.  
-After removal of proven redundant code backups and refresh from current main: 38 ZIP + 1 TGZ remain tracked.
+After removal of inactive historical code backups (one identical; six differing versions retained in Git) and refresh from current main: 38 ZIP + 1 TGZ remain tracked.
 
 ### Removed (proven redundant code backups)
 
@@ -35,7 +35,7 @@ Disposition: retained pending owner external-archive or future dedicated removal
 - `.env`, `.env.*` (except `.env.example`), `.local/`, package caches, and `attached_assets/` are ignored.  
 - Common logs, temporary files, backup suffixes, and generated archives are ignored to prevent new accidental additions.  
 - `.env.example` contains a placeholder only.  
-- Required runtime values remain in approved secret stores.
+- Required runtime values must be held in approved secret stores; live storage was not verified.
 
 ## Security status
 

@@ -1,13 +1,14 @@
 import React from 'react';
+import { MiniCard } from './CardParts';
 // ECC Guardrail compliance
 export default function Linked({ properties }:{ properties?: any[]|null }) {
   return (
     <div className="grid gap-3">
       {properties && properties.length > 0 ? (
-        properties.slice(0, 5).map((p) => (
+        properties.slice(0, 5).map((p, i) => (
           <MiniCard 
-            key={String(p?.id ?? Math.random())}
-            title={p?.display_name || p?.street_1 || `Property #${p?.id || 'unknown'}`}
+            key={String(p?.id ?? `idx-${i}`)}
+            title={p?.name || `Property #${p?.id ?? 'unknown'}`}
             href={p?.id ? `/card/property/${p.id}` : undefined}
           />
         ))

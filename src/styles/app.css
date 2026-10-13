@@ -102,9 +102,9 @@ button { background: transparent; border: 0; padding: 0; cursor: pointer; color:
 /* Header (logo only) */
 .ecc-header{
   position:sticky; top:0;
-  display:flex; align-items:center;
+  display:flex; align-items:center; justify-content:center;
   gap:8px;
-  height:56px; padding:0 8px;
+  height:88px; padding:0.5rem 0;
   border-bottom:1px solid var(--border);
   background:var(--surface);
   z-index:calc(var(--z-sidebar) + 1);
@@ -129,7 +129,7 @@ button { background: transparent; border: 0; padding: 0; cursor: pointer; color:
 }
 .ecc-pin{
   display:inline-grid; grid-auto-flow:column; align-items:center; gap:8px;
-  min-width:44px; height:36px; padding:0 12px;
+  min-width:44px; min-height:44px; padding:0 12px;
   border-radius:10px; border:1px solid var(--border);
   background:rgba(247,201,72,0.08); color:var(--text);
   transition:background 150ms var(--ease), border-color 120ms var(--ease), transform 120ms var(--ease);
@@ -144,71 +144,62 @@ button { background: transparent; border: 0; padding: 0; cursor: pointer; color:
 .ecc-scroll::-webkit-scrollbar-thumb{ background:transparent; }
 .ecc-scroll:hover::-webkit-scrollbar-thumb{ background:var(--border); }
 
-/* Rows */
-.ecc-row{ position:relative; margin:2px 4px; border-radius:10px; }
-.ecc-row-inner{
-  display:grid; grid-template-columns:40px 1fr auto;
-  align-items:center; min-height:40px; padding:4px 8px; border-radius:10px;
+/* Rows (navigation). Interactive element is the row itself: <a> or <button>. */
+.ecc-nav-list, .ecc-children { list-style:none; margin:0; padding:0; }
+.ecc-nav-item { position:relative; margin:2px 4px; }
+.ecc-nav-row{
+  display:grid; grid-template-columns:40px 1fr auto; align-items:center;
+  width:100%; min-height:44px; padding:4px 8px; border-radius:10px;
+  background:transparent; border:0; text-align:left; font:inherit;
+  color:var(--text-muted); cursor:pointer; text-decoration:none;
 }
-.ecc-row:hover .ecc-row-inner{ background:var(--hover-bg); }
-.ecc-row.is-active .ecc-icon{ color:var(--nav-active); }
-.ecc-row.is-active .ecc-label{ color:var(--text); font-weight:600; }
+.ecc-nav-row:hover{ background:var(--hover-bg); color:var(--text); }
+.ecc-nav-row.is-active{ color:var(--text); font-weight:600; box-shadow:inset 3px 0 0 var(--gold); }
+.ecc-nav-row:focus-visible,
+.ecc-child:focus-visible,
+.ecc-flyout-item:focus-visible,
+.ecc-pin:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
 
 .ecc-icon-wrap{ display:grid; place-items:center; color:var(--nav-active); }
-.ecc-icon{ display:block; }
-
 .ecc-label{
   display:inline-flex; align-items:center;
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  color:var(--text-muted); padding-right:8px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:8px;
 }
-.ecc-label:hover{ color:var(--text); }
 .ecc-caret{ justify-self:end; color:var(--text-subtle); display:grid; place-items:center; }
-.ecc-spacer{ flex:1 1 auto; }
-.ecc-badge{
-  display:inline-grid; place-items:center;
-  min-width:20px; height:20px; padding:0 6px;
-  font-size:11px; line-height:1; color:#0B0F14;
-  background:var(--nav-active); border-radius:999px;
-}
-.ecc-badge.small{ min-width:18px; height:18px; font-size:10px; }
 
 /* Children */
 .ecc-children{ padding:4px 8px 8px 40px; display:grid; gap:4px; }
 .ecc-child{
-  display:grid; grid-template-columns:16px 1fr auto; align-items:center;
-  min-height:28px; column-gap:8px; border-radius:8px; padding:2px 6px; color:var(--text-muted);
+  display:grid; grid-template-columns:16px 1fr; align-items:center;
+  min-height:44px; column-gap:8px; border-radius:8px; padding:2px 8px;
+  color:var(--text-muted); text-decoration:none;
 }
 .ecc-child:hover{ background:var(--sub-hover-bg); color:var(--text); }
-.ecc-child.is-active{ color:var(--text); font-weight:600; }
+.ecc-child.is-active{ color:var(--text); font-weight:600; box-shadow:inset 3px 0 0 var(--gold); }
 .ecc-child-icon{ color:var(--text-subtle); }
 .ecc-child-label{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* Collapsed hides labels/children */
-.ecc-sidebar.is-collapsed .ecc-title,
 .ecc-sidebar.is-collapsed .ecc-label,
-.ecc-sidebar.is-collapsed .ecc-children,
-.ecc-sidebar.is-collapsed .ecc-badge:not(.small){ display:none; }
+.ecc-sidebar.is-collapsed .ecc-children{ display:none; }
+.ecc-sidebar.is-collapsed .ecc-nav-row{ grid-template-columns:1fr; justify-items:center; }
 
-/* Flyout (No Fixed Position) */
+/* Flyout (collapsed rail). Position is set inline as fixed from the trigger rect. */
 .ecc-flyout{
   max-height:calc(100dvh - 16px); overflow:auto;
-  width:288px; padding:8px; background:var(--surface); border:1px solid var(--border);
-  border-radius:12px; box-shadow:var(--shadow-2); pointer-events:auto;
+  padding:8px; background:var(--surface); border:1px solid var(--border);
+  border-radius:12px; box-shadow:var(--shadow-2);
 }
-.ecc-flyout::-webkit-scrollbar{ width:8px; }
-.ecc-flyout::-webkit-scrollbar-thumb{ background:var(--border); }
 .ecc-flyout-head{
-  display:grid; grid-template-columns:16px 1fr; gap:8px; align-items:center;
   padding:6px 8px 8px; border-bottom:1px solid var(--border); margin:-8px -8px 8px -8px;
 }
-.ecc-flyout-head-icon{ color:var(--nav-active); }
-.ecc-flyout-head-title{ font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ecc-flyout-head-title{ font-weight:700; color:var(--text); }
 .ecc-flyout-item{
-  display:grid; grid-template-columns:16px 1fr auto; align-items:center; column-gap:8px;
-  min-height:36px; padding:6px 8px; border-radius:8px; color:var(--text-muted);
+  display:grid; grid-template-columns:16px 1fr; align-items:center; column-gap:8px;
+  min-height:44px; padding:6px 8px; border-radius:8px; color:var(--text-muted); text-decoration:none;
 }
 .ecc-flyout-item:hover{ background:var(--hover-bg); color:var(--text); }
+.ecc-flyout-item.is-active{ color:var(--text); font-weight:600; box-shadow:inset 3px 0 0 var(--gold); }
 .ecc-flyout-icon{ color:var(--text-subtle); }
 .ecc-flyout-label{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
@@ -250,30 +241,46 @@ button { background: transparent; border: 0; padding: 0; cursor: pointer; color:
 
 /* ==== Keep main content beside the fixed sidebar ==== */
 
-/* Sidebar (No Fixed Position) */
-.ecc-sidebar {
-  width: var(--rail-expanded);  /* 320px */
-  float: left;
-}
-.ecc-sidebar.is-collapsed { width: var(--rail-collapsed); } /* 64px */
+/* Sidebar: a flex item of .ecc-shell. The rail owns its width; .ecc-main fills the rest.
+   (No margin-left on .ecc-main: the flex row already places it beside the rail.) */
+.ecc-sidebar { width: var(--rail-expanded); flex: 0 0 auto; }
+.ecc-sidebar.is-collapsed { width: var(--rail-collapsed); }
+.ecc-main { min-height: 0; }
 
-/* Main gets a left margin equal to the current rail width */
-.ecc-main {
-  margin-left: var(--rail-expanded);
-  min-height: 100vh;
-  display: block;
-}
-
-/* When the rail collapses, shrink the offset */
-.ecc-sidebar.is-collapsed + .ecc-main { margin-left: var(--rail-collapsed); }
-
-/* Safety: if anything wraps .ecc-main later, keep the offset using general sibling */
-.ecc-sidebar.is-collapsed ~ .ecc-main { margin-left: var(--rail-collapsed); }
-
-/* Optional: small screens default to collapsed offset */
+/* Small screens: an expanded rail overlays the page instead of squeezing it; the 64px rail keeps its slot. */
 @media (max-width: 1024px) {
-  .ecc-main { margin-left: var(--rail-collapsed); }
+  /* transform would trap the fixed overlay inside the 64px slot, so it is dropped in this state */
+  .ecc-sidebar.is-expanded { width: var(--rail-collapsed); transform: none; }
+  .ecc-sidebar.is-expanded .ecc-sidebar__inner {
+    position: fixed; top: 0; bottom: 0; left: 0; z-index: 1100;
+    width: min(var(--rail-expanded), 85vw); box-shadow: var(--shadow-2);
+    display: flex; flex-direction: column;
+    background: var(--nav-bg); border-right: 1px solid var(--border); color: var(--nav-fg);
+  }
 }
 
-/* CSS safety (ensure no element blocks pointer events on the row) */
-.ecc-row * { pointer-events: auto; }
+/* ==== Shared operator-state + touch helpers ==== */
+.ecc-touch { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 8px 14px; text-decoration: none; cursor: pointer; }
+.ecc-muted { color: var(--text-subtle); }
+.ecc-recover-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.ecc-state {
+  border: 1px solid var(--border); border-left: 3px solid var(--gold);
+  border-radius: var(--radius-md); padding: 14px 16px; margin: 12px 0;
+  background: var(--surface); color: var(--text);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+}
+.ecc-state__title { font-weight: 700; margin: 0; color: var(--text); }
+.ecc-state__detail { margin: 4px 0 0; color: var(--text-subtle); }
+.ecc-state--error, .ecc-state--denied { border-left-color: var(--text); }
+.ecc-state--stale, .ecc-state--partial { border-left-style: dashed; }
+.ecc-kpi-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.ecc-kpi-card { border: 1px solid var(--border); border-radius: 14px; padding: 16px; background: var(--surface); }
+.ecc-kpi-card__label { font-size: 13px; color: var(--text-subtle); }
+.ecc-kpi-card__value { font-size: 28px; font-weight: 700; color: var(--text); margin-top: 4px; }
+.ecc-kpi-card__note { font-size: 12px; color: var(--text-subtle); margin-top: 4px; }
+
+/* Asset card tabs and actions: 44px touch targets; the active tab is white text with a gold underline. */
+.ecc-card-tab, .ecc-card-action { min-height: 44px; min-width: 44px; padding: 0 12px; background: transparent; border: 0; cursor: pointer; color: var(--text-subtle); }
+.ecc-card-action { border: 1px solid var(--border); border-radius: 12px; color: var(--text); }
+.ecc-card-tab.is-active { color: var(--text); border-bottom: 2px solid var(--gold); font-weight: 600; }
+.ecc-card-tab:focus-visible, .ecc-card-action:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }

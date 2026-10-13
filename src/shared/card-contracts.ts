@@ -16,12 +16,16 @@ export const PropertyCard = z.object({
     address: Address,
   }),
   kpis: z.object({
-    units: z.number().default(0),
-    activeLeases: z.number().default(0),
-    occupancyPct: z.number().default(0),
-    avgRentCents: z.number().nullable().default(null),
+    // Missing is unknown (null), not a confirmed zero. Wire shape is a superset: number | null | absent.
+    // Counts are non-negative integers; cents are non-negative integers; occupancyPct is a percent
+    // (server: round(activeLeases / units * 100), which is NOT capped at 100, so no upper bound here).
+    units: z.number().int().min(0).nullable().default(null),
+    activeLeases: z.number().int().min(0).nullable().default(null),
+    occupancyPct: z.number().min(0).nullable().default(null),
+    avgRentCents: z.number().int().min(0).nullable().default(null),
   }),
 });
+export type PropertyCardData = z.infer<typeof PropertyCard>;
 
 export const UnitCard = z.object({
   unit: z.object({

@@ -1,318 +1,375 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { createPortal } from "react-dom";
-import * as Icons from "lucide-react";
+import {
+  BarChart3, Boxes, Building2, ChevronDown, ChevronRight, Circle, Database, FileSpreadsheet,
+  FileText, IdCard, LayoutDashboard, Link2, Package, Pin, PinOff, Settings, Users,
+  type LucideIcon,
+} from "lucide-react";
+import {
+  NAV_SECTIONS, activeSectionTitle, isPathActive,
+  type IconName, type NavLeaf, type NavSection,
+} from "@/config/navigation";
+import { clampToViewport, isKeyboardInitiatedClick, menuKeyAction, opensFlyoutFromTrigger } from "./nav/menuKeys";
 
-// =======================================================
-// 1. CORRECT LOGO AND BRANDING SETUP
-// =======================================================
 const LOGO_WIDE = "/brand/altus-logo.png";
 const LOGO_SQUARE = "/brand/altus-mark.png";
+const STORAGE_KEY = "ecc.sidebar.collapsed";
+const OPEN_DELAY_MS = 80;
+const CLOSE_DELAY_MS = 300;
+const FLYOUT_WIDTH = 288;
 
-function SafeImg({ src, alt, style }: { src: string; alt: string; style?: React.CSSProperties; }) {
+const ICONS: Record<IconName, LucideIcon> = {
+  LayoutDashboard, Boxes, BarChart3, Database, Link2, Building2, Package,
+  FileSpreadsheet, Users, IdCard, FileText, Settings,
+};
+const iconOf = (name?: IconName): LucideIcon => (name && ICONS[name]) || Circle;
+
+function SafeImg({ src, alt, style }: { src: string; alt: string; style?: React.CSSProperties }) {
   const [ok, setOk] = useState(true);
   useEffect(() => { setOk(true); }, [src]);
   if (!ok) return null;
   return <img src={src} alt={alt} style={{ display: "block", ...style }} onError={() => setOk(false)} draggable={false} />;
 }
 
-
-// =======================================================
-// 2. NAV DATA AND TYPES (FROM YOUR PREFERRED VERSION)
-// =======================================================
-type IconName =
-  | "LayoutDashboard" | "Boxes" | "FileText" | "Shield" | "Scale" | "MessageSquare"
-  | "Hammer" | "BarChart3" | "PieChart" | "Settings" | "Database" | "Users"
-  | "IdCard" | "Package" | "FolderOpen" | "ClipboardList" | "Workflow" | "Receipt"
-  | "Building2" | "Wrench" | "Cpu" | "Link2" | "ChartNoAxesColumn" | "FileSpreadsheet" | "Shuffle";
-
-type NavChild = { title: string; path: string; icon?: IconName };
-type NavParent = { title: string; icon: IconName; path?: string; children?: NavChild[] };
-
-const NAV: NavParent[] = [
-  { title: "Dashboard", icon: "LayoutDashboard", path: "/dashboard" },
-  {
-    title: "Portfolio V3", icon: "Boxes",
-    children: [
-      { title: "Properties", path: "/portfolio/properties", icon: "Building2" },
-      { title: "Units", path: "/portfolio/units", icon: "Package" },
-      { title: "Leases", path: "/portfolio/leases", icon: "FileSpreadsheet" },
-      { title: "Tenants", path: "/portfolio/tenants", icon: "Users" },
-      { title: "Owners", path: "/portfolio/owners", icon: "IdCard" },
-      { title: "Owner Transfer", path: "/owners/transfer", icon: "Shuffle" },
-    ],
-  },
-  {
-    title: "Accounting", icon: "FileText",
-    children: [ { title: "Overview", path: "/ops/accounting/overview", icon: "ClipboardList" } ],
-  },
-  {
-    title: "AI Analytics", icon: "Shield",
-    children: [ { title: "Risk Summary", path: "/ops/ai/risk-summary", icon: "Shield" } ],
-  },
-  {
-    title: "Legal Tracker", icon: "Scale",
-    children: [ { title: "Case Manager", path: "/ops/legal/case-manager", icon: "ClipboardList" } ],
-  },
-  {
-    title: "Communication", icon: "MessageSquare",
-    children: [ { title: "Queue", path: "/ops/comms/queue", icon: "MessageSquare" } ],
-  },
-  {
-    title: "Construction & Repair", icon: "Hammer",
-    children: [ { title: "Work Orders", path: "/ops/maintenance/work-orders", icon: "Hammer" } ],
-  },
-  { 
-    title: "Reports", 
-    icon: "BarChart3", 
-    children: [
-      { title: "Create", path: "/reports/create", icon: "FileText" },
-      { title: "Saved", path: "/reports/saved", icon: "FileText" },
-      { title: "Templates", path: "/reports/templates", icon: "FileText" },
-    ]
-  },
-  { title: "Growth", icon: "PieChart", children: [{ title: "Marketing", path: "/growth/marketing", icon: "PieChart" }] },
-  {
-    title: "Systems", icon: "Settings",
-    children: [ 
-      { title: "Settings", path: "/system/settings", icon: "Settings" },
-      { title: "Integrations", path: "/systems/integrations", icon: "Link2" },
-    ],
-  },
-  {
-    title: "Data Management", icon: "Database",
-    children: [ { title: "Sync Audit", path: "/data/sync-audit", icon: "ClipboardList" } ],
-  },
-  {
-    title: "Investor Portal", icon: "PieChart",
-    children: [ { title: "Dashboard", path: "/investor/dashboard", icon: "LayoutDashboard" } ],
-  },
-  {
-    title: "Integrations", icon: "Link2",
-    children: [ { title: "Dropbox Files", path: "/integrations/dropbox", icon: "FolderOpen" } ],
-  },
-];
-
-
-// =======================================================
-// 3. HELPERS AND HOOKS (FROM YOUR PREFERRED VERSION)
-// =======================================================
-const STORAGE_KEY = "ecc.sidebar.collapsed";
-const OPEN_DELAY_MS = 80;
-const CLOSE_DELAY_MS = 800;
-const FLYOUT_WIDTH = 296;
-
-function iconOf(name?: IconName) {
-  return (name && (Icons as any)[name]) || Icons.Circle;
+/** Small screens start on the narrow rail so content keeps its width; a saved choice always wins. */
+const SMALL_SCREEN = "(max-width: 1024px)";
+function initialCollapsed(): boolean {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved !== null) return JSON.parse(saved) === true;
+  } catch { /* storage unavailable: fall through to the viewport default */ }
+  try { return typeof window !== "undefined" && window.matchMedia(SMALL_SCREEN).matches; }
+  catch { return false; }
 }
-function clampToViewport(x: number, y: number, w: number, h: number) {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  let nx = Math.max(8, x);
-  let ny = Math.max(8, y);
-  if (nx + w > vw - 8) nx = vw - w - 8;
-  if (ny + h > vh - 8) ny = vh - h - 8;
-  return { x: nx, y: ny };
-}
+
 function useCollapsed() {
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "false"); }
-    catch { return false; }
-  });
+  const [collapsed, setCollapsed] = useState<boolean>(initialCollapsed);
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(collapsed)); } catch {}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(collapsed)); } catch { /* storage unavailable */ }
   }, [collapsed]);
   return { collapsed, setCollapsed };
 }
 
+/* ---------- Direct link row (no children) ---------- */
+function NavLinkRow({ section, collapsed, active }: { section: NavSection; collapsed: boolean; active: boolean }) {
+  const Icon = iconOf(section.icon);
+  return (
+    <li className="ecc-nav-item">
+      <Link
+        href={section.path!}
+        className={`ecc-nav-row ${active ? "is-active" : ""}`}
+        aria-current={active ? "page" : undefined}
+        aria-label={collapsed ? section.title : undefined}
+        title={collapsed ? section.title : undefined}
+      >
+        <span className="ecc-icon-wrap"><Icon size={20} aria-hidden="true" /></span>
+        {!collapsed && <span className="ecc-label">{section.title}</span>}
+      </Link>
+    </li>
+  );
+}
 
-// =======================================================
-// 4. SIDEBAR COMPONENT (REBUILT FOR STABILITY AND CORRECT LAYOUT)
-// =======================================================
+/* ---------- Flyout (collapsed rail) ---------- */
+function Flyout({
+  title, items, position, location, focusFirst, onClose, onRestoreFocus, triggerEl,
+}: {
+  title: string;
+  items: NavLeaf[];
+  position: { left: number; top: number };
+  location: string;
+  focusFirst: boolean;
+  onClose: () => void;
+  onRestoreFocus: () => void;
+  triggerEl: HTMLElement | null;
+}) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const menuItems = () =>
+    Array.from(rootRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+
+  useEffect(() => {
+    if (focusFirst) menuItems()[0]?.focus();
+  }, [focusFirst]);
+
+  // Close on outside press (mouse or touch) and when focus leaves both trigger and flyout.
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      const t = e.target as Node | null;
+      if (rootRef.current?.contains(t) || triggerEl?.contains(t)) return;
+      onClose();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [onClose, triggerEl]);
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const els = menuItems();
+    const current = els.findIndex((el) => el === document.activeElement);
+    const action = menuKeyAction(e.key, current, els.length);
+    if (action.type === "focus") {
+      e.preventDefault();
+      els[action.index]?.focus();
+    } else if (action.type === "close") {
+      e.preventDefault();
+      onClose();
+      onRestoreFocus();
+    }
+  };
+
+  const onBlur = (e: React.FocusEvent) => {
+    const next = e.relatedTarget as Node | null;
+    if (!next) return; // pointer interactions handled by pointerdown
+    if (rootRef.current?.contains(next) || triggerEl?.contains(next)) return;
+    onClose();
+  };
+
+  return (
+    <div
+      ref={rootRef}
+      className="ecc-flyout"
+      style={{ position: "fixed", left: position.left, top: position.top, width: FLYOUT_WIDTH, zIndex: 1000 }}
+      role="menu"
+      aria-label={title}
+      onKeyDown={onKeyDown}
+      onBlur={onBlur}
+    >
+      <div className="ecc-flyout-head"><span className="ecc-flyout-head-title">{title}</span></div>
+      <div className="ecc-flyout-list">
+        {items.map((c) => {
+          const CIcon = iconOf(c.icon);
+          const active = isPathActive(location, c.path);
+          return (
+            <Link
+              key={c.path}
+              href={c.path}
+              className={`ecc-flyout-item ${active ? "is-active" : ""}`}
+              role="menuitem"
+              aria-current={active ? "page" : undefined}
+              onClick={onClose}
+            >
+              <CIcon className="ecc-flyout-icon" size={16} aria-hidden="true" />
+              <span className="ecc-flyout-label">{c.title}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Group row (has children) ---------- */
+function NavGroupRow({
+  section, collapsed, location, expanded, onToggleExpanded, flyoutOpen, onFlyoutChange,
+}: {
+  section: NavSection;
+  collapsed: boolean;
+  location: string;
+  expanded: boolean;
+  onToggleExpanded: () => void;
+  flyoutOpen: boolean;
+  onFlyoutChange: (open: boolean) => void;
+}) {
+  const Icon = iconOf(section.icon);
+  const children = section.children ?? [];
+  const groupActive = children.some((c) => isPathActive(location, c.path));
+  const panelId = useId();
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const openTimer = useRef<number | null>(null);
+  const closeTimer = useRef<number | null>(null);
+  const [position, setPosition] = useState({ left: 0, top: 0 });
+  const [focusFirst, setFocusFirst] = useState(false);
+
+  const clearTimers = () => {
+    if (openTimer.current) window.clearTimeout(openTimer.current);
+    if (closeTimer.current) window.clearTimeout(closeTimer.current);
+    openTimer.current = null;
+    closeTimer.current = null;
+  };
+  useEffect(() => clearTimers, []);
+
+  const openFlyout = useCallback((viaKeyboard: boolean) => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const estH = Math.min(44 * children.length + 56, window.innerHeight - 16);
+    const { x, y } = clampToViewport(rect.right + 6, rect.top, FLYOUT_WIDTH, estH, window.innerWidth, window.innerHeight);
+    setPosition({ left: x, top: y });
+    setFocusFirst(viaKeyboard);
+    onFlyoutChange(true);
+  }, [children.length, onFlyoutChange]);
+
+  const closeFlyout = useCallback(() => { clearTimers(); onFlyoutChange(false); }, [onFlyoutChange]);
+
+  const onClick = (e: React.MouseEvent) => {
+    if (!collapsed) { onToggleExpanded(); return; }
+    if (flyoutOpen) { closeFlyout(); return; }
+    // Enter/Space arrive as a click with detail 0: move focus to the first item, like ArrowRight/Down.
+    // Mouse and touch keep focus where it is so a tap does not pop a focus ring.
+    openFlyout(isKeyboardInitiatedClick(e.detail));
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (collapsed && opensFlyoutFromTrigger(e.key)) {
+      e.preventDefault();
+      openFlyout(true);
+    } else if (e.key === "Escape" && flyoutOpen) {
+      e.preventDefault();
+      closeFlyout();
+    }
+  };
+
+  // Hover is a convenience for mouse only; touch and keyboard use click/keys above.
+  const onPointerEnter = (e: React.PointerEvent) => {
+    if (!collapsed || e.pointerType !== "mouse") return;
+    if (closeTimer.current) window.clearTimeout(closeTimer.current);
+    openTimer.current = window.setTimeout(() => openFlyout(false), OPEN_DELAY_MS);
+  };
+  const onPointerLeave = (e: React.PointerEvent) => {
+    if (!collapsed || e.pointerType !== "mouse") return;
+    if (openTimer.current) window.clearTimeout(openTimer.current);
+    closeTimer.current = window.setTimeout(() => onFlyoutChange(false), CLOSE_DELAY_MS);
+  };
+  const keepFlyoutOpen = () => { if (closeTimer.current) window.clearTimeout(closeTimer.current); };
+  const leaveFlyout = (e: React.PointerEvent) => {
+    if (e.pointerType !== "mouse") return;
+    closeTimer.current = window.setTimeout(() => onFlyoutChange(false), CLOSE_DELAY_MS);
+  };
+
+  const showFlyout = collapsed && flyoutOpen && typeof document !== "undefined";
+
+  return (
+    <li className="ecc-nav-item" onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={`ecc-nav-row ${groupActive ? "is-active" : ""}`}
+        aria-expanded={collapsed ? flyoutOpen : expanded}
+        aria-controls={collapsed ? undefined : panelId}
+        aria-haspopup={collapsed ? "menu" : undefined}
+        aria-label={collapsed ? section.title : undefined}
+        title={collapsed ? section.title : undefined}
+        onClick={onClick}
+        onKeyDown={onKeyDown}
+      >
+        <span className="ecc-icon-wrap"><Icon size={20} aria-hidden="true" /></span>
+        {!collapsed && (
+          <>
+            <span className="ecc-label">{section.title}</span>
+            <span className="ecc-caret" aria-hidden="true">
+              {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </span>
+          </>
+        )}
+      </button>
+
+      {!collapsed && expanded && (
+        <ul id={panelId} className="ecc-children">
+          {children.map((c) => {
+            const CIcon = iconOf(c.icon);
+            const active = isPathActive(location, c.path);
+            return (
+              <li key={c.path}>
+                <Link
+                  href={c.path}
+                  className={`ecc-child ${active ? "is-active" : ""}`}
+                  aria-current={active ? "page" : undefined}
+                >
+                  <CIcon className="ecc-child-icon" size={16} aria-hidden="true" />
+                  <span className="ecc-child-label">{c.title}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {showFlyout &&
+        createPortal(
+          <div onPointerEnter={keepFlyoutOpen} onPointerLeave={leaveFlyout}>
+            <Flyout
+              title={section.title}
+              items={children}
+              position={position}
+              location={location}
+              focusFirst={focusFirst}
+              onClose={closeFlyout}
+              onRestoreFocus={() => triggerRef.current?.focus()}
+              triggerEl={triggerRef.current}
+            />
+          </div>,
+          document.body,
+        )}
+    </li>
+  );
+}
+
+/* ---------- Sidebar ---------- */
 export default function Sidebar() {
   const [location] = useLocation();
   const { collapsed, setCollapsed } = useCollapsed();
-  const [expandedTitle, setExpandedTitle] = useState<string | null>(null);
+  const [expandedTitle, setExpandedTitle] = useState<string | null>(() => activeSectionTitle(location));
+  const [flyoutTitle, setFlyoutTitle] = useState<string | null>(null);
 
+  // Follow navigation: open the section that owns the current page, close any flyout.
   useEffect(() => {
-    const activeParent = NAV.find(p => p.children?.some(c => location.startsWith(c.path)) || (p.path && location.startsWith(p.path)));
-    setExpandedTitle(activeParent?.title || null);
+    setExpandedTitle(activeSectionTitle(location));
+    setFlyoutTitle(null);
   }, [location]);
-
-  const [flyOpen, setFlyOpen] = useState(false);
-  const [flyTitle, setFlyTitle] = useState("");
-  const [flyIcon, setFlyIcon] = useState<IconName | undefined>(undefined);
-  const [flyItems, setFlyItems] = useState<NavChild[]>([]);
-  const [flyStyle, setFlyStyle] = useState<React.CSSProperties>({});
-  const portalRef = useRef<HTMLDivElement | null>(null);
-  const rowTimerOpen = useRef<number | null>(null);
-  const rowTimerClose = useRef<number | null>(null);
-  const hoverParent = useRef(false);
-  const hoverFlyout = useRef(false);
-
-  useEffect(() => {
-    const node = document.createElement("div");
-    node.id = "ecc-flyout-root";
-    document.body.appendChild(node);
-    portalRef.current = node;
-    return () => { node.remove(); };
-  }, []);
-
-  const isActive = (path?: string) => !!path && (location === path || location.startsWith(path + "/"));
-
-  const openFly = (parent: NavParent, rect: DOMRect) => {
-    const estH = Math.min(56 * (parent.children?.length || 0) + 56, window.innerHeight - 16);
-    const { x, y } = clampToViewport(rect.right + 6, rect.top, FLYOUT_WIDTH, estH);
-    setFlyTitle(parent.title);
-    setFlyIcon(parent.icon);
-    setFlyItems(parent.children || []);
-    setFlyStyle({ left: x, top: y, width: FLYOUT_WIDTH }); // Removed fixed positioning
-    setFlyOpen(true);
-  };
-  const scheduleOpen = (parent: NavParent, rect: DOMRect) => {
-    if (rowTimerClose.current) window.clearTimeout(rowTimerClose.current);
-    rowTimerOpen.current = window.setTimeout(() => openFly(parent, rect), OPEN_DELAY_MS);
-  };
-  const scheduleClose = () => {
-    if (rowTimerOpen.current) window.clearTimeout(rowTimerOpen.current);
-    rowTimerClose.current = window.setTimeout(() => {
-      if (!hoverParent.current && !hoverFlyout.current) {
-        setFlyOpen(false);
-      }
-    }, CLOSE_DELAY_MS);
-  };
 
   return (
     <aside className={`ecc-sidebar ${collapsed ? "is-collapsed" : "is-expanded"}`}>
       <div className="ecc-sidebar__inner">
-
-        <div
-          className="ecc-header"
-          // This style block ensures the logo is always centered
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: '88px',
-            padding: '0.5rem 0'
-          }}
-        >
-            <Link href="/" className="ecc-logo-link">
-                <SafeImg
-                    src={collapsed ? LOGO_SQUARE : LOGO_WIDE}
-                    alt="Altus Logo"
-                    style={{
-                        filter: "brightness(1.75)",
-                        transition: "height 0.2s ease-in-out",
-                        height: collapsed ? "52px" : "60px",
-                        width: "auto",
-                        objectFit: "contain",
-                    }}
-                />
-            </Link>
+        <div className="ecc-header">
+          <Link href="/" className="ecc-logo-link" aria-label="Altus home">
+            <SafeImg
+              src={collapsed ? LOGO_SQUARE : LOGO_WIDE}
+              alt="Altus"
+              style={{ filter: "brightness(1.75)", height: collapsed ? 52 : 60, width: "auto", objectFit: "contain" }}
+            />
+          </Link>
         </div>
 
-        <nav className="ecc-scroll" role="list">
-          {NAV.map((p) => {
-            const ParentIcon = iconOf(p.icon);
-            const hasKids = !!p.children?.length;
-            const isExpanded = expandedTitle === p.title;
-            const parentActive = isActive(p.path) || (hasKids && p.children!.some((c) => isActive(c.path)));
-            const rowRef = useRef<HTMLDivElement | null>(null);
-
-            const rowContent = (
-              <div
-                className="ecc-row-inner"
-                onMouseEnter={() => {
-                  hoverParent.current = true;
-                  if (collapsed && hasKids && rowRef.current) scheduleOpen(p, rowRef.current.getBoundingClientRect());
-                }}
-                onMouseLeave={() => {
-                  hoverParent.current = false;
-                  if (collapsed) scheduleClose();
-                }}
-              >
-                <div className="ecc-icon-wrap"><ParentIcon size={20} /></div>
-                {!collapsed && (
-                  <>
-                    <span className="ecc-label">{p.title}</span>
-                    {hasKids && <div className="ecc-caret">{isExpanded ? <Icons.ChevronDown size={16} /> : <Icons.ChevronRight size={16} />}</div>}
-                  </>
-                )}
-              </div>
-            );
-
-            // If it's a direct link with no children, the whole row is a Link.
-            if (p.path && !hasKids) {
-              return (
-                <div key={p.title} ref={rowRef}>
-                  <Link href={p.path} className={`ecc-row ${parentActive ? "is-active" : ""}`}>
-                    {rowContent}
-                  </Link>
-                </div>
-              );
-            }
-
-            // If it has children, it's a div that toggles them.
-            return (
-              <div key={p.title} ref={rowRef} className={`ecc-row ${parentActive ? "is-active" : ""}`}>
-                <div
-                    className="ecc-row-clickable"
-                    onClick={() => setExpandedTitle(isExpanded ? null : p.title)}
-                >
-                    {rowContent}
-                </div>
-
-                {!collapsed && hasKids && isExpanded && (
-                  <div className="ecc-children" role="group">
-                    {p.children!.map((c) => {
-                      const CIcon = iconOf(c.icon);
-                      const active = isActive(c.path);
-                      return (
-                        <Link key={c.title} href={c.path} className={`ecc-child ${active ? "is-active" : ""}`}>
-                          <CIcon className="ecc-child-icon" size={16} />
-                          <span className="ecc-child-label">{c.title}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        <nav className="ecc-scroll" aria-label="Primary">
+          <ul className="ecc-nav-list">
+            {NAV_SECTIONS.map((section) =>
+              section.children?.length ? (
+                <NavGroupRow
+                  key={section.title}
+                  section={section}
+                  collapsed={collapsed}
+                  location={location}
+                  expanded={expandedTitle === section.title}
+                  onToggleExpanded={() =>
+                    setExpandedTitle((cur) => (cur === section.title ? null : section.title))}
+                  flyoutOpen={flyoutTitle === section.title}
+                  onFlyoutChange={(open) =>
+                    setFlyoutTitle((cur) => (open ? section.title : cur === section.title ? null : cur))}
+                />
+              ) : (
+                <NavLinkRow
+                  key={section.title}
+                  section={section}
+                  collapsed={collapsed}
+                  active={isPathActive(location, section.path)}
+                />
+              ),
+            )}
+          </ul>
         </nav>
 
         <div className="ecc-footer">
-          <button className="ecc-pin" onClick={() => setCollapsed(!collapsed)}>
-            {collapsed ? <Icons.PinOff size={16}/> : <Icons.Pin size={16}/>}
+          <button
+            type="button"
+            className="ecc-pin"
+            onClick={() => setCollapsed(!collapsed)}
+            aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+            aria-expanded={!collapsed}
+          >
+            {collapsed ? <PinOff size={16} aria-hidden="true" /> : <Pin size={16} aria-hidden="true" />}
             {!collapsed && <span className="ecc-pin-label">Collapse</span>}
           </button>
         </div>
       </div>
-
-      {collapsed && flyOpen && flyItems.length > 0 && portalRef.current &&
-        createPortal(
-          <div
-            className="ecc-flyout" style={flyStyle} role="menu"
-            onMouseEnter={() => { hoverFlyout.current = true; if (rowTimerClose.current) window.clearTimeout(rowTimerClose.current); }}
-            onMouseLeave={() => { hoverFlyout.current = false; scheduleClose(); }}
-          >
-            <div className="ecc-flyout-head">{flyTitle}</div>
-            <div className="ecc-flyout-list">
-              {flyItems.map((c) => {
-                const CIcon = iconOf(c.icon);
-                return (
-                  <Link key={c.title} href={c.path} className="ecc-flyout-item" role="menuitem">
-                    <CIcon className="ecc-flyout-icon" size={16} />
-                    <span className="ecc-flyout-label">{c.title}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>,
-          portalRef.current
-        )
-      }
     </aside>
   );
 }

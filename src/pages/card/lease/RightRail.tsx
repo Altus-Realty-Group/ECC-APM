@@ -1,4 +1,5 @@
 import React from 'react';
+import { Section, MiniCard } from './CardParts';
 // ECC Guardrail compliance
 
 export default function RightRail({ tenant }:{ tenant?: any|null }) {
@@ -8,7 +9,6 @@ export default function RightRail({ tenant }:{ tenant?: any|null }) {
         {tenant ? (
           <MiniCard
             title={tenant.display_name || tenant.name || `Tenant #${tenant.id}`}
-            subtitle={tenant.email || undefined}
             href={`/card/tenant/${tenant.id}`}
           />
         ) : <div className="opacity-70 text-sm">No tenant assigned.</div>}

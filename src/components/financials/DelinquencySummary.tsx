@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { moneyCents } from "../../lib/format";
+import { formatCurrencyFromCents as moneyCents } from "../../lib/format";
 import type { Lease, Tenant } from "../../lib/ecc-contract";
 
 /** Read-only summary. Does NOT guess. If you lack balances, it renders placeholders. */

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Section } from './CardParts';
 // ECC Guardrail compliance
 
 export default function RightRail({ owner, properties }:{ owner?: any|null; properties?: any[]; }) {

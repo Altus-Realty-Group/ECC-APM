@@ -63,7 +63,7 @@ export function CardShell({
                 key={idx}
                 data-testid={a.testid ?? `action-${idx}`}
                 onClick={a.onClick}
-                className="px-3 py-1.5 rounded-xl border border-neutral-700 hover:bg-neutral-800"
+                className="ecc-card-action px-3 py-1.5 rounded-xl border border-neutral-700 hover:bg-neutral-800"
               >
                 {a.label}
               </button>
@@ -82,7 +82,8 @@ export function CardShell({
             key={t.id}
             data-testid={`tab-${t.id}`}
             onClick={() => setActive(t.id)}
-            className={`pb-2 ${active === t.id ? "border-b-2 border-amber-500 text-amber-500" : "text-neutral-400"}`}
+            className={`ecc-card-tab pb-2 ${active === t.id ? "is-active border-b-2 border-[#d6b36a] text-white" : "text-neutral-400"}`}
+            aria-pressed={active === t.id}
           >
             {t.title}
           </button>

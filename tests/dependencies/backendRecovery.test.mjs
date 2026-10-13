@@ -68,23 +68,24 @@ test("native-fetch upload receives unchanged binary workbook bytes", async () =>
   }
 });
 
-// Backend-only compatibility check. Full application typecheck remains a separate gate.
-test("all existing server TypeScript sources compile without suppressions", async () => {
-  const ts = await import("typescript");
-  const root = new URL("../../", import.meta.url).pathname;
-  const raw = ts.readConfigFile(root + "tsconfig.json", ts.sys.readFile).config;
-  const parsed = ts.parseJsonConfigFileContent({...raw, include: ["server/**/*.ts"], exclude: []}, ts.sys, root);
-  const program = ts.createProgram(parsed.fileNames, parsed.options);
-  const errors = [...parsed.errors, ...ts.getPreEmitDiagnostics(program)];
-  assert.equal(errors.length, 0, ts.formatDiagnosticsWithColorAndContext(errors, {
-    getCanonicalFileName: f => f, getCurrentDirectory: () => root, getNewLine: () => "\n"
-  }));
-});
-
 test("direct legacy service calls cannot invoke data, export or vendor writers", async () => {
   const service = await import("../../server/services/ownerTransferService.ts");
   for (const name of ["initiateTransfer", "generateAccountingReport", "markApprovedByAccounting",
     "authorizeExecution", "executeTransfer", "getTransferDetails"]) {
     await assert.rejects(service[name](17), error => error.status === 503 && error.code === "OPERATION_UNAVAILABLE");
+  }
+});
+
+test("quarantined route metadata reports unavailable with its actual handler/status", async () => {
+  const {ROUTE_REGISTRY} = await import("../../server/lib/routeRegistry.ts");
+  const paths = ["/api/portfolio/_debug/sql", "/api/maintenance/workorders", "/api/accounting/transactions",
+    "/api/owner-transfer/initiate", "/api/owner-transfer/approve-accounting", "/api/owner-transfer/authorize",
+    "/api/owner-transfer/execute", "/api/owner-transfer/:id", "/api/owner-transfer/:id/audit"];
+  for (const path of paths) {
+    const entry = ROUTE_REGISTRY.find(r => r.path === path);
+    assert.ok(entry, path);
+    assert.equal(entry.status, "unavailable", path);
+    assert.deepEqual(entry.allowed_statuses, [503], path);
+    assert.equal(entry.handler, "server/lib/unavailableOperation.ts", path);
   }
 });

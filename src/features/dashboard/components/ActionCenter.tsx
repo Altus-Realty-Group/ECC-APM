@@ -68,14 +68,14 @@ export function ActionCenter({ leasesExpiring, topDelinquents, highPriorityWOs }
       <div className="flex gap-2 ml-4">
         <ActionButton 
           variant="secondary"
-          size="sm"
+          size="small"
           onClick={() => window.open(`/portfolio/tenants?focus=${lease.leaseId}`, '_blank')}
         >
           Contact Tenant
         </ActionButton>
         <ActionButton
           variant="primary"
-          size="sm"
+          size="small"
           onClick={() => window.open(`/leasing/renewal?lease=${lease.leaseId}`, '_blank')}
         >
           Start Renewal
@@ -96,14 +96,14 @@ export function ActionCenter({ leasesExpiring, topDelinquents, highPriorityWOs }
       <div className="flex gap-2 ml-4">
         <ActionButton
           variant="secondary"
-          size="sm"
+          size="small"
           onClick={() => window.open(`/accounting/ledger?tenant=${tenant.tenantId}`, '_blank')}
         >
           View Ledger
         </ActionButton>
         <ActionButton
           variant="primary"
-          size="sm"
+          size="small"
           onClick={() => window.open(`/communications/send?tenant=${tenant.tenantId}&template=payment_reminder`, '_blank')}
         >
           Send Reminder
@@ -124,14 +124,14 @@ export function ActionCenter({ leasesExpiring, topDelinquents, highPriorityWOs }
       <div className="flex gap-2 ml-4">
         <ActionButton
           variant="secondary"
-          size="sm"
+          size="small"
           onClick={() => window.open(`/maintenance/work-orders?focus=${wo.woId}`, '_blank')}
         >
           View Details
         </ActionButton>
         <ActionButton
           variant="primary"
-          size="sm"
+          size="small"
           onClick={() => window.open(`/maintenance/assign-vendor?wo=${wo.woId}`, '_blank')}
         >
           Assign Vendor

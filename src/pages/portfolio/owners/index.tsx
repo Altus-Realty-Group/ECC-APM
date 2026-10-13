@@ -15,8 +15,8 @@ export default function OwnersPage() {
 
     return {
       rows: mapped,
-      loading: owners.loading,
-      error: owners.error,
+      loading: owners.isLoading,
+      error: owners.error ? String(owners.error.message ?? owners.error) : undefined,
     };
   }, [owners]);
 

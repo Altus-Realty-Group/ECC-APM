@@ -11,7 +11,10 @@
     "dev:api": "tsx server/index.ts",
     "guardrail": "node scripts/guardrail-check.mjs",
     "ecc:smoke": "node scripts/ecc_route_smoke.mjs",
-    "test:dependencies": "node --import tsx --test tests/dependencies/compatibility.test.mjs"
+    "test:dependencies": "node --import tsx --test tests/dependencies/compatibility.test.mjs",
+    "test:unit": "node scripts/run-unit-tests.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node scripts/run-unit-tests.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

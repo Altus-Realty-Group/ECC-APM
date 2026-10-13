@@ -7,8 +7,8 @@ import LastRunTable from "./components/LastRunTable";
 import ErrorPane from "./components/ErrorPane";
 import LiveLogs from "./components/LiveLogs";
 import DLQPanel from "./components/DLQPanel";
-import { Clock, Settings, Database, MessageSquare, Shield, AlertTriangle, Send } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Clock, Settings, Database, MessageSquare, Shield, AlertTriangle, Send, RefreshCw } from "lucide-react";
+import { useShowToast } from "@/features/systems/integrations/useShowToast";
 
 // Define types for API responses
 interface SyncRun {
@@ -22,6 +22,21 @@ interface SyncRun {
   error?: string;
   fullMessage?: string;
   fullDetails?: any;
+}
+
+/** Shape read from /api/health/sync (fields are optional; the UI falls back when absent). */
+interface SyncHealthResponse {
+  status?: { last_success_at?: string | null; next_run_at?: string | null; error?: string | null } | null;
+  lock?: { locked?: boolean } | null;
+  enabled?: boolean;
+  intervalMinutes?: number;
+  nightlyFullHourUtc?: number | null;
+  entities?: string[];
+}
+
+/** Shape read from /api/config/integrations; entries may be booleans or objects, only truthiness is used. */
+interface IntegrationsConfigResponse {
+  integrations?: { doorloop?: unknown; teams?: unknown } | null;
 }
 
 export default function IntegrationsHealthPage() {
@@ -38,7 +53,7 @@ export default function IntegrationsHealthPage() {
     }
   });
   const [activeTab, setActiveTab] = useState<"monitoring" | "logs" | "dlq">("monitoring");
-  const { showToast } = useToast();
+  const { showToast } = useShowToast();
 
   // Enhanced API endpoints for Genesis v1
   // Fetch comprehensive sync status
@@ -58,13 +73,13 @@ export default function IntegrationsHealthPage() {
   });
 
   // Fetch sync health status
-  const { data: healthData, refetch: refetchHealth } = useQuery({
+  const { data: healthData, refetch: refetchHealth } = useQuery<SyncHealthResponse>({
     queryKey: ['/api/health/sync'],
     refetchInterval: 15000, // Refresh every 15 seconds
   });
 
   // Fetch integration status
-  const { data: configData } = useQuery({
+  const { data: configData } = useQuery<IntegrationsConfigResponse>({
     queryKey: ['/api/config/integrations'],
   });
 
@@ -362,7 +377,7 @@ export default function IntegrationsHealthPage() {
                     title="DoorLoop"
                     status={getDoorLoopStatus()}
                     baseUrl={process.env.VITE_DOORLOOP_BASE_URL || "Not configured"}
-                    authenticated={configData?.integrations?.doorloop || false}
+                    authenticated={!!configData?.integrations?.doorloop}
                     healthScore={getEnhancedHealthData().healthScore}
                     rateLimit={getEnhancedHealthData().rateLimit}
                     circuitBreaker={getEnhancedHealthData().circuitBreaker}
@@ -377,7 +392,7 @@ export default function IntegrationsHealthPage() {
                     entities={["owners", "properties", "units", "leases", "tenants"]}
                     selectedEntities={selectedEntities}
                     onEntitiesChange={setSelectedEntities}
-                    isRunning={syncStatusData?.isRunning || healthData?.lock?.locked || false}
+                    isRunning={syncStatusData?.isRunning || !!healthData?.lock?.locked}
                     currentProgress={getCurrentProgress()}
                     onRun={handleRunSync}
                     onStop={handleStopSync}

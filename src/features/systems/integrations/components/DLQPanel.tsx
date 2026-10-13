@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { RotateCcw, Trash2, AlertTriangle, Filter, RefreshCw, Clock, Hash, FileX } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useShowToast } from "@/features/systems/integrations/useShowToast";
 
 interface DLQItem {
   id: string;
@@ -23,7 +23,7 @@ interface DLQPanelProps {
 export default function DLQPanel({ adminToken }: DLQPanelProps) {
   const [selectedEntity, setSelectedEntity] = useState<string>('');
   const [showDetails, setShowDetails] = useState<Set<string>>(new Set());
-  const { showToast } = useToast();
+  const { showToast } = useShowToast();
 
   // Fetch DLQ items
   const { data: dlqData, isLoading, refetch } = useQuery({
@@ -153,7 +153,7 @@ export default function DLQPanel({ adminToken }: DLQPanelProps) {
     !selectedEntity || item.entity === selectedEntity
   ) || [];
 
-  const entityCounts = dlqData?.items?.reduce((acc: Record<string, number>, item: DLQItem) => {
+  const entityCounts: Record<string, number> = dlqData?.items?.reduce((acc: Record<string, number>, item: DLQItem) => {
     acc[item.entity] = (acc[item.entity] || 0) + 1;
     return acc;
   }, {}) || {};

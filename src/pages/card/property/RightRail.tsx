@@ -1,6 +1,15 @@
 import {} from '@/lib/ecc-resolvers';
 import CardPanel from "@/components/cardkit/CardPanel";
-import { joinAddress, googleMapsHref, isFiniteNumber } from '../../../lib/format';
+
+function joinAddress(parts: Array<string | null | undefined>): string {
+  return parts.filter((p): p is string => typeof p === "string" && p.trim() !== "").join(", ");
+}
+function isFiniteNumber(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v);
+}
+function googleMapsHref(address: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
 
 type Property = {
   street_1?: string|null; city?: string|null; state?: string|null; zip?: string|null;
@@ -8,10 +17,10 @@ type Property = {
 };
 
 export default function RightRail({ property }: { property?: Property | null }) {
-  const address = property ? joinAddress?.([property.street_1, property.city, property.state, property.zip]) : undefined;
-  const lat = isFiniteNumber?.(property?.lat ?? null) ? (property!.lat as number) : null;
+  const address = property ? joinAddress([property.street_1, property.city, property.state, property.zip]) : undefined;
+  const lat = isFiniteNumber(property?.lat ?? null) ? (property!.lat as number) : null;
   const lng = isFiniteNumber?.(property?.lng ?? null) ? (property!.lng as number) : null;
-  const mapsHref = address ? googleMapsHref?.(address) : undefined;
+  const mapsHref = address ? googleMapsHref(address) : undefined;
 
   return (
     <div className="space-y-3">

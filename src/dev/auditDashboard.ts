@@ -131,15 +131,16 @@ export function runDashboardAudit(dashboardData: any): AuditData {
     // Console output for debug mode
     console.group('🔍 Dashboard Data Audit');
     
-    console.table('Properties with Coordinates', [
+    console.log('Properties with Coordinates');
+    console.table([
       { Metric: 'Total Properties', Value: propertiesWithCoords.total },
       { Metric: 'With Valid Coords', Value: propertiesWithCoords.withCoords },
       { Metric: 'Percentage', Value: `${propertiesWithCoords.percentage.toFixed(1)}%` },
     ]);
 
     if (Object.keys(statusCounts).length > 0) {
-      console.table('Property Status Counts', 
-        Object.entries(statusCounts).map(([status, count]) => ({
+      console.log('Property Status Counts');
+      console.table(Object.entries(statusCounts).map(([status, count]) => ({
           Status: status,
           Count: count,
         }))
@@ -147,18 +148,22 @@ export function runDashboardAudit(dashboardData: any): AuditData {
     }
 
     if (auditResult.expiringLeases.sample.length > 0) {
-      console.table('Leases Expiring ≤45 Days (Sample)', auditResult.expiringLeases.sample);
+      console.log('Leases Expiring ≤45 Days (Sample)');
+      console.table(auditResult.expiringLeases.sample);
     }
 
     if (auditResult.delinquentTenants.sample.length > 0) {
-      console.table('Top Delinquent Tenants (Sample)', auditResult.delinquentTenants.sample);
+      console.log('Top Delinquent Tenants (Sample)');
+      console.table(auditResult.delinquentTenants.sample);
     }
 
     if (auditResult.highPriorityWO.sample.length > 0) {
-      console.table('High-Priority Work Orders (Sample)', auditResult.highPriorityWO.sample);
+      console.log('High-Priority Work Orders (Sample)');
+      console.table(auditResult.highPriorityWO.sample);
     }
 
-    console.table('Series Data Coverage', [
+    console.log('Series Data Coverage');
+    console.table([
       { Metric: 'Months Count', Value: seriesData.monthsCount },
       { Metric: 'Date Range', Value: seriesData.dateRange },
     ]);

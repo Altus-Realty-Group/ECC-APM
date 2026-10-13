@@ -6,6 +6,11 @@ import { fetchJSON } from "@/lib/http";
 import Typeahead from "../../../components/ui/Typeahead";
 import { searchOwners, createOwner, Owner } from "../api/ownerTransfer";
 
+interface IntegrationsConfig {
+  ok?: boolean;
+  integrations?: { admin?: { available?: boolean } };
+}
+
 interface OwnerTransferFormProps {
   ownerId: string;
   transferId?: string | null;
@@ -51,13 +56,13 @@ export default function OwnerTransferForm({ ownerId, transferId, onTransferCreat
   const [selectedTargetOwner, setSelectedTargetOwner] = useState<Owner | null>(null);
 
   // Admin token removed for security - server handles authentication
-  const { toast } = useToast();
+  const { addToast: toast } = useToast();
   const hasAdminToken = false; // Removed for security - server handles authentication
 
   // Feature flag check
   const { data: config } = useQuery({
     queryKey: ["/api/config/integrations"],
-    queryFn: ({ signal }) => fetchJSON("/api/config/integrations", { signal }),
+    queryFn: ({ signal }) => fetchJSON<IntegrationsConfig>("/api/config/integrations", { signal }),
   });
 
   const transferEnabled = config?.ok && config?.integrations?.admin?.available;

@@ -12,8 +12,8 @@ export default function PropertiesPage() {
     const data = properties.data ?? [];
     return {
       rows: data, // Use data directly from backend
-      loading: properties.loading,
-      error: properties.error,
+      loading: properties.isLoading,
+      error: properties.error ? String(properties.error.message ?? properties.error) : undefined,
     };
   }, [properties]);
 
@@ -22,7 +22,7 @@ export default function PropertiesPage() {
     const total = rows.length;
     const active = rows.filter(r => r.active).length;
     const totalUnitsKpi = rows.reduce((sum, r) => sum + (Number.isFinite(Number(r.units)) ? Number(r.units) : 0), 0);
-    const avgOcc = total ? rows.reduce((s, r) => s + (Number.isFinite(Number(r.occPct)) ? Number(r.occPct) : 0), 0) / total : 0;
+    const avgOcc = total ? rows.reduce((s, r) => s + (Number.isFinite(Number(r.occPct)) ? Number(r.occPct) : 0), 0) / total : null;
     return { total, active, totalUnits: totalUnitsKpi, avgOcc };
   }, [rows]);
 
@@ -43,7 +43,7 @@ export default function PropertiesPage() {
           <div className="ecc-kpi-l">Active</div>
         </div>
         <div className="ecc-kpi">
-          <div className="ecc-kpi-n">{kpis.avgOcc.toFixed(1)}%</div>
+          <div className="ecc-kpi-n">{kpis.avgOcc === null ? "\u2014" : `${kpis.avgOcc.toFixed(1)}%`}</div>
           <div className="ecc-kpi-l">Avg Occupancy</div>
         </div>
       </div>

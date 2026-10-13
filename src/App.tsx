@@ -1,6 +1,7 @@
-import React, { useEffect } from "react";
-import { Route, Switch, useLocation } from "wouter";
+import React from "react";
+import { Link, Redirect, Route, Switch, useLocation } from "wouter";
 import Sidebar from "./components/Sidebar";
+import { NAV_SECTIONS, navLeafPaths } from "./config/navigation";
 import { ToastContainer } from "./components/ui/ToastContainer";
 import { DevErrorBanner } from "./components/DevErrorBanner";
 
@@ -55,25 +56,33 @@ import DataHub from "./pages/DataHub";
 
 
 function HomeRedirect() {
-  const [, setLocation] = useLocation();
-  useEffect(() => {
-    // pick a known-good landing route that exists in this app
-    setLocation("/portfolio/properties");
-  }, [setLocation]);
-  return null;
+  // Known-good landing route that exists in this app.
+  return <Redirect to="/portfolio/properties" replace />;
 }
 
 function NotFound() {
+  const [location] = useLocation();
+  const titleByPath = new Map<string, string>();
+  for (const s of NAV_SECTIONS) {
+    if (s.path) titleByPath.set(s.path, s.title);
+    for (const c of s.children ?? []) titleByPath.set(c.path, c.title);
+  }
+  const suggestions = navLeafPaths().slice(0, 6);
   return (
-    <div className="p-8 text-center">
-      <h1 className="text-2xl font-semibold mb-2">Route not found</h1>
-      <p className="text-neutral-400 mb-6">
-        The page you requested doesn't exist. Try a known route:
+    <div className="p-8 text-center" role="alert" data-testid="route-not-found">
+      <h1 className="text-2xl font-semibold mb-2">Page not found</h1>
+      <p className="mb-6 ecc-muted">
+        There is no page at <code>{location}</code>. Go back, or open one of these:
       </p>
-      <div className="flex gap-3 justify-center">
-        <a className="px-3 py-2 rounded-xl border border-neutral-700" href="/portfolio/properties">Properties</a>
-        <a className="px-3 py-2 rounded-xl border border-neutral-700" href="/portfolio/units">Units</a>
-        <a className="px-3 py-2 rounded-xl border border-neutral-700" href="/portfolio/leases">Leases</a>
+      <div className="ecc-recover-actions">
+        <button type="button" className="ecc-btn ecc-touch" onClick={() => window.history.back()}>
+          Go back
+        </button>
+        {suggestions.map((path) => (
+          <Link key={path} href={path} className="ecc-btn ecc-touch">
+            {titleByPath.get(path)}
+          </Link>
+        ))}
       </div>
     </div>
   );

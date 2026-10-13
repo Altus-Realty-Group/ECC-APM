@@ -5,9 +5,11 @@ import RightRailPanel from "@/components/cardkit/RightRailPanel";
 import HeroBlock from "./HeroBlock";
 import Overview from "./Overview";
 import { useUnitCard } from "@/lib/ecc-resolvers";
+import { BLANK } from "@/lib/format";
 
 export default function UnitCardPage() {
-  const [, params] = useRoute("/card/unit/:id");
+  const [, routeParams] = useRoute("/card/unit/:id");
+  const params: { id?: string } | null = routeParams;
   const idNum = Number(params?.id);
   const q = useUnitCard(idNum);
   if (!Number.isFinite(idNum)) return <div data-testid="unit-invalid">Invalid unit id</div>;
@@ -16,8 +18,9 @@ export default function UnitCardPage() {
   const unit = data?.unit;
   const property = data?.property;
   const lease = data?.lease;
+  const unitTitle = unit?.unit_label || `Unit #${idNum}`;
 
-  const breadcrumbs = ["Portfolio", "Units", unit?.unit_number ?? `Unit #${idNum}`];
+  const breadcrumbs = ["Portfolio", "Units", unitTitle];
   const actions = [
     { label: "Export PDF", testid: "action-export-pdf" },
     { label: "Edit", testid: "action-edit" },
@@ -33,12 +36,11 @@ export default function UnitCardPage() {
   const rightRail = (
     <div className="space-y-4">
       <RightRailPanel title="Unit Details" data-testid="rr-details">
-        <div className="text-sm text-neutral-300">Beds: {unit?.beds}</div>
-        <div className="text-sm text-neutral-300">Baths: {unit?.baths}</div>
-        <div className="text-sm text-neutral-300">Sq Ft: {unit?.sqft}</div>
+        <div className="text-sm text-neutral-300">Status: {unit?.status ?? BLANK}</div>
+        <div className="text-sm text-neutral-300">Lease: {lease?.status ?? BLANK}</div>
       </RightRailPanel>
       <RightRailPanel title="Property" data-testid="rr-property">
-        <div className="text-sm text-neutral-300">{property?.name}</div>
+        <div className="text-sm text-neutral-300">{property ? `Property #${property.id}` : BLANK}</div>
       </RightRailPanel>
     </div>
   );
@@ -46,7 +48,7 @@ export default function UnitCardPage() {
   return (
     <ErrorBoundary>
       <CardShell
-        title={unit?.unit_number ?? `Unit #${idNum}`}
+        title={unitTitle}
         hero={<HeroBlock data={data} isLoading={q.isLoading} />}
         tabs={tabs}
         breadcrumbs={breadcrumbs}

@@ -28,13 +28,16 @@ For each affected table/view/RPC, record: actual name and evidence ref; business
 
 | Business operation | UI/API caller | Query/RPC and canonical owner | Cache/invalidation and revision | Evidence |
 | --- | --- | --- | --- | --- |
-| Not yet inventoried | Unknown | Unknown | Unknown | No operation traced |
+| Dashboard portfolio summary | `DashboardPage` via `useDashboardKpis` (`src/features/dashboard`) | `GET /api/dashboard/kpi/summary`. **No handler exists in this repository's server source**; owner unknown (#119). | TanStack key `["dashboard-kpis"]`, staleTime 30s, gcTime 5m. Purged on any 401/403 and on `ecc:session-boundary`; responses started under an earlier session epoch are rejected. | Source-declared only (frontend type and `kpiAdapter.ts`). Not live-verified. |
+| Property card | `PropertyCardPage` via `usePropertyCard` | `GET /api/rpc/get_property_card?id=`: `server/routes/rpc.ts` reads `properties`, `units`, `leases` (source-declared, canonical owner not established, #119). Returns `property{id,name,type,address}` and `kpis{units,activeLeases,occupancyPct,avgRentCents}` only. | Key `["card","property",id]`, defaults staleTime 60s / gcTime 5m. Same purge and stale-session rules. No cross-entity placeholder data. | `server/routes/rpc.ts`, `src/shared/card-contracts.ts`. Not live-verified. |
+| Portfolio collections (properties, units, leases, tenants, owners) | `Properties.tsx`, `Units.tsx` and the other portfolio pages via `useAll*` | `GET /api/portfolio/<collection>`: handlers in `server/index.ts` (source-declared). Approved contract is a raw array; the server source emits `{data, meta}` and different row field names than the pages read. Drift is open under #119. | Keys `["portfolio", <collection>]`, staleTime 60s. Same purge and stale-session rules; selections and triage lanes are cleared on denial and boundary. | `docs/contracts/ECC_PORTFOLIO_LIST_CONTRACT_V1.md`, `server/index.ts`. Not live-verified. |
 
 ## Values, assumptions and update behavior
 
 | Field/domain | Source and units | Override scope / precedence | Clear/reset/reapply | Default propagation / snapshot version | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| Not yet inventoried | Unknown | Unknown | Unknown | Unknown | Unverified |
+| Dashboard `propertiesTotal`, `unitsTotal`, `revenue30dCents` | Counts and integer cents (frontend declared type) | Read-only display | Not applicable | None | Absent or `null` is unknown ("Not reported"); a reported `0` is a confirmed zero; negative, fractional or non-numeric values are a contract error and are never shown. Source-declared, unverified. |
+| Dashboard `occupancyRate` / property card `occupancyPct` | Fraction 0..1 on the dashboard; integer percent on the card (server computes active leases / units, uncapped) | Read-only display | Not applicable | None | Different units on the two surfaces. Values outside 0..1 on the dashboard are a contract error. Server source emits `0` for no units, which the frontend cannot distinguish from a measured 0 (#119). |
 
 Record applicability for existing and future scenarios, zero/null semantics, who may edit, conflict policy and reload/recalculation behavior. Do not bake scenario-number exceptions into the common resolver without a justified domain requirement.
 
@@ -49,6 +52,7 @@ Record applicability for existing and future scenarios, zero/null semantics, who
 | Decision / affected objects | Reuse alternatives / rationale | Added / changed / retired | Consumer sequence / compatibility owner and removal trigger | PR / evidence |
 | --- | --- | --- | --- | --- |
 | Standard adoption | Establish a maintained design record before extending persistence | Documentation only | Inventory affected domain during next DB task | Initial adoption PR |
+| Frontend read-cache identity scoping (`src/lib/sessionScope.ts`, `queryClient.ts`, `main.tsx`) | Reuse of TanStack Query's existing cache; no new store, table or persistence. No authentication transport was invented. | Added: purge-all on 401/403, session epoch, `ecc:session-boundary` event, stale-session response rejection, selection and triage clearing. Changed: dashboard and property-card contracts now fail closed (`ContractError`); `PropertyCard` kpis are nullable instead of defaulting to 0 and reject negative/fractional counts and cents. Removed: global `placeholderData`. | Any future sign-in/out or account-switch owner dispatches `ecc:session-boundary`. Compatibility owner: ECC frontend. Removal trigger: replace the event with the real auth layer's signal. | PR #113; source and local tests only; no live proof |
 
 Record retention and dependency proof before retirement. Link larger decisions to existing ADRs or docs/database/decisions/. Preserve financial/legal custody.
 
@@ -66,6 +70,8 @@ This bootstrap changes documentation only. It neither audits nor modifies operat
 PR #121 proposes drizzle-orm0.44.7 to0.45.4 without schema or migration edits. `shared/schema.ts` is the concrete source consumer. Dependency regressions now import actual schema exports, inspect PK/FK/decimal/array metadata, exercise existing drizzle-zod insert/status validators, and compile parameterized PostgreSQL select/join/insert queries through a proxy that throws if execution is attempted. These source checks run in the existing Verify dependency step, with no new job/provider/browser activity. Exact-head CI must pass before merge.
 
 No database connection, DDL, SQL execution, deployed identity, RLS/grant or server authorization proof is established. #119 remains open for actual backend/runtime ownership, privileged/synthetic-data findings and migration/export dependencies. Existing source schema is preserved; tests use isolated fixtures only. Rollback the package/test/documentation commit, never an applied migration. A package compatibility pass is not live database acceptance.
+
+
 
 ## Migration/export transitive dependency review - 2026-10-12
 
@@ -93,6 +99,20 @@ authorization, report completeness or migration acceptance. Backend
 ownership and the service's accounting-sheet TODO remain tracked in #119.
 Rollback this dependency/test/documentation commit; no database rollback
 is involved. Exact-head CI is required before merge.
+
+## Frontend transfer containment - PM review 2026-10-13
+
+The three registered transfer/admin recovery routes now render an unavailable
+notice. Their previous controls called absent hook methods or assumed an
+unverified ownership-changing contract. The dormant alternate page and dry-run/
+preflight components use the same notice. No write request, fake successful check,
+unsupported report download or browser admin-token instruction remains in those
+components. Previous source is recoverable at worker head
+`e61104061b8c2263541bb11fb4cc4e0128e021df`. This retires frontend controls only,
+not database records or backend endpoints. Verified backend contract, actor
+authorization, confirmation, audit and idempotency are prerequisites to restore
+those controls. #119 remains the backend ownership dependency; full typecheck
+continues reporting 23 server diagnostics rather than excluding them.
 
 ## Source-only backend recovery - 2026-10-13
 
@@ -126,3 +146,11 @@ containment is not deployed authorization, live schema, database or runtime proo
 Rollback this source/test/documentation commit; previous handlers remain in Git.
 Do not re-enable quarantined operations until authoritative contracts, actor
 authorization, data truth, confirmation and audit/idempotency are verified.
+
+### Integration compiler gate
+
+With #113 and #124 integrated, Verify runs the full application typecheck as a
+mandatory step. The temporary backend-only compiler regression is removed to
+avoid duplicate subset work; recovery regression tests remain. Full compiler
+proof still also runs in the established proof-pack check. No compiler exclusions
+or suppressions are introduced. Live data and backend authority remain unverified.

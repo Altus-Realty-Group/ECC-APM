@@ -1,6 +1,6 @@
 # ECC-APM (v1.0): runtime instructions
 
-GitHub repository Altus-Realty-Group/ECC-APM is canonical. This is a fresh frontend workspace, not the historical Replit_Front_End_ECC workspace. Import main and use the checked-in Run command (`npm run start:replit`). Do source changes through reviewed GitHub PRs rather than Replit Agent authoring.
+GitHub repository Altus-Realty-Group/ECC-APM is canonical. This is a fresh frontend workspace, not the historical Replit_Front_End_ECC workspace. Import main and use the checked-in ECC-APM Run workflow (`npm run start:replit`). If an import-generated placeholder workflow is selected, Dion can start the same command from Tools -> Shell and open Preview; the Replit Agent must not be asked to execute startup. Do source changes through reviewed GitHub PRs rather than Replit Agent authoring.
 
 The UI uses React 18, Wouter 3, Vite 7 and TanStack Query 5. Preserve black/white/gold styling and accessibility. Do not claim server-side rendering, working authentication, live financial data or a provisioned database from frontend source alone.
 

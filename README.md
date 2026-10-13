@@ -5,8 +5,10 @@ Empire Command Center for Altus Property Management. Canonical source: [Altus-Re
 ## Fresh Replit import
 
 1. Import this GitHub repository, branch `main`, into a **new** Replit workspace named **ECC-APM (v1.0)**.
-2. Click **Run**. The checked-in startup installs locked dependencies when necessary and starts the frontend on port 5000, exposed through port 80.
+2. Click **Run** (the checked-in **ECC-APM** workflow). The checked-in startup installs locked dependencies when necessary and starts the frontend on port 5000, exposed through port 80.
 3. Open the preview. No secrets, database, vendor integration or old Replit resources are required for frontend startup.
+If Replit retains an import-generated placeholder workflow, open **Tools -> Shell**, run `npm run start:replit`, and open **Preview**. The Console message asking you to configure Workflows means startup was not attempted. Select **ECC-APM** as the Run workflow after synchronizing the reviewed GitHub configuration. Replit Agent does not perform startup under the runtime observation rules.
+
 4. Record the new workspace URL/ID before binding or publishing it. `.altus-project.json` intentionally has no active runtime binding.
 
 The fresh workspace is a frontend foundation. `/api` and `/bff` return explicit JSON `503 BACKEND_NOT_CONNECTED`; they do not contact the old staging service or manufacture business data. Dashboard/data features will remain unavailable until backend ownership, authentication and contracts are verified and connected in a reviewed GitHub change. Historical transfer/accounting/admin placeholders remain quarantined. A successful import is not operational or production acceptance.

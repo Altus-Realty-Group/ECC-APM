@@ -187,8 +187,8 @@ at 10 minutes; this avoids retaining the redundant backend-subset compiler run.
 The proof-pack full compiler check remains intact.
 
 PM local combined results before subset-test retirement: 93 unit tests and 16
-compatibility tests pass, guardrail/build pass, full compiler passes. The final
-compatibility count is 15 after removing only the duplicate compiler test; full
+compatibility tests pass, guardrail/build pass, full compiler passes. The compatibility count was 15 after removing only the duplicate compiler test;
+a route-manifest regression brings the final count to 16. Full
 compiler proof is mandatory in Verify and proof-pack. Current-head CI must pass
 before merge. Browser evidence remains Claude's V5 intercepted-response journeys;
 backend integration does not change those fixtures or frontend page bodies.
@@ -198,3 +198,7 @@ exists with operations, and no verified frontend administrator identity is claim
 Only transfer recovery routes are contained by the UI change. Other admin routes
 remain unlinked; navigation hiding is not authorization or production acceptance.
 Live backend identity, contracts and current records remain unresolved under #119.
+
+PM corrected the quarantine manifest: nine entries now advertise unavailable, the
+actual common handler and allowed status 503. This preserves deterministic smoke
+status/signature expectations; it does not claim runtime smoke execution.

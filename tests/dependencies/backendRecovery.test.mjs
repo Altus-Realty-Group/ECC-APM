@@ -75,3 +75,17 @@ test("direct legacy service calls cannot invoke data, export or vendor writers",
     await assert.rejects(service[name](17), error => error.status === 503 && error.code === "OPERATION_UNAVAILABLE");
   }
 });
+
+test("quarantined route metadata reports unavailable with its actual handler/status", async () => {
+  const {ROUTE_REGISTRY} = await import("../../server/lib/routeRegistry.ts");
+  const paths = ["/api/portfolio/_debug/sql", "/api/maintenance/workorders", "/api/accounting/transactions",
+    "/api/owner-transfer/initiate", "/api/owner-transfer/approve-accounting", "/api/owner-transfer/authorize",
+    "/api/owner-transfer/execute", "/api/owner-transfer/:id", "/api/owner-transfer/:id/audit"];
+  for (const path of paths) {
+    const entry = ROUTE_REGISTRY.find(r => r.path === path);
+    assert.ok(entry, path);
+    assert.equal(entry.status, "unavailable", path);
+    assert.deepEqual(entry.allowed_statuses, [503], path);
+    assert.equal(entry.handler, "server/lib/unavailableOperation.ts", path);
+  }
+});

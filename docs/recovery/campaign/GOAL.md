@@ -136,3 +136,32 @@ read errors/zero defaults and mixed numeric/UUID identity need scoped repairs.
 Operation generations/import readiness and current backend actor scopes must be
 verified before activating records. No live data/schema or target configuration
 changed during discovery. Shared platform documents remain orientation only.
+
+## Stale DoorLoop correction - 2026-10-13
+
+Dion confirmed the retained vendor data is months stale. Read-only timestamp and
+sync/checkpoint evidence supports that finding. Existing portfolio counts prove
+presence only; they must not be used as current operating figures. Live data
+freshness is FAILED, not merely an unknown backend identity. Detailed dates and
+counts remain private.
+
+The dedicated ingestion owner is doorloop-sync-backend (routing-index listed).
+Source review found ignored orchestrator/health failures, success-exiting failed
+jobs, missing runner success claims, exact-minute job selection after scheduler
+queue/setup delay, and mismatched telemetry schema fields. ECC's dormant local
+loop is not the recovery owner and must not be re-enabled as a second writer.
+
+Codex prepared dependency PR50 in that repo, head 336fe2bc: process/health failures
+now fail the job, unsupported required entities cannot advance success, and logs
+remain available. Six offline regressions, Python syntax and YAML/cadence/cost
+checks pass. Smoke passed; proof-pack failed, with no steps/logs returned by the
+connector. Exact failure annotations are not accessible through its allowed
+fetch endpoints; source CI also contains a broad backend-import token scan that
+needs separate adjudication, not an assumed diagnosis of this job failure.
+No sync dispatch, merge, vendor request, target/secret mutation or database write.
+
+Next: finish CI diagnosis, repair deterministic job planning and schema-aligned
+write receipts in bounded dependency PRs, establish source watermarks and restore
+one authorized budgeted catch-up with reconciliation before ECC reports freshness.
+A fresh UI over old data does not satisfy this goal. The unimplemented local
+card-wire branch is held while data freshness takes priority.

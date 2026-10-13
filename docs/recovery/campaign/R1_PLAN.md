@@ -1,5 +1,5 @@
 # ECC-APM recovery campaign R1
-Owner: Dion. PM and navigation owner: Codex. Authorized 2026-10-13.
+Owner: Dion. PM, navigation and recovered UI owner: Codex. Authorized 2026-10-13.
 Canonical repository: Altus-Realty-Group/ECC-APM (1058195656).
 Seed base: 1c8fd1022f46cd26ad0df748ffc053c0ed2c9542.
 
@@ -13,13 +13,13 @@ All three builds now expose source in Dropbox /Altus Corporation/Software/ECC Re
 |---|---|---|---|
 | Codex | R1-PM | src/config/navigation.ts; src/components/Sidebar.tsx; src/App.tsx route registration; recovery tooling/docs | Provenance/standards gates, route and navigation reconciliation, independent acceptance |
 | Claude Code | R1-C | new src/features/recovery/operations/**; src/lib/recovery/**; docs/recovery/operations/**; tests/unit/recovery-operations* | Authoritative frontend adapter contracts and repaired legal/work-order/ledger candidates |
-| Grok | R1-G | current src/pages/card/**; src/features/dashboard/**; new src/components/recovery/**; docs/recovery/ui/**; tests/unit/recovery-ui*; e2e/recovery-ui* | Repaired cards and dashboard components with usable mobile/desktop behavior |
+| Codex (reassigned by Dion 2026-10-13) | R1-G | current src/pages/card/**; src/features/dashboard/**; new src/components/recovery/**; docs/recovery/ui/**; tests/unit/recovery-ui*; e2e/recovery-ui* | Repaired cards and dashboard components with usable mobile/desktop behavior |
 
 Shared App.tsx, navigation, contracts under src/contracts, queryClient/session boundaries, existing common styles, lockfiles, workflows and package files are PM-owned. Workers submit exact requested shared edits in their own docs; PM integrates after review. Do not independently edit another lane. Existing backend files are inspection-only in this frontend ownership repository; do not invent backend contracts or mutate another repo.
 
 ## Implementation sequence
 1. Intake: compare active exports with current tree/history and semantic equivalents. Read code before selecting; choose one implementation per feature. Record source build, relative path, revision/hash, duplicate resolution and limitations.
-2. Parallel source work: Claude traces authoritative fields, operations and transaction records; Grok ports useful cards/dashboard UI; Codex reconstructs route/section inventory and implements read-only comparison/provenance gates.
+2. Parallel source work: Claude traces authoritative fields, operations and transaction records; Codex ports useful cards/dashboard UI; Codex reconstructs route/section inventory and implements read-only comparison/provenance gates.
 3. Contract integration: PM applies verified shared contract and route edits. New data paths may use only verified current authoritative endpoints. Unverified paths remain explicit dependencies, never successful mock behavior.
 4. Navigation acceptance: restore the required hierarchy using real usable destinations. Planned features remain in the recovery ledger until implemented. Entity links use actual record identity, never fixed demo ID 1.
 5. After first bounded slices pass, refresh the same lanes against accepted main and complete legal, work orders, ledger and dashboard slices. Freeze a reviewable slice; do not indefinitely expand one PR.
@@ -48,7 +48,7 @@ Each ported/rebuilt feature must have an entry under its lane provenance ledger:
 Mandatory source checks: npm run typecheck, npm test, npm run test:dependencies, npm run build and existing guardrails; targeted browser proof at desktop and mobile for changed UI. Run tests locally before triggering existing bounded CI once on a reviewable head.
 Return exact branch/base/head, PR, changed files, checks/results, current contract evidence, remaining ledger, next action and lane integrity.
 Codex retains independent review, shared-file integration and acceptance. No merges or publishing are authorized by this assignment.
-External worker prompts must be sent manually by Dion; a PR is not delivery. Initial worker state: AWAITING_MANUAL_HANDOFF; execution NOT_CONFIRMED.
+External worker prompts must be sent manually by Dion; a PR is not delivery. Claude acknowledged and returned R1-C V1 for review; V2 corrections remain the operations assignment. Grok's source-access blocker is superseded by Dion's explicit reassignment to Codex. Codex is implementing R1-G directly in this conversation.
 
 ## Rollback
 Revert individual source PRs; do not migrate or delete original export files. Tooling is manual and read-only. No database or runtime change is bundled with this campaign seed.

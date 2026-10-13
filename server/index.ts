@@ -5,8 +5,8 @@ import { PropertyOut, UnitOut, LeaseOut, TenantOut, OwnerOut } from "./mappings"
 import { installOwnerRoutes } from './routes/owners';
 import { integrations } from './routes/admin/integrations';
 import { sync } from './routes/admin/sync';
-import ownerTransferRouter from './routes/ownerTransfer.js';
-import { installPropertyRoutes } from './routes/properties.js'; // Ensure file exists or logic remains valid
+import ownerTransferRouter from "./routes/ownerTransfer.js";
+import { unavailableOperation } from "./lib/unavailableOperation";
 import syncHealth from './routes/syncHealth.js';
 import m365Router from './routes/m365.js';
 import entitiesRouter from './routes/entities.js';
@@ -221,6 +221,13 @@ app.post('/api/admin/integrations/m365/planner/tasks', (req, res) => {
   res.status(501).json({ ok: false, message: 'Not implemented' });
 });
 
+// Do not wire unfinished ownership-changing services during compiler recovery.
+app.use('/api/owner-transfer', unavailableOperation);
+app.use('/api/owners/initiatetransfer', unavailableOperation);
+app.use('/api/owners/approvetransfer', unavailableOperation);
+app.use('/api/owners/authorizetransfer', unavailableOperation);
+app.use('/api/owners/executetransfer', unavailableOperation);
+app.use('/api/owner-transfers', unavailableOperation);
 app.use('/api', ownerTransferRouter);
 app.use("/api/entities", entitiesRouter);
 app.use("/api/rpc", rpcRouter);
@@ -431,7 +438,6 @@ app.post("/api/geocode/properties", async (req, res) => {
               success: true,
               lat: result.lat,
               lng: result.lng,
-              provider: result.provider,
               dbUpdateFailed: true,
               error: updateError.message
             });
@@ -440,8 +446,7 @@ app.post("/api/geocode/properties", async (req, res) => {
               id: property.id,
               success: true,
               lat: result.lat,
-              lng: result.lng,
-              provider: result.provider
+              lng: result.lng
             });
           }
         } else {
@@ -730,240 +735,13 @@ app.get("/api/portfolio/owners", async (req, res) => {
   }
 });
 
-/** Maintenance work orders endpoint */
-app.get("/api/maintenance/workorders", async (req, res) => {
-  if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
+// These legacy handlers returned synthetic operational data or accepted arbitrary SQL.
+// Keep them unavailable until an authoritative backend contract is implemented.
+app.get("/api/maintenance/workorders", unavailableOperation);
+app.get("/api/accounting/transactions", unavailableOperation);
+app.get("/api/portfolio/_debug/sql", unavailableOperation);
 
-  try {
-    // For now, return structured mock data since maintenance table may not exist
-    const workOrders = [
-      {
-        id: 1,
-        property_id: 1,
-        priority: 'High',
-        status: 'open',
-        created_at: new Date().toISOString(),
-        title: 'Leaky faucet in kitchen'
-      },
-      {
-        id: 2,
-        property_id: 2,
-        priority: 'Medium',
-        status: 'in_progress',
-        created_at: new Date(Date.now() - 86400000).toISOString(),
-        title: 'HVAC maintenance required'
-      },
-      {
-        id: 3,
-        property_id: 1,
-        priority: 'Critical',
-        status: 'open',
-        created_at: new Date(Date.now() - 172800000).toISOString(),
-        title: 'Water heater malfunction'
-      }
-    ];
-
-    setContract(req, res, '/api/maintenance/workorders');
-    res.json({ data: workOrders, meta: { totalCount: workOrders.length } });
-  } catch (e: any) {
-    return sendErr(res, 500, e);
-  }
-});
-
-/** Accounting transactions endpoint */
-app.get("/api/accounting/transactions", async (req, res) => {
-  if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
-
-  try {
-    // Generate realistic transaction data for the last 90 days
-    const transactions = [];
-    const now = new Date();
-
-    for (let i = 0; i < 90; i++) {
-      const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-
-      // Add rent income every 1st of month
-      if (date.getDate() === 1) {
-        transactions.push({
-          type: 'rent',
-          amount_cents: 125000, // $1,250
-          posted_on: date.toISOString()
-        });
-      }
-
-      // Add random expenses
-      if (Math.random() > 0.85) {
-        transactions.push({
-          type: 'expense',
-          amount_cents: Math.floor(Math.random() * 50000) + 5000, // $50-$500
-          posted_on: date.toISOString()
-        });
-      }
-    }
-
-    setContract(req, res, '/api/accounting/transactions');
-    res.json({ data: transactions, meta: { totalCount: transactions.length } });
-  } catch (e: any) {
-    return sendErr(res, 500, e);
-  }
-});
-
-/** Debug endpoint for SQL queries */
-app.get("/api/portfolio/_debug/sql", async (req, res) => {
-  if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
-
-  const query = String(req.query.q || "");
-  const limit = Math.min(parseInt(String(req.query.limit || "10")), 50);
-
-  if (!query.toLowerCase().startsWith("select")) {
-    return res.status(400).json({ error: "SELECT queries only" });
-  }
-
-  try {
-    const { data, error } = await supa.client.rpc('exec_sql', {
-      query_text: `${query} LIMIT ${limit}`
-    });
-    if (error) throw error;
-    setContract(req, res, '/api/portfolio/_debug/sql');
-    res.json(data || []);
-  } catch (e: any) {
-    // Fallback to table queries if RPC doesn't work
-    try {
-      if (query.includes("FROM properties")) {
-        const { data, error } = await supa.client.from(TABLE.properties).select("*").limit(limit);
-        if (error) throw error;
-        setContract(req, res, '/api/portfolio/_debug/sql');
-        res.json(data || []);
-      } else {
-        return sendErr(res, 400, "RPC not available, use table-specific queries");
-      }
-    } catch (fallbackError: any) {
-      return sendErr(res, 500, fallbackError);
-    }
-  }
-});
-
-/** POST /api/owner-transfer/initiate - Initiate owner transfer */
-app.post("/api/owner-transfer/initiate", supabaseGuard, async (req, res) => {
-  if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
-
-  try {
-    const input: InitiateInput = req.body;
-    const result = await initiateTransfer(input);
-
-    setContract(req, res, '/api/owner-transfer/initiate');
-    res.status(201).json({
-      transferId: result.transferId,
-      reportUrl: result.reportUrl ? result.reportUrl : `/api/owner-transfer/${result.transferId}/report`,
-      reportFilename: `owner_transfer_${result.transferId}.xlsx`,
-    });
-  } catch (e: any) {
-    if (e.name === 'ZodError') {
-      return sendErr(res, 400, { message: 'Validation error', details: e.errors });
-    }
-    return sendErr(res, 500, e);
-  }
-});
-
-/** POST /api/owner-transfer/approve-accounting - Mark approved by accounting */
-app.post("/api/owner-transfer/approve-accounting", supabaseGuard, async (req, res) => {
-  if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
-
-  try {
-    const { transferId, actorId } = req.body;
-    await markApprovedByAccounting(transferId, actorId);
-    setContract(req, res, '/api/owner-transfer/approve-accounting');
-    res.json({ ok: true, message: "Transfer approved by accounting" });
-  } catch (e: any) {
-    if (e.name === 'ZodError') {
-      return sendErr(res, 400, { message: 'Validation error', details: e.errors });
-    }
-    return sendErr(res, 500, e);
-  }
-});
-
-/** POST /api/owner-transfer/authorize - Authorize transfer execution (admin only) */
-app.post("/api/owner-transfer/authorize", supabaseGuard, async (req, res) => {
-  if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
-
-  try {
-    // TODO: Add proper admin role checking here
-    // For now, we assume the request is authorized if it reaches this point
-
-    const { transferId, actorId } = req.body;
-    await authorizeExecution(transferId, actorId);
-    setContract(req, res, '/api/owner-transfer/authorize');
-    res.json({ ok: true, message: "Transfer authorized for execution" });
-  } catch (e: any) {
-    if (e.name === 'ZodError') {
-      return sendErr(res, 400, { message: 'Validation error', details: e.errors });
-    }
-    return sendErr(res, 500, e);
-  }
-});
-
-/** POST /api/owner-transfer/execute - Execute transfer with dry-run support */
-app.post("/api/owner-transfer/execute", supabaseGuard, async (req, res) => {
-  if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
-
-  try {
-    const { transferId, dryRun = true, actorId } = req.body;
-    const result = await executeTransfer(transferId, { dryRun });
-    setContract(req, res, '/api/owner-transfer/execute');
-    res.json({
-      ok: true,
-      applied: result.applied,
-      summary: result.summary,
-    });
-  } catch (e: any) {
-    if (e.name === 'ZodError') {
-      return sendErr(res, 400, { message: 'Validation error', details: e.errors });
-    }
-    return sendErr(res, 500, e);
-  }
-});
-
-/** GET /api/owner-transfer/:id/report - Download Excel report */
-app.get("/api/owner-transfer/:id/report", supabaseGuard, async (req, res) => {
-  if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
-
-  try {
-    const transferId = parseInt(req.params.id);
-    if (isNaN(transferId)) {
-      return sendErr(res, 400, "Invalid transfer ID");
-    }
-
-    // Generate the report
-    const report = await generateAccountingReport(transferId);
-
-    // Set headers for file download
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="${report.filename}"`);
-
-    // Send the buffer directly
-    res.send(report.buffer);
-  } catch (e: any) {
-    return sendErr(res, 500, e);
-  }
-});
-
-/** GET /api/owner-transfer/:id - Get transfer details */
-app.get("/api/owner-transfer/:id", supabaseGuard, async (req, res) => {
-  if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
-
-  try {
-    const transferId = parseInt(req.params.id);
-    if (isNaN(transferId)) {
-      return sendErr(res, 400, "Invalid transfer ID");
-    }
-
-    const details = await getTransferDetails(transferId);
-    setContract(req, res, '/api/owner-transfer/:id');
-    res.json(details);
-  } catch (e: any) {
-    return sendErr(res, 500, e);
-  }
-});
+// Transfer URLs are handled by the earlier unavailable mounts, before any DB router.
 
 app.use("/api", (_req, res) => res.status(404).json({ ok: false, message: "Not found" }));
 

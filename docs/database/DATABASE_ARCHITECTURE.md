@@ -113,3 +113,44 @@ not database records or backend endpoints. Verified backend contract, actor
 authorization, confirmation, audit and idempotency are prerequisites to restore
 those controls. #119 remains the backend ownership dependency; full typecheck
 continues reporting 23 server diagnostics rather than excluding them.
+
+## Source-only backend recovery - 2026-10-13
+
+Dion approved a separate compiler-recovery lane with unfinished write operations
+unavailable. This does not confirm that Node or Python is the deployed backend.
+The Node transfer URL families are intercepted before the historical transfer
+router and return 503 without data access; undefined handler bodies are retired
+into Git history. The legacy alternative admin-sync router also returns 503
+instead of referencing a missing module. Existing canonical sync routing and
+provider activation/cadence are not changed.
+
+Synthetic maintenance/accounting handlers and arbitrary debug-SQL handling now
+return unavailable rather than fabricated records or SQL results. The dormant transfer service now exports unavailable methods without importing
+database, storage, audit or vendor writer clients. Direct service calls reject
+with status 503; no positive transfer/report/audit result is fabricated. Its former
+implementation is preserved in Git history. Existing audit writer and actor/schema
+fields are unchanged. No schema migration or live audit-column proof.
+
+Provider adapters validate the fields they already read from responses: Dropbox
+entries/search/link, Graph token/task/bucket/items and Google geocode coordinates.
+Malformed shapes are errors rather than invented empty results. API URLs, scopes
+and credential references remain unchanged. Native-fetch binary upload uses a
+byte-preserving Uint8Array copy; local test calls are intercepted. The old geocode
+wrapper never returned provider provenance, so an undefined output property was
+removed instead of fabricating a provider label.
+
+Backend-only compiler and regression proof runs in the existing dependency-test
+step, with no new workflow, job, matrix or provider call. Full application
+typecheck remains independently required when integrated with #113. Source
+containment is not deployed authorization, live schema, database or runtime proof.
+Rollback this source/test/documentation commit; previous handlers remain in Git.
+Do not re-enable quarantined operations until authoritative contracts, actor
+authorization, data truth, confirmation and audit/idempotency are verified.
+
+### Integration compiler gate
+
+With #113 and #124 integrated, Verify runs the full application typecheck as a
+mandatory step. The temporary backend-only compiler regression is removed to
+avoid duplicate subset work; recovery regression tests remain. Full compiler
+proof still also runs in the established proof-pack check. No compiler exclusions
+or suppressions are introduced. Live data and backend authority remain unverified.

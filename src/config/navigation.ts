@@ -75,9 +75,9 @@ export const HIDDEN_ROUTES: HiddenRoute[] = [
       "Unavailable recovery route; verified backend transfer authorization and contract required before enabling.",
   },
   { path: "/owners/transfer/detail", reason: "Detail view of the owner-transfer workflow above." },
-  { path: "/admin/sync", reason: "Unavailable transfer recovery route; no admin operations enabled." },
+  { path: "/admin/sync", reason: "Unlinked admin sync page; frontend does not verify administrator identity. Backend ownership and access proof remain required." },
   { path: "/admin/geocode", reason: "Admin surface; Dion-only gating is not implemented in the frontend." },
-  { path: "/admin/transfers", reason: "Admin surface; Dion-only gating is not implemented in the frontend." },
+  { path: "/admin/transfers", reason: "Unavailable transfer recovery route; no transfer operations enabled." },
 ];
 
 export type PlannedDestination = {

@@ -173,3 +173,28 @@ Observed, not changed (outside the three transfer routes and the PM's containmen
 - Both remain unlinked from navigation and reachable by URL; hiding a link is not access control. Whether to contain them the same way is a PM decision.
 
 Evidence limits: every journey uses intercepted or fixture responses against the built bundle, in headless Chromium only. This proves frontend containment and state handling. It is not live-data, deployed-runtime, backend-authorization or aligned-preview proof, and it does not repair server authorization. It is not acceptance; PM acceptance and exact-head CI review are still required.
+
+## 16. PM backend integration and final gate - 2026-10-13
+
+Approved backend recovery #124 merged a693654a3abdb5001023a7a59d2dd36ff29376ab.
+The current branch integrates that source without altering Claude's V5 browser fixes.
+Full application compiler errors are cleared; no source exclusions or suppressions.
+Verify now invokes mandatory npm run typecheck before build in the existing job.
+The backend-only compiler regression is retired because this stronger full compiler
+gate covers it; operational recovery regressions remain. No jobs, matrices, triggers,
+required check names, cadences or timeouts are added/changed. Verify remains bounded
+at 10 minutes; this avoids retaining the redundant backend-subset compiler run.
+The proof-pack full compiler check remains intact.
+
+PM local combined results before subset-test retirement: 93 unit tests and 16
+compatibility tests pass, guardrail/build pass, full compiler passes. The final
+compatibility count is 15 after removing only the duplicate compiler test; full
+compiler proof is mandatory in Verify and proof-pack. Current-head CI must pass
+before merge. Browser evidence remains Claude's V5 intercepted-response journeys;
+backend integration does not change those fixtures or frontend page bodies.
+
+The misleading /admin/sync hidden-route reason has been corrected: that page still
+exists with operations, and no verified frontend administrator identity is claimed.
+Only transfer recovery routes are contained by the UI change. Other admin routes
+remain unlinked; navigation hiding is not authorization or production acceptance.
+Live backend identity, contracts and current records remain unresolved under #119.

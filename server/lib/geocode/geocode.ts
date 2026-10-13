@@ -1,4 +1,5 @@
 import fetch from "node-fetch";
+import { GeocodeResponse } from "../vendorResponseContracts";
 import crypto from "crypto";
 import { sbAdmin } from "../supabaseAdmin";
 import { recordAudit } from "../audit";
@@ -32,7 +33,7 @@ async function googleGeocode(q: string): Promise<{ lat: number; lng: number; nor
   const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(q)}&key=${API_KEY}`;
   const res = await fetch(url);
   if (!res.ok) return null;
-  const j = await res.json();
+  const j = GeocodeResponse.parse(await res.json());
   const hit = j?.results?.[0];
   if (!hit) return null;
   const lat = hit.geometry?.location?.lat;

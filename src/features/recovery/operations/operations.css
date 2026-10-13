@@ -19,3 +19,6 @@
 .ops-summary dt { font-size: 12px; color: var(--muted, #b8b8b8); }
 .ops-summary dd { margin: 0; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
 @media (max-width: 480px) { .ops-page { padding: 12px; } }
+.ops-lease { margin: 0 0 16px; }
+.ops-lease h3 { margin: 0 0 8px; font-size: 14px; font-weight: 800; }
+.ops-scroll:focus-visible { outline: 2px solid #d4af37; outline-offset: 2px; }

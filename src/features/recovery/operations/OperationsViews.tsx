@@ -1,8 +1,8 @@
 import React from "react";
 import "./operations.css";
 import {
-  formatCents, formatDateOnly, summarizeLedger,
-  type LedgerEntry, type LegalCase, type WorkOrder,
+  formatCents, formatDateOnly, groupLedgerByLease,
+  type LedgerEntry, type LedgerLeaseGroup, type LegalCase, type WorkOrder,
 } from "@/lib/recovery/operationsContracts";
 import StateNotice from "@/components/ui/StateNotice";
 
@@ -71,20 +71,22 @@ export function WorkOrdersTable({ rows }: { rows: readonly WorkOrder[] }) {
 
 const KIND_LABEL = { charge: "Charge", payment: "Payment", credit: "Credit", adjustment: "Adjustment" } as const;
 
-export function LedgerView({ entries }: { entries: readonly LedgerEntry[] }) {
-  const sum = summarizeLedger(entries);
-  if (!sum) return <StateNotice kind="empty" title="No recorded ledger entries" detail="Balance is unknown, not $0.00." testId="ops-ledger-empty" />;
+function LeaseLedger({ group }: { group: LedgerLeaseGroup }) {
+  const { summary: sum, entries, leaseId } = group;
   const owes = sum.balanceCents > 0;
+  const headingId = `ops-lease-${leaseId}`;
   return (
-    <div data-testid="ops-ledger">
+    <section aria-labelledby={headingId} data-testid="ops-ledger-lease" className="ops-lease">
+      <h3 id={headingId}>Lease {leaseId}</h3>
       <dl className="ops-summary">
         <div><dt>Charges</dt><dd>{formatCents(sum.chargesCents)}</dd></div>
         <div><dt>Payments</dt><dd>{formatCents(sum.paymentsCents)}</dd></div>
         <div><dt>Credits</dt><dd>{formatCents(sum.creditsCents)}</dd></div>
+        <div><dt>Adjustments</dt><dd>{formatCents(sum.adjustmentsCents)}</dd></div>
         <div><dt>Balance due</dt>
           <dd className={owes ? "ops-neg" : "ops-pos"} data-testid="ops-ledger-balance">{formatCents(sum.balanceCents)}</dd></div>
       </dl>
-      <div className="ops-scroll" tabIndex={0} role="region" aria-label="Ledger entries">
+      <div className="ops-scroll" tabIndex={0} role="region" aria-label={`Ledger entries for lease ${leaseId}`}>
         <table className="ops-table">
           <thead><tr>
             <th scope="col">Posted</th><th scope="col">Type</th><th scope="col">Memo</th>
@@ -102,6 +104,16 @@ export function LedgerView({ entries }: { entries: readonly LedgerEntry[] }) {
           </tbody>
         </table>
       </div>
+    </section>
+  );
+}
+
+/** One block per lease; balances are never combined across leases. */
+export function LedgerView({ entries }: { entries: readonly LedgerEntry[] }) {
+  if (entries.length === 0) return <StateNotice kind="empty" title="No recorded ledger entries" detail="Balance is unknown, not $0.00." testId="ops-ledger-empty" />;
+  return (
+    <div data-testid="ops-ledger">
+      {groupLedgerByLease(entries).map((g) => <LeaseLedger key={g.leaseId} group={g} />)}
     </div>
   );
 }

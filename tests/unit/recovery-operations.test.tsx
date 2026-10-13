@@ -5,13 +5,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ContractError } from "../../src/lib/dataState";
+import { StaleSessionError } from "../../src/lib/sessionScope";
 import {
+  type LedgerEntry, type LegalCase,
   parseCents, parseDateOnly, parseLegalCase, parseWorkOrder, parseLedgerEntry, parseCollection,
-  summarizeLedger, formatCents, formatDateOnly,
+  summarizeLedger, groupLedgerByLease, formatCents, formatDateOnly,
 } from "../../src/lib/recovery/operationsContracts";
-import { OPERATIONS_CONTRACTS, loadDomain } from "../../src/lib/recovery/operationsRegistry";
+import { OPERATIONS_CONTRACTS, loadDomain, resolveDomain } from "../../src/lib/recovery/operationsRegistry";
 import { LegalCasesTable, WorkOrdersTable, LedgerView } from "../../src/features/recovery/operations/OperationsViews";
-import OperationsRecoveryPage from "../../src/features/recovery/operations/OperationsRecoveryPage";
+import OperationsRecoveryPage, { DomainPanel } from "../../src/features/recovery/operations/OperationsRecoveryPage";
 import { ROOT, read } from "./helpers";
 
 // SOURCE FIXTURES ONLY. These rows are invented to exercise the adapters; they are NOT live-data proof and
@@ -105,11 +107,84 @@ test("views render fixtures honestly: dashes for unknown, no mutation controls",
   for (const html of [legal, wo, led]) assert.doesNotMatch(html, /<button|<form|<input/);
 });
 
-test("the recovery page states each gate and offers no actions", () => {
+test("the recovery page states each gate in plain language and offers no actions", () => {
   const html = renderToStaticMarkup(<OperationsRecoveryPage />);
-  for (const d of ["legalCases", "workOrders", "ledgerEntries"]) assert.match(html, new RegExp(`ops-gate-${d}`));
+  // Static render = first paint: every domain is loading until its (zero-request) resolution settles.
+  for (const d of ["legalCases", "workOrders", "ledgerEntries"]) assert.match(html, new RegExp(`ops-section-${d}`));
   assert.doesNotMatch(html, /<button|<form|<input|<main/);
-  assert.match(html, /disabled until verified authorization, confirmation, audit and idempotency/);
+  for (const c of Object.values(OPERATIONS_CONTRACTS)) {
+    const gate = renderToStaticMarkup(<DomainPanel domain={c.domain} label={c.label} state={{ state: "unavailable", contract: c }}>{() => null}</DomainPanel>);
+    assert.match(gate, new RegExp(`ops-gate-${c.domain}`));
+    assert.match(gate, /not available yet/);
+    assert.doesNotMatch(gate, TECHNICAL_COPY, c.domain);
+  }
+});
+
+const TECHNICAL_COPY = /backend|contract|idempoten|endpoint|\/api\/|route|schema|HTTP \d|integer cents|authorization|audit|503/i;
+
+test("domain panels render loading, denied, error (with retry), empty and ready without technical copy", () => {
+  const render = (state: Parameters<typeof DomainPanel<LegalCase>>[0]["state"], onRetry?: () => void) =>
+    renderToStaticMarkup(<DomainPanel domain="legalCases" label="Legal cases" state={state} onRetry={onRetry}>{(rows) => <LegalCasesTable rows={rows} />}</DomainPanel>);
+  const loading = render({ state: "loading" });
+  assert.match(loading, /ops-loading-legalCases/);
+  assert.match(loading, /aria-busy="true"/);
+  const denied = render({ state: "denied" });
+  assert.match(denied, /ops-denied-legalCases/);
+  assert.match(denied, /role="alert"/);
+  assert.doesNotMatch(denied, /<table/);
+  const err = render({ state: "error" }, () => {});
+  assert.match(err, /ops-error-legalCases/);
+  assert.match(err, /Retry/);
+  assert.doesNotMatch(err, /No legal cases recorded/, "a failure is never an empty list");
+  const empty = render({ state: "ready", rows: [] });
+  assert.match(empty, /ops-legal-empty/);
+  const ready = render({ state: "ready", rows: [parseLegalCase({ id: "c1", type: "Eviction", status: "Open" })] });
+  assert.match(ready, /ops-legal-table/);
+  for (const html of [loading, denied, err, empty, ready]) assert.doesNotMatch(html, TECHNICAL_COPY);
+});
+
+test("resolveDomain maps failures to denied/error, drops aborted and stale results, and never requests unverified domains", async () => {
+  const contracts = { ...OPERATIONS_CONTRACTS, legalCases: { ...OPERATIONS_CONTRACTS.legalCases, status: "verified" as const, endpoint: "/api/test/legal" } };
+  const parse = (p: unknown) => parseCollection(p, parseLegalCase);
+  const run = (fetcher: () => Promise<unknown>, signal?: AbortSignal) => resolveDomain("legalCases", parse, { contracts, fetcher, signal });
+  assert.deepEqual(await run(async () => { throw Object.assign(new Error("HTTP 403"), { status: 403 }); }), { state: "denied" });
+  assert.deepEqual(await run(async () => { throw new Error("HTTP 500"); }), { state: "error" });
+  assert.deepEqual(await run(async () => ({ data: [{}] })), { state: "error" });
+  assert.deepEqual(await run(async () => ({ data: [] })), { state: "ready", rows: [] });
+  const ctl = new AbortController();
+  ctl.abort();
+  assert.equal(await run(async () => { throw new Error("aborted"); }, ctl.signal), null);
+  assert.equal(await run(async () => { throw new StaleSessionError(); }), null);
+  let calls = 0;
+  const gate = await resolveDomain("workOrders", parseCollection.bind(null) as never, { contracts, fetcher: async () => { calls++; return {}; } });
+  assert.equal(gate?.state, "unavailable");
+  assert.equal(calls, 0);
+});
+
+test("ledger summaries are per lease: mixed leases are rejected, grouping keeps leases apart", () => {
+  const a = parseLedgerEntry(ledger({ id: "a", leaseId: "L1", amountCents: 100000 }));
+  const b = parseLedgerEntry(ledger({ id: "b", leaseId: "L2", kind: "payment", amountCents: 100000 }));
+  assert.throws(() => summarizeLedger([a, b]), ContractError);
+  const groups = groupLedgerByLease([a, b]);
+  assert.deepEqual(groups.map((g) => [g.leaseId, g.summary.balanceCents]), [["L1", 100000], ["L2", -100000]]);
+  const html = renderToStaticMarkup(<LedgerView entries={[a, b]} />);
+  assert.equal((html.match(/ops-ledger-lease/g) ?? []).length, 2);
+  assert.match(html, /Lease L1/);
+  assert.match(html, /Lease L2/);
+});
+
+test("ledger overflow is caught per accumulator even when signed values cancel in a combined sum", () => {
+  const MAX = Number.MAX_SAFE_INTEGER;
+  const e = (id: string, kind: LedgerEntry["kind"], amountCents: number): LedgerEntry =>
+    ({ id, leaseId: "L1", kind, postedOn: "2026-03-05", amountCents, memo: null });
+  // charges reach MAX+5 (unsafe) while the old combined check saw (MAX+5)+(-5) = MAX and passed.
+  assert.throws(() => summarizeLedger([e("a", "adjustment", -5), e("b", "charge", MAX), e("c", "charge", 5)]), ContractError);
+  assert.throws(() => summarizeLedger([e("a", "payment", MAX), e("b", "payment", 5), e("c", "adjustment", 5)]), ContractError);
+  // accumulators are safe individually but the final balance is not
+  assert.throws(() => summarizeLedger([e("a", "charge", MAX), e("b", "adjustment", MAX)]), ContractError);
+  assert.throws(() => summarizeLedger([e("a", "payment", MAX), e("b", "credit", MAX)]), ContractError);
+  // a large but safe ledger is still summarized exactly
+  assert.equal(summarizeLedger([e("a", "charge", MAX), e("b", "payment", MAX)])?.balanceCents, 0);
 });
 
 test("recovered sources stay inside guardrails", () => {

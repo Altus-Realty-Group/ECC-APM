@@ -1,5 +1,7 @@
 # R1-C integration request (for Codex)
 
+V2 update: item 1 is done (Codex mounted `/ops/operations`) and item 2 is done (`e2e/recovery-operations.spec.ts`, mocked network, desktop and 390px). Items 3-5 remain.
+
 Nothing below was edited by this lane. Each item needs Codex ownership.
 
 1. **Route (App.tsx)** - mount `src/features/recovery/operations/OperationsRecoveryPage` (default export) at one path, e.g. `/ops/operations`. It renders a `<section>`, so App's single `<main>` is preserved. Not linked from navigation yet; `PLANNED_DESTINATIONS` entries for Legal/Work Orders/Tenant Ledgers can stay until a contract is verified.

@@ -177,6 +177,7 @@ export function parseCollection<T extends { id: string }>(payload: unknown, row:
 }
 
 export type LedgerSummary = {
+  leaseId: string;
   chargesCents: number;
   paymentsCents: number;
   creditsCents: number;
@@ -185,23 +186,50 @@ export type LedgerSummary = {
   balanceCents: number;
 };
 
+/** a + b, rejecting any result outside the safe-integer range. Checked per step so signed values cannot cancel an overflow. */
+function safeAdd(a: number, b: number, what: string): number {
+  const r = a + b;
+  if (!Number.isSafeInteger(r)) throw new ContractError(`ledger ${what} exceeds safe integer range`);
+  return r;
+}
+
 /**
- * Totals derived ONLY from recorded entries. No entries -> null (unknown), never a $0 balance, and nothing
- * is ever synthesized from leases or rent (the rejected AltusCommand3 TenantLedger behaviour).
+ * Totals for ONE lease, derived only from recorded entries. No entries -> null (unknown), never a $0 balance,
+ * and nothing is ever synthesized from leases or rent (the rejected AltusCommand3 TenantLedger behaviour).
+ * Entries from more than one lease are rejected: a mixed-lease balance belongs to nobody. Use
+ * groupLedgerByLease() to summarize several leases separately.
+ * Every accumulator and every step of the final balance is checked; the sum of the accumulators is not.
  */
 export function summarizeLedger(entries: readonly LedgerEntry[]): LedgerSummary | null {
   if (entries.length === 0) return null;
-  const s = { chargesCents: 0, paymentsCents: 0, creditsCents: 0, adjustmentsCents: 0 };
-  for (const e of entries) {
-    if (e.kind === "charge") s.chargesCents += e.amountCents;
-    else if (e.kind === "payment") s.paymentsCents += e.amountCents;
-    else if (e.kind === "credit") s.creditsCents += e.amountCents;
-    else s.adjustmentsCents += e.amountCents;
-    if (!Number.isSafeInteger(s.chargesCents + s.paymentsCents + s.creditsCents + s.adjustmentsCents)) {
-      throw new ContractError("ledger total exceeds safe integer range");
-    }
+  const leaseId = entries[0].leaseId;
+  if (entries.some((e) => e.leaseId !== leaseId)) {
+    throw new ContractError("ledger entries span more than one lease; summarize per lease");
   }
-  return { ...s, balanceCents: s.chargesCents + s.adjustmentsCents - s.paymentsCents - s.creditsCents };
+  let charges = 0, payments = 0, credits = 0, adjustments = 0;
+  for (const e of entries) {
+    if (e.kind === "charge") charges = safeAdd(charges, e.amountCents, "charges");
+    else if (e.kind === "payment") payments = safeAdd(payments, e.amountCents, "payments");
+    else if (e.kind === "credit") credits = safeAdd(credits, e.amountCents, "credits");
+    else adjustments = safeAdd(adjustments, e.amountCents, "adjustments");
+  }
+  let balance = safeAdd(charges, adjustments, "balance");
+  balance = safeAdd(balance, -payments, "balance");
+  balance = safeAdd(balance, -credits, "balance");
+  return { leaseId, chargesCents: charges, paymentsCents: payments, creditsCents: credits, adjustmentsCents: adjustments, balanceCents: balance };
+}
+
+export type LedgerLeaseGroup = { leaseId: string; entries: LedgerEntry[]; summary: LedgerSummary };
+
+/** Explicit per-lease grouping (first-seen order). Each group is summarized on its own; no cross-lease total exists. */
+export function groupLedgerByLease(entries: readonly LedgerEntry[]): LedgerLeaseGroup[] {
+  const byLease = new Map<string, LedgerEntry[]>();
+  for (const e of entries) {
+    const list = byLease.get(e.leaseId);
+    if (list) list.push(e);
+    else byLease.set(e.leaseId, [e]);
+  }
+  return [...byLease].map(([leaseId, list]) => ({ leaseId, entries: list, summary: summarizeLedger(list)! }));
 }
 
 const USD = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });

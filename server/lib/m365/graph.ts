@@ -1,5 +1,5 @@
-// @ts-ignore
 import fetch from "node-fetch";
+import { GraphToken, GraphObject, GraphBuckets, GraphTask, GraphItems } from "../vendorResponseContracts";
 
 const TENANT = process.env.M365_TENANT_ID || process.env.M365_AUTH_TENANT || "";
 const CLIENT_ID = process.env.M365_CLIENT_ID || "";
@@ -19,7 +19,9 @@ async function getToken(): Promise<string|null> {
     body,
   });
   if (!res.ok) return null;
-  const j = await res.json().catch(()=>null);
+  const raw = await res.json().catch(()=>null);
+  const parsed = GraphToken.safeParse(raw);
+  const j = parsed.success ? parsed.data : null;
   return j?.access_token || null;
 }
 
@@ -38,7 +40,7 @@ export async function graphFetch(path: string, init: any = {}, base = "https://g
     const t = await res.text().catch(()=> "");
     throw new Error(`GRAPH_HTTP_${res.status}:${t}`);
   }
-  return res.json();
+  return GraphObject.parse(await res.json());
 }
 
 // ---- Planner
@@ -54,12 +56,12 @@ export async function createPlannerTask(params: {
   let bucketId = params.bucketId;
   if (!bucketId) {
     // fetch buckets and pick the first
-    const b = await graphFetch(`/planner/plans/${planId}/buckets`, { method: "GET" });
+    const b = GraphBuckets.parse(await graphFetch(`/planner/plans/${planId}/buckets`, { method: "GET" }));
     bucketId = b?.value?.[0]?.id;
   }
   const payload: any = { planId, bucketId, title };
   if (dueDateTime) payload.dueDateTime = dueDateTime;
-  const task = await graphFetch(`/planner/tasks`, { method: "POST", body: JSON.stringify(payload) });
+  const task = GraphTask.parse(await graphFetch(`/planner/tasks`, { method: "POST", body: JSON.stringify(payload) }));
   if (notes) {
     // add details (notes) — requires separate call
     await graphFetch(`/planner/tasks/${task.id}/details`, {
@@ -81,7 +83,7 @@ export async function postTeamsChannelMessage(teamId: string, channelId: string,
 // ---- SharePoint (drive root)
 export async function listSharePointRoot(siteId: string){
   if (!siteId) throw new Error("SP_SITE_ID_REQUIRED");
-  const j = await graphFetch(`/sites/${siteId}/drive/root/children`, { method: "GET" });
+  const j = GraphItems.parse(await graphFetch(`/sites/${siteId}/drive/root/children`, { method: "GET" }));
   const items = (j?.value || []).map((x:any)=>({
     id: x.id, name: x.name, webUrl: x.webUrl, is_file: x.file ? true : false
   }));

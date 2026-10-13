@@ -155,3 +155,6 @@ test("actual PostgreSQL query compilation keeps untrusted values parameterized",
   assert.ok(insert.params.includes(false));
   assert.equal(calls, 0, "compatibility check must not read/write a database");
 });
+
+// Source-only backend recovery regressions; no live database or vendor calls.
+import "./backendRecovery.test.mjs";

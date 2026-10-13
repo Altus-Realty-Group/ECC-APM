@@ -23,7 +23,7 @@ export async function uploadBufferToDropbox(params: {
       "Content-Type": "application/octet-stream", 
       "Dropbox-API-Arg": JSON.stringify(arg) 
     },
-    body: params.buffer,
+    body: new Uint8Array(params.buffer),
   });
   
   if (!res.ok) {

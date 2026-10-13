@@ -99,3 +99,21 @@ export async function resolveDomain<T>(
     return { state: errorKind(err) };
   }
 }
+
+
+/** Shared query-cache participation and per-session identity for mounted operations. */
+export function operationsQueryOptions<T>(
+  domain: OperationsDomain,
+  parse: (payload: unknown) => T[],
+  epoch: number,
+  opts: Omit<LoadOpts, "signal"> = {},
+) {
+  const contract = (opts.contracts ?? OPERATIONS_CONTRACTS)[domain];
+  return {
+    queryKey: ["recovery-operations", domain, epoch, contract.status, contract.endpoint ?? null],
+    queryFn: ({ signal }: { signal: AbortSignal }) => loadDomain(domain, parse, { ...opts, signal }),
+    // Old rows must disappear during a refresh, denial or session transition.
+    // Keep the common retry/abort/purge policy supplied by createQueryClient.
+    placeholderData: undefined,
+  };
+}

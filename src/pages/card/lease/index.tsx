@@ -4,6 +4,10 @@ import { CardShell } from "@/components/cardkit/CardShell";
 import RightRailPanel from "@/components/cardkit/RightRailPanel";
 import HeroBlock from "./HeroBlock";
 import Overview from "./Overview";
+import Linked from "./Linked";
+import CardLoadNotice from "@/components/recovery/CardLoadNotice";
+import StateNotice from "@/components/ui/StateNotice";
+import { accessGuard } from "@/lib/useAccessGuard";
 import { useLeaseCard } from "@/lib/ecc-resolvers";
 import { BLANK } from "@/lib/format";
 
@@ -14,19 +18,17 @@ export default function LeaseCardPage() {
   const q = useLeaseCard(idNum);
   if (!Number.isFinite(idNum)) return <div data-testid="lease-invalid">Invalid lease id</div>;
 
-  const { data } = q;
+  const { data, denied } = accessGuard(q);
+  const retry = () => { void q.refetch(); };
+  if (!data) return <CardLoadNotice entity="lease" loading={q.isLoading} denied={denied} error={q.error} retry={retry} retrying={q.isFetching} backPath="/portfolio/leases" />;
   const lease = data?.lease;
   const unit = data?.unit;
   const tenant = data?.tenant;
 
   const breadcrumbs = ["Portfolio", "Leases", `Lease #${idNum}`];
-  const actions = [
-    { label: "Export PDF", testid: "action-export-pdf" },
-    { label: "Edit", testid: "action-edit" },
-  ];
-
   const tabs = [
     { id: "overview", title: "Overview", element: <Overview data={data} />, testid: "tab-overview" },
+    { id: "linked", title: "Related", element: <Linked data={data} />, testid: "tab-linked" },
     { id: "financials", title: "Financials", lazy: () => import("./Financials"), props: { data }, testid: "tab-financials" },
     { id: "legal", title: "Legal", lazy: () => import("./Legal"), props: { data }, testid: "tab-legal" },
     { id: "files", title: "Files", lazy: () => import("./Files"), props: { data }, testid: "tab-files" },
@@ -46,12 +48,12 @@ export default function LeaseCardPage() {
 
   return (
     <ErrorBoundary>
+      {q.isError ? <StateNotice kind="error" title="Showing the last loaded details; the latest refresh failed." onRetry={retry} retrying={q.isFetching} /> : null}
       <CardShell
         title={`Lease #${idNum}`}
         hero={<HeroBlock data={data} isLoading={q.isLoading} />}
         tabs={tabs}
         breadcrumbs={breadcrumbs}
-        actions={actions}
         rightRail={rightRail}
       />
     </ErrorBoundary>

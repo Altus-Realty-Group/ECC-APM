@@ -1,5 +1,5 @@
-// @ts-ignore
 import fetch from "node-fetch";
+import { DropboxFolder, DropboxLink, DropboxSearch } from "../vendorResponseContracts";
 
 const TOKEN = process.env.DROPBOX_ACCESS_TOKEN || "";
 
@@ -22,7 +22,7 @@ async function dbx(path: string, body: any) {
 
 export async function dropboxListFolder(folder: string = "") {
   // Empty path "" == root of the app's space (or user's space for user token)
-  const j = await dbx("files/list_folder", { path: folder, recursive: false, include_media_info: false, include_deleted: false });
+  const j = DropboxFolder.parse(await dbx("files/list_folder", { path: folder, recursive: false, include_media_info: false, include_deleted: false }));
   return (j?.entries || []).map((e: any) => ({
     id: e.id,
     name: e.name,
@@ -33,12 +33,12 @@ export async function dropboxListFolder(folder: string = "") {
 }
 
 export async function dropboxGetTempLink(path_lower: string) {
-  const j = await dbx("files/get_temporary_link", { path: path_lower });
+  const j = DropboxLink.parse(await dbx("files/get_temporary_link", { path: path_lower }));
   return j?.link || null;
 }
 
 export async function dropboxSearch(query: string) {
-  const j = await dbx("files/search_v2", { query, options: { max_results: 25 } });
+  const j = DropboxSearch.parse(await dbx("files/search_v2", { query, options: { max_results: 25 } }));
   const matches = j?.matches || [];
   return matches.map((m: any) => {
     const md = m.metadata?.metadata;

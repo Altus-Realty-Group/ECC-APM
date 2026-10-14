@@ -392,3 +392,36 @@ nor new identities receive automatic deletion/allocation. Both live reads madeze
 writes; normalized data remains stale. Main's .altus-project.json still records
 FRESH_IMPORT_PENDING with no active new Replit binding; this is repository metadata,
 not proof that Dion has not created a workspace. Verify an actual runtime receipt.
+
+## R3 targeted PR assignments - 2026-10-14
+
+Dion explicitly requested three-worker distribution and manual Claude/Grok prompts,
+with Codex beginning its own implementation. No external delivery is inferred from
+GitHub records. Shared source-only base79cd44239aa4cb790be40aedc1bad1b71e407a07 is
+on codex/ecc-r3-integration-20261014; PR60 holds shared interfaces and existing-job
+test_property_*.py discovery. It is stacked on integrated recovery33875181, not main.
+
+| Worker/order | Branch and PR | Exclusive slice | Delivery / execution |
+| --- | --- | --- | --- |
+| Claude R3-C V1 | codex/ecc-r3-claude-executor-20261014 / PR61 | injected guarded executor, its test and doc | AWAITING_MANUAL_HANDOFF / NOT_CONFIRMED |
+| Grok R3-G V1 | codex/ecc-r3-grok-reconciliation-20261014 / PR62 | pure row/inventory verifier, its test and doc | AWAITING_MANUAL_HANDOFF / NOT_CONFIRMED |
+| Codex R3-PM V1 | codex/ecc-r3-journal-20261014 / PR63 | durable private snapshots/journal, tests and doc | direct active execution; implemented at62772721 |
+
+Prompts are self-contained and presented directly to Dion in the active response.
+The prepared peer PRs contain work-order documentation only, not implemented product
+code. Require acknowledgment and attributable work before reporting ACTIVE. Claude
+and Grok continue their whole assigned implementation/testing/correction slice with
+no scope expansion or new prompt per routine gate. No watch/monitoring is claimed.
+
+Codex has implemented the journal with owner-only directories/files, immutable
+snapshots, file/directory fsync, atomic no-overwrite snapshot creation, serialized
+hash-chained event appends, strict intent/outcome transitions, corruption rejection,
+uncertain-restart duplicate protection and redacted failures. Local50 property tests
+pass:36 inherited and14 journal tests. No operational records saved, live transport,
+DB mutation, provider run, source activation, main merge or deployment occurred.
+
+After worker returns: PM verifies each exact head, combines the nonoverlapping
+modules, tests cross-module failure/receipt/rollback behavior and prepares a concrete
+activation plan. A callback's atomicity is not live DB proof. A local journal is not
+a verified durable host backup; runtime storage ownership/retention and single writer
+remain prerequisites. Existing live-write/main activation holds are unchanged.

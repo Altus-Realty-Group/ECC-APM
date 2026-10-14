@@ -204,3 +204,42 @@ The frontend card-wire branch remains unmodified while freshness takes priority.
 
 Whole-goal verdict: OPEN. No merge, runtime sync, deployment, vendor preview,
 replay or database/schema write has occurred. No unattended continuation is claimed.
+
+## Resumed PM checkpoint - 2026-10-14
+
+Dion resumed this same ECC-APM v1.0 goal in a new chat and reports that Claude has
+received its directions. This supersedes the historical READY FOR HANDOFF status
+only as an owner-reported delivery receipt. No direct Claude connection, execution
+acknowledgement, new branch, new PR or result has been observed by Codex. Do not
+redispatch, overwrite a worker branch or assume unattended execution.
+
+Current GitHub review confirms DoorLoop PR50 and PR55 remain open, draft and
+mergeable at the exact heads in the preceding table; no unresolved inline review
+threads. Both smoke and proof-pack runs completed successfully. Inspected CI logs
+prove PR50's 6 failure-status + 7 proof-scope tests and PR55's additional 10 preview
+tests: 13 and 23 respectively. Tested synthetic merge SHAs are f5cbde30 and ecff7bc4;
+source heads remain 876c2d58 and 7f052e21. Dashboard checks were deliberately skipped
+for these backend-only paths, not passed. No duplicate CI suite was dispatched.
+
+Reviewed PR55's source and workflow: manual-only trigger, read-only GitHub token,
+five-minute job timeout, maximum five vendor GETs and one database GET, HTTPS
+target checks before transport, redirects disabled, exact database inventory count,
+duplicate/unsafe identity rejection, aggregate-only result and redacted failures.
+These safeguards are source/fixture evidence, not a live receipt or freshness pass.
+PR50 changes the active hourly workflow's failure reporting on merge; it does not
+refresh data. PR51-54 retain the existing activation hold.
+
+The previous concrete approval request has not been explicitly resolved in the
+available continuation: merge PR50, then retarget/review PR55 against main, and run
+one preview against the already-approved existing project. Preserve this hold;
+no scheduled-write activation, vendor preview, database write, merge or deployment
+was performed during this review. The GitHub connector currently exposes merge
+operations but no workflow-dispatch operation; confirm an authorized dispatch
+surface before promising to execute the preview.
+
+Next dependency action remains this bounded merge/preview decision. Codex owns
+receipt review and recovery integration; Claude's eventual dry-run property-contract
+result must be independently checked for existing-identity mapping, explicit
+incomplete/unmatched blockers, no network/write behavior and isolated tests.
+Whole goal remains OPEN; retained data remains stale and real-data acceptance
+is not established. This checkpoint changes documentation only.

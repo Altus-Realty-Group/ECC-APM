@@ -243,3 +243,31 @@ result must be independently checked for existing-identity mapping, explicit
 incomplete/unmatched blockers, no network/write behavior and isolated tests.
 Whole goal remains OPEN; retained data remains stale and real-data acceptance
 is not established. This checkpoint changes documentation only.
+
+## Approved dependency integration - 2026-10-14
+
+Dion explicitly approved PR50/PR55 integration and one bounded read-only preview
+in the active ECC continuation. This supersedes the preceding approval hold for
+these two PRs and that one run only. No repeat approval is needed for the run.
+PR51-54, live catch-up/writes, migrations and deployment remain held.
+
+- PR50 merged with source-head guard 876c2d5891ed74164b74d7d987802314febb075a.
+  Merge receipt: 4d5ae7cb1d7147cdaf3a47b31b5f5987fb5eb830.
+- PR55 retargeted to main after PR50; reviewed diff still contains the five scoped
+  preview files. Refreshed proof-pack run 38609249655 passed on unchanged source
+  head 7f052e217b61eb584aaa1f91781fe654a12ab1d0. Existing smoke passed on that head.
+  PR55 merged with head guard; receipt 2b94b3f586340d5fb639a42d966bf3636c60c4c2.
+- Supabase project inventory confirms the existing AltusCommandCenter project.
+  This is target metadata only, not a new record query, data freshness or schema pass.
+
+Next action: dispatch ecc-recovery-property-preview.yml exactly once from the
+approved merged main revision with the verified existing project reference; inspect
+its aggregate receipt. No preview was dispatched during this checkpoint. Current
+GitHub connector has no workflow-dispatch tool; workspace has no gh executable or
+established CLI authentication. Plugin discovery found the existing GitHub connector
+but no additional applicable dispatch capability. Browser fallback requires user
+approval under the computer-use tool's connector-fallback rule. This is a change
+of execution surface, not renewed permission for the already-approved run.
+
+No operational data writes, schema changes or credential changes occurred.
+ECC frontend PRs remain unmerged. Whole recovery goal remains OPEN.

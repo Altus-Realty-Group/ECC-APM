@@ -315,3 +315,47 @@ complete source/destination constraint verification and build an existing-identi
 update-only catch-up proposal with pre-images/reconciliation before requesting any
 write activation. No data refresh, live write, schema change or deployment occurred.
 ECC real-data/runtime acceptance and the whole goal remain OPEN.
+
+## Approved field diagnostic and offline update proposal - 2026-10-14
+
+Dion approved PR58 merge and one field-shape diagnostic. PR58 merged with head
+ffbe2984 guarded, merge ba2df60bf054d02edfb2f5d3ea359c9f11241089. Codex dispatched
+exactly one field-shape run 38618074776 from that main revision, attempt 1. Success,
+16 seconds total, one vendor GET and one DB GET, zero writes; log 116038202506.
+Identity counts agree with the first run. All 111 records have the examined string
+fields, including address.state and createdAt/updatedAt, plus boolean active.
+This live presence evidence differs from the documentation schema's omissions;
+it does not establish timestamp meaning, enum values or nullability. No raw values,
+property names/addresses/IDs were printed or persisted by either preview.
+The approved one-run field diagnostic is consumed; no further run was dispatched.
+
+A separate read-only information_schema transaction rechecked destination metadata.
+Required numeric id has no default; id_uuid stays preserved. Core text/boolean
+columns exist; created_at/updated_at have now() defaults. State/timestamps remain
+excluded from the proposed core update payload rather than being overwritten.
+
+Unexpected existing automation impact was reconciled: the pre-existing Azure
+main-push workflow deployed doorloop-financials-replay-py Production automatically,
+run 38617976022, and succeeded. Its azure-functions tree f96ab24ac2eff076d676cacce5e94f21631968da
+is identical to pre-recovery main 644a2481. No Azure package bytes changed. The
+workflow/target was not edited and no further deployment was dispatched. Prior
+source-only wording must not be interpreted as proof that a main merge has no
+automatic deployment side effects. Package equality is not runtime acceptance.
+
+Codex PR59, stacked on PR57 without touching Claude's branch, prepares a pure
+core update proposal: complete supplied inventory/vendor evidence, strict source
+ID/name/enums, changed core fields only, exact existing identities, isolated full
+pre-images and before/expected-after hashes. No insert/delete/archive, transport,
+caller wiring or persisted mutation. apply_authorized=false and writes=0. Mandatory
+1..102 cap; unmatched/ambiguous candidates blocked; unchanged matches skipped.
+Local 36 tests pass (27 planner and 9 update-proposal tests), YAML/Bash syntax pass.
+Current head a72dbfc89da1a05cbfc29f13c9ff623ea4328ca5 needs its own CI result; prior
+0d831f99 smoke/proof-pack success does not validate the added snapshot-isolation fix.
+
+Next reviewable source integration: merge PR57 into Claude's PR56 branch, retarget
+PR59 to that branch and merge it after refreshed proof. No merge of the held
+PR51-54 stack into main, live write, replay, schema mutation or deployment is part
+of this proposal. Before live catch-up, implement/prove optimistic concurrency,
+private rollback capture, current pre-image comparison, single-writer ownership,
+acknowledgements and a concrete approved write window. Operational data remains
+stale, ECC browser/data acceptance remains open, and the whole goal remains OPEN.

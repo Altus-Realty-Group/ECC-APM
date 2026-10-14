@@ -271,3 +271,47 @@ of execution surface, not renewed permission for the already-approved run.
 
 No operational data writes, schema changes or credential changes occurred.
 ECC frontend PRs remain unmerged. Whole recovery goal remains OPEN.
+
+## Live identity receipt and property source corrections - 2026-10-14
+
+Dion explicitly approved the browser fallback. Codex dispatched the approved
+identity preview exactly once from merged main2b94b3f, GitHub run38615716762,
+workflow_dispatch attempt1. The preview completed successfully in15 seconds overall;
+job log116030162378 records one vendor GET, one database GET and zero writes.
+No raw records persisted; source watermark and normalized freshness remain false.
+The private aggregate receipt shows matched, unmatched and retained-absent identities.
+Do not delete/archive absent identities or allocate the unmatched identities.
+The one-run approval is consumed; no second operational preview was dispatched.
+
+Claude delivered PR56 at66bef996 on the held PR54 stack. Its pure planner has
+25 local tests. Independent review reproduced the suite and found its current CI
+only runs51 inherited tests, omitting the25 planner tests. Codex's stacked PR57
+adds the planner suite, rejects trailing timestamp data and records current official
+DoorLoop source-shape evidence. Head5400a599; local27 tests pass; exact-head CI required.
+The earlier PR57 head90ab9846 passed smoke/proof-pack but is superseded.
+Claude's branch remains unchanged; neither PR56 nor57 merged or activated.
+
+The current official List all Properties response UI was inspected, including
+expanded200 application/json and address schema. Source types verified for
+id/name/active/address.street1/city/zip. Type/class enums are documented but their
+constraint validation remains incomplete. address.state and createdAt/updatedAt
+are absent from that documented response and remain blocked; no nullability is
+approved. Documentation is not live destination proof or permission to write.
+Reference and remaining format/length constraints are recorded in PR57's
+ECC_PROPERTY_MAPPING_REVIEW.md. The previously linked OpenAPI URL redirected404.
+
+Independent PR58 on main2b94b3f, headffbe2984, adds a default-false optional
+aggregate field-shape mode to the existing manual preview. Local13 preview tests
+and YAML/embedded shell syntax pass; smoke/proof-pack passed on this exact head.
+Fixed field names and type/null/absent counts only, no field values/addresses/IDs,
+no added operational request, same five vendor GET/one DBGET and five-minute cap.
+It does not pull PR51-54 into main or invoke the planner. Source mappings are not
+approved by field counts. No resource, credential, target, retry or schedule added.
+
+Next concrete decision: merge PR58 and approve exactly one field-shape preview
+against the same existing target. This additional live run is outside the consumed
+one-run authorization. Keep write-activation PR51-54 held. After its receipt,
+complete source/destination constraint verification and build an existing-identity,
+update-only catch-up proposal with pre-images/reconciliation before requesting any
+write activation. No data refresh, live write, schema change or deployment occurred.
+ECC real-data/runtime acceptance and the whole goal remain OPEN.

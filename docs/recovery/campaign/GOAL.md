@@ -359,3 +359,36 @@ of this proposal. Before live catch-up, implement/prove optimistic concurrency,
 private rollback capture, current pre-image comparison, single-writer ownership,
 acknowledgements and a concrete approved write window. Operational data remains
 stale, ECC browser/data acceptance remains open, and the whole goal remains OPEN.
+
+## Build plan and authorized source integration - 2026-10-14
+
+Dion explicitly approved integration of PR57/59 into Claude's recovery branch and
+requested the build-plan update. PR57 merged at9d6449b7 into codex/ecc-property-contract-20261013.
+PR59 retargeted to that branch, four-file diff verified, refreshed proof run38622024395
+passed, then merged with guarded source heada72dbfc8 at33875181c44e8a2084c0d1b013760e323d44ac57.
+No main merge, live vendor run or write activation occurred in this integration.
+PR56 remains open against the held PR54 branch. Its body now reflects the integrated
+scope and proof, rather than the superseded all-unverified registry claim.
+
+| Sequence | Outcome | Current state | Acceptance needed |
+| --- | --- | --- | --- |
+| 1 | Stable source foundation and truthful sync failures | Source cleanup on ECC main; dependency PR50/55/58 merged | New runtime identity remains unverified |
+| 2 | Verified property recovery | Two live read-only receipts, source/destination metadata, integrated offline plan with36 focused tests | Guarded writer, current pre-images, concurrency, rollback, single writer and approved catch-up |
+| 3 | Complete portfolio relationships | Related-card frontend slices prepared in PR130/132 | Current units/leases/tenants/owners, identity reconciliation and typed API contracts |
+| 4 | Working operational screens | Claude operations and session corrections in ECC PR129/131/133 | Real legal/work-order/posted-ledger contracts and actor scopes; no fabricated balances |
+| 5 | Connected ECC v1.0 user journeys | Fixture integration rehearsal previously passed123 unit and10 browser journeys | Reviewed source integration, authenticated backend binding and actual records |
+| 6 | Accepted runtime/release | Pending | Exact new Replit workspace/SHA, desktop/mobile user journeys, authorization/error/retry/freshness proof and approved publication |
+
+Next implementation action is the existing-identity property writer with strict
+receipts and pre-image/concurrency/rollback safeguards. Source work proceeds under
+the existing goal; live write activation remains separately held. Then reconcile
+other portfolio entities and wire access-controlled ECC reads. No completion date
+or percentage is inferred from passing offline suites or rendered gates.
+
+Current live identity evidence:111 source properties,191 retained,102 matches,
+9 new/unmatched and89 retained-absent. These are identity counts, not active managed
+portfolio counts or proof of closed/disposed properties. Neither absent identities
+nor new identities receive automatic deletion/allocation. Both live reads madezero
+writes; normalized data remains stale. Main's .altus-project.json still records
+FRESH_IMPORT_PENDING with no active new Replit binding; this is repository metadata,
+not proof that Dion has not created a workspace. Verify an actual runtime receipt.

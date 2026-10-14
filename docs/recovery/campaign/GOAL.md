@@ -425,3 +425,23 @@ modules, tests cross-module failure/receipt/rollback behavior and prepares a con
 activation plan. A callback's atomicity is not live DB proof. A local journal is not
 a verified durable host backup; runtime storage ownership/retention and single writer
 remain prerequisites. Existing live-write/main activation holds are unchanged.
+
+
+## R3-G independent review checkpoint - 2026-10-14
+
+PM independent review — 2026-10-14
+
+STATUS: NEEDS_CORRECTION. Grok V1 was manually delivered, implemented and returned; it is not accepted.
+Reviewed exact source head 7548a591e84e8829ce0183da8e80e44b0f1eae2b against shared base 79cd44239aa4cb790be40aedc1bad1b71e407a07. Three exclusive lane files confirmed. Exact-head smoke 38625905622 and ci-proof-pack 38625905521 succeeded. Reproduced all 20 Grok tests. Local offline reconstruction with planner/core/journal passed 70 property tests; adding Claude executor head 57b638ae762d0a39404769fb5ee57637890aa4d7 passed 110. A two-row synthetic rehearsal using actual executor, journal and verifier modules completed with 2 confirmed / 4 requests. This is happy-path evidence only, not full integration acceptance or live proof.
+
+Blocking adversarial reproductions on the exact Grok head:
+1. Change raw_payload.meta[0] from integer 1 to boolean true in the observed post-row: verify_property_row returns verified. _deep_equal is shallow; observed canonical postimage hash is never checked.
+2. Change actual before inventory updated_at while retaining the plan preimage and expected after row: inventory returns verified. Planned rows never bind their expected_preimage to the actual before-row.
+3. Supply the same planned update twice for one row: inventory returns verified and counts two verified rows.
+4. Two inventory rows share numeric id but have different vendor IDs: unchanged inventory returns verified. Pair uniqueness misses individual identity collisions. Add symmetric vendor-ID collision proof too.
+5. Set update.identity to a nonempty list: verify_property_row raises AttributeError rather than returning blocked.
+6. Set method=DELETE and table=other with otherwise valid row hashes: row verifier returns verified. Required update structure is unchecked.
+
+Required correction: fail-closed structural validation, independent numeric/vendor uniqueness and duplicate-plan rejection, bind all planned preimages to before inventory, exact JSON-safe observed postimage verification and recursive type preservation, aggregate malformed-input failures. Add synthetic regressions proving each original failure and valid planner-produced plans. Only the module, test and own lane doc may change. No merge/activation requested; existing live/main holds persist. PM owns acceptance and integration. A PR description is not prompt delivery. R3-G V2 correction awaits manual delivery through Dion.
+
+Whole goal remains OPEN. Normalized data remains stale. Next build gate is corrected verifier review followed by cross-module failure/restart proof and guarded catch-up planning. Claude implementation is observed on GitHub and locally reproduced; its independent acceptance remains pending. Codex journal acceptance remains pending integration review. No external worker monitoring or unattended continuation is claimed.

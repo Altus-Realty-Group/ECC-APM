@@ -659,3 +659,47 @@ Remaining operating prerequisites: real atomic compare-and-update/constraints/
 triggers, authenticated current preimages, durable private runtime storage,
 single-writer ownership, approved bounded catch-up window and real-data/runtime
 acceptance. Data remains stale; whole outcome stays OPEN. Codex retains the goal.
+
+## Approved branch integration COMPLETE - 2026-10-15
+
+Dion approved the concrete source-only integration of PR61-64 into recovery PR60
+in this chat. This supersedes earlier no-merge clauses only for those four merges
+into PR60's head branch codex/ecc-r3-integration-20261014. It does not approve
+parent/main merge, deployment, vendor replay or live data mutation.
+
+Completed and GitHub-confirmed merged:
+- PR61 -> e90832739011b4d0c730767266d5181d7a7e9cd1
+- PR62 -> c4ac068929b244806394016d553a9462392ae01c
+- PR63 ->45e0ea5bdfd698c3efa9de7113658845ca449f76
+- PR64 ->ba40b7832ac480419181a22ba9ee474e48d86307
+
+PR64 was refreshed to a05286653a1a26f06e009d91b9cc7b8272842206 using the actual
+integrated worker root45e0ea5b as an ancestor. Complete Git tree inventories
+(545 root files/547 candidate files) proved exactly three remaining PM differences:
+R3_INTERFACES.md, R4_INTEGRATION.md and test_property_recovery_integration.py.
+GitHub reduced diff confirmed3 files; all nine peer blobs matched exactly.
+Ancestry-refreshed smoke38800376328/proof-pack38800376174 passed before final merge.
+
+Final recovery head:ba40b7832ac480419181a22ba9ee474e48d86307.
+Final tree3d25c7500a0cfa3c4e6011d3192cc5e1d5b611f1 equals the reviewed candidate
+tree exactly. Final-head smoke38800512929 and proof-pack38800512452 PASS.
+PM read proof job116647995838 logs:172 property tests passed, zero failures/errors/
+skips. All four child PRs are closed and merged into PR60, with preserved branches.
+
+Main verified unchanged before/after at
+ba2df60bf054d02edfb2f5d3ea359c9f11241089.
+PR60 remains open draft against contract branch PR56 at33875181. Neither root60 nor
+parent56 was merged to its parent/main. No runtime, target, schema, schedule,
+credential, vendor or operational data mutation occurred. Data remains stale.
+
+Automatic review initially misresolved the phrase branch60. Fresh PR/head/base
+proof and target-ref inspection established that PR60's head equals the named
+merge destination; standard merge then succeeded under the existing approval.
+No bypass, forced ref rewrite or alternate merge target was used.
+
+Remaining operating prerequisites: atomic destination compare-and-update with
+verified constraints/triggers, authenticated current preimages, durable private
+runtime storage, single-writer ownership, a bounded catch-up budget/window and
+real-data/runtime acceptance. Source integration is complete; whole ECC recovery
+remains OPEN. Codex retains the next source/contract review and concrete live
+catch-up proposal; no background execution is claimed.

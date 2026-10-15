@@ -154,3 +154,6 @@ mandatory step. The temporary backend-only compiler regression is removed to
 avoid duplicate subset work; recovery regression tests remain. Full compiler
 proof still also runs in the established proof-pack check. No compiler exclusions
 or suppressions are introduced. Live data and backend authority remain unverified.
+
+## R6-G source note (2026-10-15)
+Canonical address columns take precedence over legacy aliases in read mapping. See docs/recovery/R6_PROPERTY_READ_MAPPING.md. Active/is_active semantics remain unresolved.

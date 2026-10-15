@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import { getServerClient } from '../db.js';
 import { setContract } from '../lib/contractHeaders.js';
+import { mapAddress } from '../lib/mapping.js';
 
 export const rpc = Router();
 
@@ -26,11 +27,12 @@ async function getOneByMulti(sb: any, table: string, id: string | number, alts: 
 }
 
 function addrFrom(p: any) {
+  const m = mapAddress(p);
   return {
-    line1: s(p?.address1 ?? p?.address_line1 ?? p?.line1 ?? p?.address_street1 ?? p?.property_address),
-    city: s(p?.city ?? p?.address_city),
-    state: s(p?.state ?? p?.address_state),
-    zip: s(p?.zip ?? p?.zipcode ?? p?.address_zip),
+    line1: m.street1 ?? '',
+    city: m.city ?? '',
+    state: m.state ?? '',
+    zip: m.zip ?? '',
   };
 }
 

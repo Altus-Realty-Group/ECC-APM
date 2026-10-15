@@ -703,3 +703,59 @@ runtime storage, single-writer ownership, a bounded catch-up budget/window and
 real-data/runtime acceptance. Source integration is complete; whole ECC recovery
 remains OPEN. Codex retains the next source/contract review and concrete live
 catch-up proposal; no background execution is claimed.
+
+
+## R5 guarded adapter source checkpoint - 2026-10-15
+
+Dion directed work on the read-only database verification, disconnected atomic
+adapter and bounded catch-up preparation. This authorizes source/test/draft work
+and catalog reads; it does not authorize production writes, DDL, runtime wiring,
+target/credential changes, main/parent merges or live replay.
+
+Codex draft backend [PR65](https://github.com/Altus-Realty-Group/doorloop-sync-backend/pull/65)
+is stacked on PR60 at ba40b7832ac480419181a22ba9ee474e48d86307.
+Head 905f34e49e34b18a174a4a5bef06d74866c57bb2; exactly three new files:
+property_postgres_adapter.py, test_property_postgres_adapter.py and
+R5_PROPERTY_ADAPTER.md. Existing peer implementations/tests are unchanged.
+
+Adapter uses an explicitly injected fresh owned transaction and one parameterized
+UPDATE with full-row preimage and numeric/vendor identity predicates. It checks
+returned full postimage before commit, returns success only after acknowledged
+commit/close, and treats lost acknowledgements as uncertain without retry.
+Default denial precedes connection/input inspection. Wrong target/session,
+privileged or switched roles, ineffective RLS, schema/trigger/rule drift and
+non-native JSON fail closed. No driver, package, environment discovery, credential,
+transport activation or workflow change was added.
+
+Local 193 property tests pass (prior172 unchanged +21 adapter regressions), zero
+skips/errors/failures. Six temporary guard/transaction/isolation mutants caught.
+Actual planner/executor/journal/verifier integrate with the socket-denied DB-API
+model. Exact-head smoke38802918582 and proof-pack38802918913 PASS. PM inspected
+job116656318098 logs:193 property tests and51 existing other offline regressions
+executed/passed. Dashboard-only steps skipped intentionally, not passed.
+GitHub confirms three-file delta; main remains ba2df60bf054d02edfb2f5d3ea359c9f11241089.
+
+Read-only live catalog/aggregate verification established the current relation
+shape, identity/unique constraints, trigger/rule absence and access/job findings.
+Detailed schema/count/security evidence is retained in the private backend PR65
+lane document, not this public ledger. Existing target runtime binding, restricted
+writer admission, parallel-column consumer contract and single-writer ownership
+remain unresolved. No access rule or database state was changed.
+
+No PostgreSQL server/driver was available for isolated engine proof; package
+bootstrap could not install under available process privileges. This is NOT
+actual PostgreSQL concurrency, driver/role/RLS, TLS or live atomicity acceptance.
+Executor live_atomicity_verified remains False. Do not wire a live factory merely
+because offline CI is green. PR65 remains draft and unmerged; no new Claude/Grok
+delivery or execution is claimed.
+
+Next gate: independent source review and a disposable PostgreSQL/driver concurrent
+writer proof using invented rows; then a concrete restricted-writer/access proposal,
+alias-consumer mapping and single-writer window. A newly authorized complete preview
+and private current preimages must rebuild the plan before owner catch-up approval.
+The 102-row/204-callback ceilings are not approved live quantities or SQL round-trip/
+dollar caps. Adapter setup adds bounded SQL commands that are enumerated privately.
+Durable runtime storage/retention and guarded operational inverse remain required.
+No additional vendor request, production write, migration, paid dispatch, deployment,
+runtime/target/schedule change or freshness advance occurred. Data remains stale;
+whole goal OPEN and Codex retains accountability.

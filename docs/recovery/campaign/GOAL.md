@@ -445,3 +445,74 @@ Blocking adversarial reproductions on the exact Grok head:
 Required correction: fail-closed structural validation, independent numeric/vendor uniqueness and duplicate-plan rejection, bind all planned preimages to before inventory, exact JSON-safe observed postimage verification and recursive type preservation, aggregate malformed-input failures. Add synthetic regressions proving each original failure and valid planner-produced plans. Only the module, test and own lane doc may change. No merge/activation requested; existing live/main holds persist. PM owns acceptance and integration. A PR description is not prompt delivery. R3-G V2 correction awaits manual delivery through Dion.
 
 Whole goal remains OPEN. Normalized data remains stale. Next build gate is corrected verifier review followed by cross-module failure/restart proof and guarded catch-up planning. Claude implementation is observed on GitHub and locally reproduced; its independent acceptance remains pending. Codex journal acceptance remains pending integration review. No external worker monitoring or unattended continuation is claimed.
+
+## Resumed independent review - 2026-10-15
+
+Dion resumed ECC-APM v1.0 and directed continuation. Main remains
+1c8fd1022f46cd26ad0df748ffc053c0ed2c9542; frontend PR128-133 remain open drafts.
+The existing DoorLoop recovery dependency remains in scope; no other app lane opened.
+
+Grok PR62 has advanced to 0700029d4bad7875fe2db5a6e85a659588a2ae85.
+Its former PR-body V1 rejection was stale relative to the code. The V2 source and
+30 verifier tests now cover all six original defect classes: nested type drift,
+before-row binding, duplicate plans, independent numeric/vendor uniqueness,
+malformed identity shape, and method/table structure. Both exact-head smoke
+38638282304 and proof-pack 38638281964 succeeded.
+
+Independent local reconstruction from canonical GitHub source, not a private-repo
+clone or remote merge:
+- shared planner/core base 79cd44239aa4cb790be40aedc1bad1b71e407a07;
+- Claude executor 57b638ae762d0a39404769fb5ee57637890aa4d7;
+- Codex journal 627727215212e0f42d548f05b33e2c2dae6e64b6;
+- Grok verifier 0700029d4bad7875fe2db5a6e85a659588a2ae85.
+
+All 120 existing property tests passed: 27 contract, 9 core, 40 executor,
+14 journal and 30 verifier. Eight additional temporary PM integration tests passed,
+128 total, using actual planner/executor/journal/verifier modules together and
+invented records with sockets denied. These are local offline checks, not hosted
+CI for a combined branch or live destination proof.
+
+The eight integration cases passed:
+1. Two planner-produced updates, four requests, two durable confirmations, complete
+   three-row reconciliation and preservation of the unplanned third row.
+2. Denied authorization: zero callbacks/transport.
+3. Changed full pre-image: halt after one read and zero PATCHes.
+4. Three-request budget: first row confirmed, second untouched, no excess requests.
+5. Lost PATCH acknowledgement: uncertain halt; close/reopen the actual journal;
+   same-run restart makes no PATCH.
+6. Nested integer-to-boolean observed drift: halt before the second row.
+7. Injected CONFIRMED journal failure: zero reported confirmations and one
+   applied-unconfirmed outcome, second row untouched.
+8. Changed unplanned inventory row: reconciliation blocks.
+
+### Remaining verifier review gap
+
+V2 resolves the original six findings but strict JSON validation is still incomplete.
+Reproduced on its exact source:
+- a nested tuple in expected/observed raw_payload is accepted as verified;
+- a nested dictionary with integer key is accepted as verified;
+- the same non-JSON row in an otherwise unchanged zero-update inventory is verified.
+
+Python json.dumps accepts/coerces these objects, so successful serialization is not
+strict JSON/type proof. Require recursive validation of native JSON types, string
+dictionary keys, finite floats, cycle/depth failure containment, on all full before
+and after rows including unchanged inventory rows. Do not coerce values. Existing
+planner-produced valid plans and all six V2 regressions must continue to pass.
+
+An additional defense-in-depth observation: a hash-consistent planned active change
+from one string to another is accepted by the row verifier. The executor rejects
+nonboolean active and the core planner never produces it; this is not a reproduced
+bypass of the combined executor. Keep required JSON correction separate from any
+decision to duplicate planner field-semantic checks.
+
+PR62 remains draft/hold pending its exclusive owner correction and fresh exact-head
+proof. Claude executor and Codex journal pass the combined tested failure paths;
+this is scoped source evidence, not whole-campaign operational acceptance.
+No worker branch, main, runtime, live database, target, schedule or vendor state was
+changed by this review. No new external-worker dispatch or background watch is claimed.
+
+Next source gate: strict JSON verifier correction, then repeat the bounded combined
+review and prepare branch-only integration. Live atomic compare-and-update,
+durable private deployment storage, single-writer authority, current records and a
+bounded catch-up approval remain separate prerequisites. Normalized data is still
+stale; no freshness marker is advanced. Whole goal remains OPEN.

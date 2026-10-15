@@ -597,3 +597,35 @@ not rewritten. No main merge, live adapter/transport, database/schema mutation,
 runtime binding, catch-up, paid provider dispatch or freshness advance occurred.
 Data remains stale. Existing one-root collapse and live activation prerequisites
 remain in force.
+
+## R4-G V2 independent review and bounded correction reset - 2026-10-15
+
+Dion supplied V2 return; delivery/acknowledgement/return confirmed.
+Exact Grok sourcec87c831d01b7849b48ce4f2144a59c87eebe5a76:
+smoke38795035277/proof-pack38795035216 succeed.39 verifier tests reproduced.
+All previous independent failures close; combined prior165 property tests pass.
+
+Final public-boundary audit found the same before-any-method guarantee incomplete
+at update root, identity, changes, plan root, updates-list and before-list. A
+dict subclass with get/items hooks or list subclass with __len__ hook executes
+before exact-native validation and raises RuntimeError. Nested helper validation
+is now correct; complete input objects/outer containers still bypass it.
+
+PM committed19th integration test with six explicit subcases to PR64,
+head896e54c797db957f83b3de5e12f69d3280ec970c. Current full suite166 discovered,
+zero skips, six RuntimeError subtest errors; prior165 criteria pass. Source-head
+smoke38797648713 succeeds; proof-pack38797648915 FAILS. Worker source remains
+copied unchanged; no worker branch rewrite.
+
+R4-G strict-native sublane has two partial returned closures. Apply failure-counter
+reset: R4-G V3 must validate complete public inputs before methods/length/iteration/
+identity/copy/hash/comparison and execute the actual independent PR64 test suite
+in a temporary assembled checkout with its verifier overlaid, without modifying
+PM files/branch. No more nested-only closure claims. A further repeated failure
+requires escalation rather than assuming completion. Scope stays the same three
+Grok files. Corrected full prompt presented through Dion; new delivery/execution
+not yet confirmed. Claude remains accepted for its scoped source correction.
+
+No main merge, live transport/database/schema/target/runtime changes, paid dispatch,
+catch-up or freshness advance. Data is stale; whole goal remains open. Codex retains
+acceptance/integration and the existing one-root collapse plan.

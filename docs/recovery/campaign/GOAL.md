@@ -629,3 +629,33 @@ not yet confirmed. Claude remains accepted for its scoped source correction.
 No main merge, live transport/database/schema/target/runtime changes, paid dispatch,
 catch-up or freshness advance. Data is stale; whole goal remains open. Codex retains
 acceptance/integration and the existing one-root collapse plan.
+
+## R4 source correction closure - 2026-10-15
+
+Grok V3 return received through Dion and independently accepted at
+048db4b3f9aa1696e7648414b1c61481cfb84723.45 verifier tests and every prior independent
+criterion pass. Exact source-head smoke38798425218/proof-pack38798424634 succeed.
+Both public entry points now validate exact roots and full trees before methods,
+lengths, identities or comparisons. All six prior boundary errors close.
+
+Codex refreshed PR64 to f467f402a490c03f48c84859bc0a7d00a1580943 with unchanged Grok
+source/test/doc blobs. Full suite172 PASS, zero failures/errors/skips:
+27 contract,9 core,58 executor,14 journal,45 verifier,19 PM integration.
+Grok's166 overlay count omitted the six new delivered verifier tests; PM172 includes
+them. No tests weakened or expected failures introduced.
+
+Exact combined-head smoke38798712538 and proof-pack38798712521 both succeed.
+PM inspected proof job116641816171 logs and confirmed172 tests executed/passed.
+Source-defect holds are superseded; no further external correction requested.
+Claude/Grok/journal are accepted for bounded source/offline integration only.
+
+Concrete next decision: authorize branch-only integration of worker PR61/62/63
+into root60 one at a time, then refresh PR64 to the reduced PM tests/docs/interface
+delta and integrate only after fresh checks. Root60 remains dependent on PR56.
+This is not main merge, deployment, live database mutation or catch-up approval.
+No worker branch/main/runtime/target/schedule/database was changed by review.
+
+Remaining operating prerequisites: real atomic compare-and-update/constraints/
+triggers, authenticated current preimages, durable private runtime storage,
+single-writer ownership, approved bounded catch-up window and real-data/runtime
+acceptance. Data remains stale; whole outcome stays OPEN. Codex retains the goal.

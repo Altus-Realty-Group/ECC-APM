@@ -516,3 +516,40 @@ review and prepare branch-only integration. Live atomic compare-and-update,
 durable private deployment storage, single-writer authority, current records and a
 bounded catch-up approval remain separate prerequisites. Normalized data is still
 stale; no freshness marker is advanced. Whole goal remains OPEN.
+
+## Targeted three-owner R4 continuation - 2026-10-15
+
+Dion explicitly requested targeted PRs assigned to Claude, Grok and Codex.
+Reuse existing worker PRs rather than create duplicate implementation lanes.
+
+| Assignment | Owner / PR | Exact source checkpoint | State |
+| --- | --- | --- | --- |
+| R4-C V1 | Claude / doorloop-sync-backend PR61 | 57b638ae762d0a39404769fb5ee57637890aa4d7 | Caller-plan mutation blocker reproduced; prompt presented through Dion, delivery awaiting manual handoff; new work not confirmed |
+| R4-G V1 | Grok / doorloop-sync-backend PR62 | 0700029d4bad7875fe2db5a6e85a659588a2ae85 | Strict JSON correction; prompt presented through Dion, delivery awaiting manual handoff; new work not confirmed |
+| R4-PM V1 | Codex / doorloop-sync-backend PR64 | 5a1abd26f4e0e71a5d57b833329b0ccb2dfcc29a | Candidate source assembled;12 persistent combined tests added;132 property tests pass locally; exact-head smoke38773799430/proof-pack38773799354 pass |
+
+Claude blocker: after snapshot/validation the executor still refers to caller-owned
+plan dictionaries. With make_plan(1)/Env(plan), a read callback can modify changes
+to include address_state and recompute expected_postimage_sha256. Reproduced
+completed/confirmed1 and disallowed field written. Fix by strict validated detached
+execution copy and detached callback arguments. Scope stays executor/test/own doc;
+no transport work starts before this closure. No live database finding is claimed.
+
+Codex PR64 targets existing root PR60's branch and copies nine unchanged peer blobs
+from the exact checkpoints plus journal62772721; it does not rewrite worker branches
+or merge to main. Newly authored PM files: persistent integration suite, R4 doc and
+interface ownership addendum.12 combined tests include prior8 plus atomic conflict,
+snapshot fsync failure, failed INTENT and verifier exception. Current passing suite
+does not close the separate adversarial Claude/Grok findings. No skipped or expected
+failure is used to represent either defect as fixed.
+
+PR64 documentation states independent source acceptance and one-root stack collapse:
+refresh reviewed worker corrections, repeat adversarial cross-module proof, then
+integrate one worker at a time into root60 only within applicable authority, reducing
+the PM candidate to its test/docs delta and closing duplicate/empty work. Root60 is
+still dependent on PR56. No main merge, live catch-up, runtime/source target change,
+new provider dispatch, resource, schedule or freshness advance was performed.
+
+Claude/Grok are manual delivery lanes. The current chat presents explicit full
+prompts; GitHub records are not dispatch. Codex owns remaining review, integration
+and later concrete catch-up proposal. Whole goal OPEN; normalized data remains stale.

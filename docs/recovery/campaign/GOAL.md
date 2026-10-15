@@ -553,3 +553,47 @@ new provider dispatch, resource, schedule or freshness advance was performed.
 Claude/Grok are manual delivery lanes. The current chat presents explicit full
 prompts; GitHub records are not dispatch. Codex owns remaining review, integration
 and later concrete catch-up proposal. Whole goal OPEN; normalized data remains stale.
+
+## R4 implementation returns and independent acceptance - 2026-10-15
+
+Dion supplied Claude R4-C V1 and Grok R4-G V1 implementation returns. Delivery,
+acknowledgement and return are confirmed for both versions. Their source heads and
+GitHub CI were independently checked.
+
+- Claude PR61:4a5f2b90a1221f2b35edb28c7fe02ea778982554; smoke38781066742 and
+  proof-pack38781066645 pass. Read job116581085054 logs:94 property tests pass,
+  including58 executor tests. Source/offline input-isolation correction ACCEPTED.
+  Actual journal/verifier integration proves forged caller-plan changes after
+  snapshot cannot enter store or durable snapshot. Single-thread assumption,
+  native-JSON boundary and32-depth/250000-node limits remain documented.
+- Grok PR62:b3991f30d45e2c73aa9ef71f73b1dca87c17a295; smoke38780614887 and
+  proof-pack38780614578 pass. Read job116579538616 logs:72 property tests pass;
+ 36 verifier tests independently reproduced. Three original JSON false positives
+  close, but independent strictness/cycle acceptance still FAILS.
+- Codex PR64:141f08c291db4a7b3f19ae25522b4195fc427d05 contains both returned source
+  snapshots unchanged plus six new PM integration regressions (18 PM tests total).
+  Baseline156 property tests pass. New full gate discovers162, zero skips, and
+  fails with3 subclass subtest failures and2 errors. GitHub smoke38794063227
+  succeeds; proof-pack38794062988 FAILS. Older green head is superseded.
+
+Remaining Grok failures:
+1. Independently copied cyclic before/after inventory continues into recursive
+   comparison after its JSON scan has already recorded rejection; RecursionError.
+2. int/list/str subclasses are accepted by isinstance and return verified.
+3. A dict subclass's overridden items() executes and raises RuntimeError rather
+   than a redacted blocked receipt.
+
+R4-G V2 correction: validate exact built-in types before invoking container/identity
+methods, copying or comparing. Immediately fail closed for unsupported/cyclic/deep
+input; do not inspect rejected trees or execute overridden hooks. Test both public
+entry points and independent before/after cycles. Preserve36 prior tests and valid
+planner plans. Grok remains exclusive owner of module/test/own doc. Full prompt is
+presented through Dion; new-version delivery/execution remains unconfirmed until a
+receipt. GitHub posting alone is not delivery. No new Claude scope is issued.
+
+PR64 and the goal remain held for this concrete source correction and independent
+green full-suite review. Codex owns integration/acceptance; worker branches were
+not rewritten. No main merge, live adapter/transport, database/schema mutation,
+runtime binding, catch-up, paid provider dispatch or freshness advance occurred.
+Data remains stale. Existing one-root collapse and live activation prerequisites
+remain in force.

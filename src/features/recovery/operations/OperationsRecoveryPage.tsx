@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
+import { accessGuard } from "@/lib/useAccessGuard";
 import "./operations.css";
 import StateNotice from "@/components/ui/StateNotice";
 import { useSessionEpoch } from "@/lib/sessionScope";
 import {
-  OPERATIONS_CONTRACTS, resolveDomain,
+  OPERATIONS_CONTRACTS, operationsQueryOptions,
   type DomainContract, type DomainState, type OperationsDomain,
 } from "@/lib/recovery/operationsRegistry";
 import {
@@ -33,18 +35,14 @@ function useDomain<T>(
   domain: OperationsDomain, parse: (p: unknown) => T[], contracts?: Contracts, fetcher?: Fetcher,
 ): { state: DomainState<T>; retry: () => void } {
   const epoch = useSessionEpoch();
-  const [attempt, setAttempt] = useState(0);
-  const [state, setState] = useState<DomainState<T>>({ state: "loading" });
-  useEffect(() => {
-    const ctl = new AbortController();
-    setState({ state: "loading" });
-    resolveDomain(domain, parse, { contracts, fetcher, signal: ctl.signal }).then((r) => {
-      if (r && !ctl.signal.aborted) setState(r);
-    });
-    return () => ctl.abort();
-    // parse is a module-level constant per domain; epoch drops prior-identity data on a session change.
-  }, [domain, parse, contracts, fetcher, epoch, attempt]);
-  return { state, retry: useCallback(() => setAttempt((n) => n + 1), []) };
+  const q = useQuery(operationsQueryOptions(domain, parse, epoch, { contracts, fetcher }));
+  // Shared QueryCache purges every domain on a denial. Epoch-keyed queries never
+  // render the prior identity's rows while a replacement request is loading.
+  const { data, denied } = accessGuard(q);
+  const state: DomainState<T> = denied ? { state: "denied" }
+    : q.isError ? { state: "error" }
+    : data ?? { state: "loading" };
+  return { state, retry: () => { void q.refetch(); } };
 }
 
 /** Pure renderer for every state; the page wires it to useDomain. */

@@ -2,6 +2,8 @@ import React from "react";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { createQueryClient } from "../../src/lib/queryClient";
 import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ContractError } from "../../src/lib/dataState";
@@ -108,7 +110,10 @@ test("views render fixtures honestly: dashes for unknown, no mutation controls",
 });
 
 test("the recovery page states each gate in plain language and offers no actions", () => {
-  const html = renderToStaticMarkup(<OperationsRecoveryPage />);
+  const client = createQueryClient();
+  client.setDefaultOptions({ queries: { ...client.getDefaultOptions().queries, gcTime: Infinity } });
+  const html = renderToStaticMarkup(<QueryClientProvider client={client}><OperationsRecoveryPage /></QueryClientProvider>);
+  client.clear();
   // Static render = first paint: every domain is loading until its (zero-request) resolution settles.
   for (const d of ["legalCases", "workOrders", "ledgerEntries"]) assert.match(html, new RegExp(`ops-section-${d}`));
   assert.doesNotMatch(html, /<button|<form|<input|<main/);

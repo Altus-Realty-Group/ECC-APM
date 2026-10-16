@@ -1,20 +1,12 @@
-import React from 'react';
-import { MiniCard } from './CardParts';
-// ECC Guardrail compliance
-export default function Linked({ properties }:{ properties?: any[]|null }) {
-  return (
-    <div className="grid gap-3">
-      {properties && properties.length > 0 ? (
-        properties.slice(0, 5).map((p, i) => (
-          <MiniCard 
-            key={String(p?.id ?? `idx-${i}`)}
-            title={p?.name || `Property #${p?.id ?? 'unknown'}`}
-            href={p?.id ? `/card/property/${p.id}` : undefined}
-          />
-        ))
-      ) : (
-        <div className="text-sm opacity-70">No linked properties.</div>
-      )}
-    </div>
-  );
+import type { z } from "zod";
+import { OwnerCard } from "@/shared/card-contracts";
+import RelatedRecord from "@/components/recovery/RelatedRecord";
+
+export default function Linked({ data }: { data: z.infer<typeof OwnerCard> }) {
+  return <section aria-label="Related properties" className="space-y-3">
+    <h2 className="text-lg font-semibold">Related properties</h2>
+    {data.properties.length ? <ul className="grid gap-3">{data.properties.map(p => <li key={p.id}>
+      <RelatedRecord kind="property" id={p.id} title={p.name.trim() || `Property #${p.id}`} />
+    </li>)}</ul> : <p>No properties were reported for this owner.</p>}
+  </section>;
 }

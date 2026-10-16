@@ -182,6 +182,8 @@ button { background: transparent; border: 0; padding: 0; cursor: pointer; color:
 /* Collapsed hides labels/children */
 .ecc-sidebar.is-collapsed .ecc-label,
 .ecc-sidebar.is-collapsed .ecc-children{ display:none; }
+/* The 64px rail has a 1px border and 12px scroll padding: 3px row margins leave 45px targets. */
+.ecc-sidebar.is-collapsed .ecc-nav-item{ margin-inline:3px; }
 .ecc-sidebar.is-collapsed .ecc-nav-row{ grid-template-columns:1fr; justify-items:center; }
 
 /* Flyout (collapsed rail). Position is set inline as fixed from the trigger rect. */

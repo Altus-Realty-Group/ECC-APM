@@ -53,6 +53,7 @@ import DashboardPage from "./features/dashboard/pages/DashboardPage";
 
 // DataHub Page
 import DataHub from "./pages/DataHub";
+import OperationsRecoveryPage from "./features/recovery/operations/OperationsRecoveryPage";
 
 
 function HomeRedirect() {
@@ -103,6 +104,7 @@ export default function App() {
             <Route path="/"><HomeRedirect /></Route>
             <Route path="/dashboard" component={DashboardPage} />
             <Route path="/data" component={DataHub} />
+            <Route path="/ops/operations" component={OperationsRecoveryPage} />
 
 
             {/* -------- Portfolio V3 (ACTIVE) -------- */}

@@ -4,7 +4,7 @@
 //  - Every entry in NAV_SECTIONS must resolve to a route registered in src/App.tsx
 //    (enforced by tests/unit/navigation.test.ts). Do not add a link before its page exists.
 //  - Destinations that are known but not yet built live in PLANNED_DESTINATIONS. They are
-//    an inventory for planning, are never rendered, and must not be routed to stub pages.
+//    an inventory for planning, are shown as unavailable, and must not be linked or routed to stub pages.
 //  - Registered routes that must not be linked yet (Admin, owner transfer) are listed in
 //    HIDDEN_ROUTES with the reason; they stay reachable by direct URL only.
 
@@ -22,7 +22,7 @@ export type IconName =
   | "FileText"
   | "Settings";
 
-export type NavLeaf = { title: string; path: string; icon?: IconName };
+export type NavLeaf = { title: string; path: string; icon?: IconName; unavailable?: boolean };
 export type NavSection = {
   title: string;
   icon: IconName;
@@ -31,7 +31,7 @@ export type NavSection = {
   children?: NavLeaf[];
 };
 
-export const NAV_SECTIONS: NavSection[] = [
+const BUILT_NAV_SECTIONS: NavSection[] = [
   { title: "Dashboard", icon: "LayoutDashboard", path: "/dashboard" },
   {
     title: "Portfolio",
@@ -53,6 +53,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { title: "Templates", path: "/reports/templates", icon: "FileText" },
     ],
   },
+  { title: "Operations", icon: "FileSpreadsheet", path: "/ops/operations" },
   { title: "Data Hub", icon: "Database", path: "/data" },
   {
     title: "Systems",
@@ -90,7 +91,7 @@ export type PlannedDestination = {
 
 const STUB = "Page is a stub; no workflow or verified backend contract yet.";
 
-/** Known-but-unbuilt destinations. Inventory only; never rendered. */
+/** Known-but-unbuilt destinations. Shown without links until implemented. */
 export const PLANNED_DESTINATIONS: PlannedDestination[] = [
   ...[
     ["Overview", "overview"], ["Rent Collection", "rent-collection"], ["Expenses", "expenses"],
@@ -129,7 +130,7 @@ export const PLANNED_DESTINATIONS: PlannedDestination[] = [
     ["Capital Projects", "capital-projects"],
   ].map(([title, slug]) => ({
     title, path: `/ops/maintenance/${slug}`, group: "Construction & Repair",
-    dependency: "Needs a real work-order contract; current server handlers return constructed data. " + STUB,
+    dependency: "Needs a real work-order contract; current server handlers return unavailable (503). " + STUB,
   })),
   { title: "Reports Home", path: "/ops/reports", group: "Reports", dependency: STUB },
   { title: "Marketing", path: "/growth/marketing", group: "Growth", dependency: STUB },
@@ -158,12 +159,39 @@ export const PLANNED_DESTINATIONS: PlannedDestination[] = [
   })),
 ];
 
-/** Every link the shell can render, in display order. */
+/** Full operator navigation: implemented routes plus explicitly unavailable destinations. */
+export const NAV_SECTIONS: NavSection[] = (() => {
+  const sections: NavSection[] = BUILT_NAV_SECTIONS.map((section) => ({
+    ...section, children: section.children?.map((child) => ({ ...child })),
+  }));
+  const groupIcons: Record<string, IconName> = {
+    Accounting: "FileSpreadsheet", "AI Analytics": "BarChart3", "Legal Tracker": "FileText",
+    Communication: "Users", "Construction & Repair": "Package", Growth: "BarChart3",
+    "Investor Portal": "Building2", "Data Hub": "Database", Systems: "Settings",
+  };
+  for (const destination of PLANNED_DESTINATIONS) {
+    const group = destination.group === "System" || destination.group === "Integrations"
+      ? "Systems" : destination.group === "Data Management" ? "Data Hub" : destination.group;
+    let section = sections.find((candidate) => candidate.title === group);
+    if (!section) {
+      section = { title: group, icon: groupIcons[group] ?? "FileText", children: [] };
+      sections.push(section);
+    }
+    if (section.path) {
+      section.children = [{ title: "Overview", path: section.path, icon: section.icon }];
+      delete section.path;
+    }
+    section.children!.push({ title: destination.title, path: destination.path, unavailable: true });
+  }
+  return sections;
+})();
+
+/** Every implemented link the shell can render, in display order. */
 export function navLeafPaths(sections: NavSection[] = NAV_SECTIONS): string[] {
   const out: string[] = [];
   for (const s of sections) {
     if (s.path) out.push(s.path);
-    for (const c of s.children ?? []) out.push(c.path);
+    for (const c of s.children ?? []) if (!c.unavailable) out.push(c.path);
   }
   return out;
 }
@@ -178,7 +206,7 @@ export function isPathActive(location: string, path?: string): boolean {
 export function activeSectionTitle(location: string, sections: NavSection[] = NAV_SECTIONS): string | null {
   let best: { title: string; len: number } | null = null;
   for (const s of sections) {
-    const candidates = [s.path, ...(s.children ?? []).map((c) => c.path)];
+    const candidates = [s.path, ...(s.children ?? []).filter((c) => !c.unavailable).map((c) => c.path)];
     for (const p of candidates) {
       if (p && isPathActive(location, p) && (!best || p.length > best.len)) {
         best = { title: s.title, len: p.length };

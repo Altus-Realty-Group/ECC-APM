@@ -66,7 +66,7 @@ function NotFound() {
   const titleByPath = new Map<string, string>();
   for (const s of NAV_SECTIONS) {
     if (s.path) titleByPath.set(s.path, s.title);
-    for (const c of s.children ?? []) titleByPath.set(c.path, c.title);
+    for (const c of s.children ?? []) if (!c.unavailable) titleByPath.set(c.path, c.title);
   }
   const suggestions = navLeafPaths().slice(0, 6);
   return (

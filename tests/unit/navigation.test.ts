@@ -21,7 +21,7 @@ test("nav paths are unique and sections are non-empty", () => {
   }
 });
 
-test("planned (unbuilt) destinations are never linked or routed", () => {
+test("unbuilt destinations are never linked or routed", () => {
   const linked = new Set(navLeafPaths());
   const patterns = appRoutePatterns();
   assert.ok(PLANNED_DESTINATIONS.length > 30);
@@ -73,4 +73,16 @@ test("command palette targets all resolve to routes", () => {
 test("property and unit rows link to registered card routes", () => {
   assert.ok(routeExists("/card/property/12"));
   assert.ok(routeExists("/card/unit/12"));
+});
+
+test("the full destination inventory is visible without inventing working routes", () => {
+  const displayed = NAV_SECTIONS.flatMap((section) => section.children ?? []);
+  for (const destination of PLANNED_DESTINATIONS) {
+    const item = displayed.find((candidate) => candidate.path === destination.path);
+    assert.ok(item, `missing navigation destination ${destination.path}`);
+    assert.equal(item.unavailable, true);
+  }
+  assert.ok(navLeafPaths().includes("/ops/operations"));
+  assert.equal(activeSectionTitle("/ops/operations"), "Operations");
+  assert.equal(new Set(NAV_SECTIONS.map((section) => section.title)).size, NAV_SECTIONS.length);
 });

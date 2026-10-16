@@ -17,7 +17,7 @@ export const navSections: NavSection[] = NAV_SECTIONS.map((section) => ({
   title: section.title,
   items: section.path
     ? [{ label: section.title, to: section.path }]
-    : (section.children ?? []).map((child) => ({ label: child.title, to: child.path })),
+    : (section.children ?? []).filter((child) => !child.unavailable).map((child) => ({ label: child.title, to: child.path })),
 }));
 
 export const navItems: NavLink[] = navSections.flatMap((s) => s.items);

@@ -7,7 +7,7 @@ export function Sparkline({ data }: { data?: Pt[] }) {
   const safe = Array.isArray(data) ? data.filter((p) => Number.isFinite(p.value)) : [];
   return (
     <div className="ecc-kpi-card" data-testid="occupancy-trend">
-      <div className="ecc-kpi-card__label">Occupancy trend (last 30 days)</div>
+      <div className="ecc-kpi-card__label">Occupancy trend</div>
       {safe.length === 0 ? (
         <div className="ecc-kpi-card__note">No trend data reported for this period.</div>
       ) : (

@@ -1,7 +1,7 @@
 import React from "react";
 import { useDashboardKpis } from "@/features/dashboard/hooks/useDashboardKpis";
 import { KpiCard } from "@/features/dashboard/components/KpiCard";
-import { Sparkline } from "@/features/dashboard/components/Sparkline";
+import OccupancyHistory from "@/components/recovery/OccupancyHistory";
 import { DASHBOARD_KPI_TEST_IDS } from "@/features/dashboard/constants/testIds";
 import { deriveDashboardStatus } from "@/features/dashboard/dashboardStatus";
 import StateNotice from "@/components/ui/StateNotice";
@@ -53,7 +53,6 @@ export default function DashboardPage() {
       : status.freshness === "invalid"
         ? "The reported update time is not valid, so freshness cannot be confirmed"
         : "Update time not reported";
-  const series = data.series.map((p) => ({ date: p.date, value: p.occupancy * 100 }));
 
   return (
     <div className="dashboard-grid p-6 space-y-6">
@@ -96,7 +95,7 @@ export default function DashboardPage() {
         <KpiCard label="Revenue (30d)" value={data.revenue30dCents} format="currencyCents" testId={DASHBOARD_KPI_TEST_IDS.REVENUE} />
       </div>
 
-      <Sparkline data={series} />
+      <OccupancyHistory series={data.series} />
 
       <p className="ecc-muted" data-testid="dashboard-freshness">
         Source: portfolio summary feed. {status.freshness === "stale" ? "" : updatedText}

@@ -1,0 +1,10 @@
+.recovery-history { min-width: 0; }
+.recovery-history h2 { color: #fff; font-size: 1.1rem; }
+.recovery-history-details { margin-top: 12px; }
+.recovery-history-details summary { min-height: 44px; display: list-item; padding: 12px 8px; box-sizing: border-box; cursor: pointer; color: #fff; }
+.recovery-history-details summary:focus-visible, .recovery-history-scroll:focus-visible { outline: 2px solid #d4af37; outline-offset: 3px; }
+.recovery-history-scroll { max-width: 100%; overflow-x: auto; }
+.recovery-history table { width: 100%; border-collapse: collapse; color: #fff; }
+.recovery-history caption { text-align: left; padding: 8px; }
+.recovery-history th, .recovery-history td { padding: 12px 8px; text-align: left; border-bottom: 1px solid #333; overflow-wrap: anywhere; }
+.recovery-history td:last-child { font-variant-numeric: tabular-nums; }

@@ -77,6 +77,7 @@ if (hasBffConfig) {
 import { getMissingServerEnv, serverEnvPresence } from './lib/env.js';
 import { getRouteManifest } from './lib/routeRegistry.js';
 import { setContract } from './lib/contractHeaders.js';
+import { mapPropertyActive } from './lib/mapping.js';
 import { installPropertyRoutes } from './routes/properties.js';
 import { installOwnerRoutes as installOwnerRoutesNew } from './routes/owners.js'; // Renamed to avoid conflict with existing import
 
@@ -547,7 +548,7 @@ app.get("/api/portfolio/properties", async (req, res) => {
         zip: row.address_zip || "—",
         units: totalUnits,
         occPct: occPct,
-        active: Boolean(row.active),
+        active: mapPropertyActive(row) ?? false, // false = unavailable, not known inactive
         lat: row.lat || null,
         lng: row.lng || null
       };

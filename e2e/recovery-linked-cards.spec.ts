@@ -470,13 +470,13 @@ function lifecycle() {
     expectCleanConsole(watch);
   });
 
-  test("app-shell navigation targets are at least 44px (known shell defect at 390px is pinned, not hidden)", async ({ page }) => {
+  test("app-shell navigation targets are at least 44px", async ({ page }) => {
     const n = new CardNet(); n.serve("owner", DATA.A.owner);
     await openCard(page, base, n, "owner");
     await expectShown(page, "owner", "A");
-    // Product defect observed outside this lane: the bottom nav items are 43x44 at 390px. Pinned with test.fail so the
-    // suite stays green only while the defect is real and goes red the moment it is fixed (then drop the line below).
-    test.fail((page.viewportSize()?.width ?? 0) < 400, "shell nav items are 43px wide at 390px (src shell, not PR132)");
+    const navigationRows = page.locator(".ecc-sidebar .ecc-nav-row");
+    expect(await navigationRows.count()).toBeGreaterThan(0);
+    expect(await pageOverflow(page)).toBeLessThanOrEqual(0);
     expect(await undersized(page, true)).toEqual([]);
   });
 

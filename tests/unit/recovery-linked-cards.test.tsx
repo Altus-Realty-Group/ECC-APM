@@ -78,3 +78,55 @@ test("load notices distinguish loading, failed retrieval, and denied access with
   assert.match(failure, /could not be loaded/);
   assert.doesNotMatch(failure, /No (leases|properties|records)/);
 });
+
+// R8-C2 additions ------------------------------------------------------------------------------------------------
+const links = (html: string) => Array.from(html.matchAll(/href="(\/card\/[^"]+)"/g), (m) => m[1]);
+
+test("an owner with many properties lists every one, in order, with a link each", () => {
+  const data = OwnerCard.parse({ owner: { id: 9 }, properties: Array.from({ length: 25 }, (_, i) => ({ id: i + 1, name: `P${i + 1}` })) });
+  assert.deepEqual(links(render(<OwnerLinked data={data} />)), Array.from({ length: 25 }, (_, i) => `/card/property/${i + 1}`));
+});
+
+test("unusable identifiers stay readable but never become links, for every entity", () => {
+  for (const id of [0, -3, 1.5]) {
+    assert.equal(relatedRecordPath("property", id), null);
+    const owner = render(<OwnerLinked data={OwnerCard.parse({ owner: { id: 9 }, properties: [{ id, name: "Readable name" }, { id: 3, name: "Valid" }] })} />);
+    assert.deepEqual(links(owner), ["/card/property/3"]);
+    assert.match(owner, /Readable name/);
+    const tenant = render(<TenantLinked data={TenantCard.parse({ tenant: { id: 2 }, activeLease: { id }, leases: [{ id: 5 }] })} />);
+    assert.deepEqual(links(tenant), ["/card/lease/5"]);
+    const lease = render(<LeaseLinked data={LeaseCard.parse({ lease: { id: 4 }, property: { id }, unit: { id }, tenant: { id } })} />);
+    assert.deepEqual(links(lease), []);
+    assert.match(lease, /cannot be opened/);
+    const unit = render(<UnitLinked data={UnitCard.parse({ unit: { id: 8 }, property: { id }, lease: { id } })} />);
+    assert.deepEqual(links(unit), []);
+  }
+});
+
+test("names fall back to the record's own id, never the demo id 1", () => {
+  const owner = render(<OwnerLinked data={OwnerCard.parse({ owner: { id: 9 }, properties: [{ id: 7, name: "   " }, { id: 12 }] })} />);
+  assert.match(owner, /Property #7/);
+  assert.match(owner, /Property #12/);
+  assert.doesNotMatch(owner, /Property #1\b(?!2)/);
+  const lease = render(<LeaseLinked data={LeaseCard.parse({ lease: { id: 4 }, tenant: { id: 22 } })} />);
+  assert.match(lease, /Tenant #22/);
+  assert.doesNotMatch(lease, /Tenant #1\b/);
+});
+
+test("tenant current lease is first and appears exactly once, whether or not the list contains it", () => {
+  const inList = TenantCard.parse({ tenant: { id: 2 }, activeLease: { id: 5, status: "ACTIVE" }, leases: [{ id: 3 }, { id: 5, status: "ACTIVE" }, { id: 4 }] });
+  assert.deepEqual(links(render(<TenantLinked data={inList} />)), ["/card/lease/5", "/card/lease/3", "/card/lease/4"]);
+  const absent = TenantCard.parse({ tenant: { id: 2 }, activeLease: { id: 9, status: "ACTIVE" }, leases: [{ id: 3 }, { id: 4 }] });
+  assert.deepEqual(links(render(<TenantLinked data={absent} />)), ["/card/lease/9", "/card/lease/3", "/card/lease/4"]);
+  const none = TenantCard.parse({ tenant: { id: 2 }, activeLease: null, leases: [{ id: 3 }, { id: 4 }] });
+  assert.deepEqual(links(render(<TenantLinked data={none} />)), ["/card/lease/3", "/card/lease/4"]);
+});
+
+test("each relationship's empty state is specific to its entity", () => {
+  assert.match(render(<OwnerLinked data={OwnerCard.parse({ owner: { id: 1 }, properties: [] })} />), /No properties were reported for this owner\./);
+  assert.match(render(<TenantLinked data={TenantCard.parse({ tenant: { id: 1 }, leases: [] })} />), /No leases were reported for this tenant\./);
+  const lease = render(<LeaseLinked data={LeaseCard.parse({ lease: { id: 1 } })} />);
+  for (const w of ["property", "unit", "tenant"]) assert.match(lease, new RegExp(`No ${w} was reported for this lease\\.`));
+  const unit = render(<UnitLinked data={UnitCard.parse({ unit: { id: 1 } })} />);
+  for (const w of ["property", "lease"]) assert.match(unit, new RegExp(`No ${w} was reported for this unit\\.`));
+});

@@ -53,3 +53,16 @@ Expose the existing Operations route and show the46 known unavailable destinatio
 ## Coverage limits
 
 Desktop visible navigation routes were inspected; card detail journeys could not be established from genuine records because portfolio reads fail and Owners is synthetic. No operational mutations, vendor sends, DB access, live auth proof, mobile resize, touch hardware or other-browser proof performed in this audit. Claude/Grok results remain pending. Private-preview browser access was blocked on redirect to a separate Replit account origin; the published target was accessible and audited independently.
+
+
+## Historical extension and final audit disposition
+
+See HISTORICAL_RECOVERY_MATRIX.md for eight downloaded/hash-verified archive receipts, source-set coverage, substantive recovered workflows, and rejected fabricated/no-op historical implementations. The old nav recovery bundle defines48 unique destinations; current main exposes11. Names/paths are not one-to-one: this branch's46-item inventory is not proof of46 formerly operational screens.
+
+Owner row activation in the published app opens a Details panel containing the same sample fields; it does not establish a genuine owner/card read. No sample data was exported. Global integration failure recovery required direct navigation to another known route because the error boundary removed the shell.
+
+Desktop audit classification: RELEASE BLOCKED. All11 currently linked destinations were inspected, plus the recovered Operations route, which404s in this publication. Real populated card tasks, authenticated scope/denial/revocation and financial reconciliation cannot pass while genuine portfolio reads are unavailable. Mobile/other-browser/hardware proof remains pending; this browser surface did not provide viewport resizing. Current source/render tests and old fixture proofs do not fill those live acceptance gaps. External Claude/Grok audits remain awaiting manual handoff/acknowledgment, not assumed active.
+
+Release priorities are source/runtime alignment and data truth, then authorization containment/approved data connection, then substantive restoration of statements/reports, recorded ledger, work orders/vendors, legal/import/documents, email/templates/logs, field/inventory and housing programs. Missing workflows remain release inventory until a complete persisted journey is proven. Restoring disabled navigation is not completion.
+
+PR147's first Verify run failed an existing render test that counted every navigation entry as a live link. The correction preserves that assertion for available links and adds actual-render checks that unfinished items are visible and have no anchors. The earlier failed run is not a pass. Exact final-head CI must be read independently.

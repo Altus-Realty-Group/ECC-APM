@@ -56,3 +56,11 @@ The adapters take **integer cents** (`amountClaimedCents`, `estimatedCostCents`,
 ## Files required to continue
 
 The source pack (or plain-text copies / a repository path) of Empire `server/legal-routes.ts`, `accounting-routes.ts`, the work-order section of `routes.ts`, `shared/schema.ts`, `LegalAdvancedOpsPage.tsx` and the EstateCommand2 equivalents, readable from this environment (allow `dl.dropboxusercontent.com` or attach the zip). Plus a separately authorized read-only schema check for legal cases, work orders, lease charges and payments.
+
+## R8 integration (PR131 completion)
+
+PR133's session-scoped query path and current main are integrated. The page now reads each domain through the shared query cache; a
+denial purges every protected domain, and a purged sibling renders a plain "cleared" state with Retry instead of an indefinite loading
+state. Populated lifecycle behavior is proven against invented fixtures only (`e2e/recovery-operations-lifecycle.spec.ts`,
+`tests/unit/recovery-operations-lifecycle.test.tsx`). All three production contracts remain `unverified`; the real backend contract
+gaps are inventoried in R8_COMPLETION.md. No row in this ledger is live-schema verified.

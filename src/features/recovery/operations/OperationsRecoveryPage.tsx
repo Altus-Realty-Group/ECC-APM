@@ -6,7 +6,7 @@ import StateNotice from "@/components/ui/StateNotice";
 import { useSessionEpoch } from "@/lib/sessionScope";
 import {
   OPERATIONS_CONTRACTS, operationsQueryOptions,
-  type DomainContract, type DomainState, type OperationsDomain,
+  type DomainContract, type DomainResult, type DomainState, type OperationsDomain,
 } from "@/lib/recovery/operationsRegistry";
 import {
   groupLedgerByLease, parseCollection, parseLedgerEntry, parseLegalCase, parseWorkOrder,
@@ -30,6 +30,23 @@ const parseLedger = (p: unknown) => {
 type Fetcher = (path: string, init?: { signal?: AbortSignal }) => Promise<unknown>;
 type Contracts = Readonly<Record<OperationsDomain, DomainContract>>;
 
+type QueryView<T> = {
+  data: DomainResult<T> | undefined; isError: boolean; error: unknown; isPending: boolean; fetchStatus: "fetching" | "paused" | "idle";
+};
+
+/**
+ * Maps one query result to what the operator sees. Order matters: a denial wins and hides retained data; any other
+ * failure is an error; a pending query with NOTHING in flight was purged (the shared denial purge resets sibling
+ * queries) and is "cleared", never "loading" - claiming a load that is not happening would be untrue.
+ */
+export function toDomainState<T>(q: QueryView<T>): DomainState<T> {
+  const { data, denied } = accessGuard(q);
+  if (denied) return { state: "denied" };
+  if (q.isError) return { state: "error" };
+  if (data) return data;
+  return q.isPending && q.fetchStatus === "idle" ? { state: "cleared" } : { state: "loading" };
+}
+
 /** Loads one domain. Unverified domains settle to "unavailable" without any request. */
 function useDomain<T>(
   domain: OperationsDomain, parse: (p: unknown) => T[], contracts?: Contracts, fetcher?: Fetcher,
@@ -38,11 +55,7 @@ function useDomain<T>(
   const q = useQuery(operationsQueryOptions(domain, parse, epoch, { contracts, fetcher }));
   // Shared QueryCache purges every domain on a denial. Epoch-keyed queries never
   // render the prior identity's rows while a replacement request is loading.
-  const { data, denied } = accessGuard(q);
-  const state: DomainState<T> = denied ? { state: "denied" }
-    : q.isError ? { state: "error" }
-    : data ?? { state: "loading" };
-  return { state, retry: () => { void q.refetch(); } };
+  return { state: toDomainState<T>(q), retry: () => { void q.refetch(); } };
 }
 
 /** Pure renderer for every state; the page wires it to useDomain. */
@@ -60,6 +73,9 @@ export function DomainPanel<T>({ domain, label, state, onRetry, note, children }
       break;
     case "denied":
       body = <StateNotice kind="denied" title={`You don't have access to ${label.toLowerCase()}`} detail="Ask an administrator if you need it." testId={`ops-denied-${domain}`} />;
+      break;
+    case "cleared":
+      body = <StateNotice kind="stale" title={`The ${label.toLowerCase()} view was cleared after an access change`} detail="Nothing is shown until you try again." onRetry={onRetry} testId={`ops-cleared-${domain}`} />;
       break;
     case "error":
       body = <StateNotice kind="error" title={`${label} could not be loaded`} detail="Nothing is shown rather than partial or guessed data. Try again." onRetry={onRetry} testId={`ops-error-${domain}`} />;

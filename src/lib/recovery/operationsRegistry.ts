@@ -80,6 +80,8 @@ export type DomainState<T> =
   | { state: "unavailable"; contract: DomainContract }
   | { state: "denied" }
   | { state: "error" }
+  /** Rows were purged (a denial elsewhere or a session change) and nothing is loading. Never shown as "loading". */
+  | { state: "cleared" }
   | { state: "ready"; rows: T[] };
 
 /**

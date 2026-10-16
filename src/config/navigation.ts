@@ -1,7 +1,7 @@
 // Single navigation source for ECC.
 //
 // Rules:
-//  - Every entry in NAV_SECTIONS must resolve to a route registered in src/App.tsx
+//  - Every available entry in NAV_SECTIONS must resolve to a route registered in src/App.tsx
 //    (enforced by tests/unit/navigation.test.ts). Do not add a link before its page exists.
 //  - Destinations that are known but not yet built live in PLANNED_DESTINATIONS. They are
 //    an inventory for planning, are shown as unavailable, and must not be linked or routed to stub pages.

@@ -157,3 +157,6 @@ or suppressions are introduced. Live data and backend authority remain unverifie
 
 ## R6-G source note (2026-10-15)
 Canonical address columns take precedence over legacy aliases in read mapping. See docs/recovery/R6_PROPERTY_READ_MAPPING.md. Active/is_active semantics remain unresolved.
+
+## R7-G activity decision (2026-10-16)
+Property activity is canonical-first via mapPropertyActive. Present active (including false) wins. Exact booleans only. String "false" is unavailable. Legacy is_active only when active is absent and exact boolean. Wire false for unavailable does not mean known inactive. See docs/recovery/R7_GROK_PROPERTY_ACTIVITY.md.

@@ -73,3 +73,23 @@ export function normalizeStatus(s?: string | null) {
   if (["ended","terminated","closed","past","inactive","cancelled","canceled"].includes(k)) return "ended";
   return k;
 }
+
+
+/**
+ * Canonical-first property activity.
+ * Present active key wins, including false. Exact booleans only.
+ * Null, strings (including "false"), numbers and objects are unavailable.
+ * Legacy is_active is used only when canonical active is absent and is an exact boolean.
+ * Returns null when unavailable (caller may map null to false for existing boolean wire contract).
+ */
+export function mapPropertyActive(src: { active?: unknown; is_active?: unknown } | null | undefined): boolean | null {
+  if (!src || typeof src !== "object") return null;
+  const s = src as Record<string, unknown>;
+  if ("active" in s) {
+    return typeof s.active === "boolean" ? s.active : null;
+  }
+  if ("is_active" in s && typeof s.is_active === "boolean") {
+    return s.is_active;
+  }
+  return null;
+}

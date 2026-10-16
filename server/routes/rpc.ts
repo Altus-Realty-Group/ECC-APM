@@ -200,8 +200,8 @@ rpc.get('/get_owner_card', async (req, res) => {
     if (!owner) return fail(res, 404, 'owner not found');
 
     // Try both potential FK variants: owner_id or ownerid
-    const p1 = await supabase.from('properties').select('id,name,address1,city,state,zip').eq('owner_id', owner.id);
-    const p2 = await supabase.from('properties').select('id,name,address1,city,state,zip').eq('ownerid', owner.id);
+    const p1 = await supabase.from('properties').select('*').eq('owner_id', owner.id);
+    const p2 = await supabase.from('properties').select('*').eq('ownerid', owner.id);
     const rows = (p1.data || []).concat(p2.data || []);
 
     return ok(res, {

@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 import { getServerClient } from '../db.js';
 import { setContract } from '../lib/contractHeaders.js';
 import { supabaseGuard } from '../lib/supabaseGuard.js';
-import { isDenial, noVerifiedActor, planRead, resolveActor } from '../lib/readBoundary.js';
+import { buildPage, isDenial, noVerifiedActor, planRead, resolveActor } from '../lib/readBoundary.js';
 import type { PlannedRead, ReadActorResolver, VerifiedReadScope } from '../lib/readBoundary.js';
 
 type Reader = () => { from: (table: string) => any };
@@ -26,7 +26,7 @@ export function createEntitiesRouter(opts: { resolveActor?: ReadActorResolver; g
 
   async function run(req: Request, res: Response, contract: string, plan: PlannedRead, single: boolean) {
     try {
-      let q = getClient().from(plan.policy.table).select(plan.columns.join(','));
+      let q = getClient().from(plan.policy.table).select(plan.columns.join(','), { count: 'exact' });
       q = q.in(plan.policy.scope!.column, plan.scopeIds);
       for (const f of plan.filters) {
         switch (f.op) {
@@ -37,12 +37,15 @@ export function createEntitiesRouter(opts: { resolveActor?: ReadActorResolver; g
           case 'gte': q = q.gte(f.column, f.value); break;
         }
       }
-      const { data, error } = await q.limit(plan.limit);
+      for (const o of plan.orders) q = q.order(o.column, { ascending: o.ascending });
+      const { data, error, count } = await q.range(plan.offset, plan.offset + plan.limit - 1);
       if (error) return res.status(500).json({ error: 'read failed' });
-      const rows = Array.isArray(data) ? data : [];
-      if (single && rows.length !== 1) return res.status(404).json({ error: 'not found' });
+      // A database "success" that is not exactly the planned shape is a failed read, never an empty list.
+      const page = buildPage(plan, data, count);
+      if (!page) return res.status(500).json({ error: 'read failed' });
+      if (single && page.rows.length !== 1) return res.status(404).json({ error: 'not found' });
       setContract(req, res, contract);
-      return res.json({ data: rows, meta: { totalCount: rows.length } });
+      return res.json({ data: page.rows, meta: page.meta });
     } catch {
       return res.status(500).json({ error: 'read failed' });
     }

@@ -23,15 +23,15 @@ async function withServer(options: Record<string, unknown>, action: (base: strin
 const auth = { cookie: "__Host-ecc-session=isolated-session" };
 
 test('operational navigation is server-configured, session-gated and never sent to the business backend', async () => {
-  const configured = { ...env, ECC_FIELD_APP_ORIGIN: 'https://field.example.test', ECC_CONSTRUCTION_MANAGER_ORIGIN: 'https://construction.example.test', ECC_DEAL_ROOM_ORIGIN: 'https://deal.example.test' };
+  const configured = { ...env, ECC_FIELD_APP_ORIGIN: 'https://field.example.com', ECC_CONSTRUCTION_MANAGER_ORIGIN: 'https://construction.example.com', ECC_DEAL_ROOM_ORIGIN: 'https://deal.example.com' };
   const expected = { applications: [
-    { key: 'field-app', navigationUrl: 'https://field.example.test/properties' },
-    { key: 'construction-manager', navigationUrl: 'https://construction.example.test/projects' },
-    { key: 'deal-room', navigationUrl: 'https://deal.example.test/' },
+    { key: 'field-app', navigationUrl: 'https://field.example.com/properties' },
+    { key: 'construction-manager', navigationUrl: 'https://construction.example.com/projects' },
+    { key: 'deal-room', navigationUrl: 'https://deal.example.com/' },
     { key: 'property-intelligence', navigationUrl: null },
   ] };
   assert.deepEqual(workspaceConnections(configured), expected);
-  for (const target of [undefined, 'http://field.example.test', 'https://field.example.test/path', 'https://u:p@field.example.test', 'https://localhost', 'https://127.0.0.1', 'https://field.internal', 'https://field.example.test:8443']) {
+  for (const target of [undefined, 'http://field.example.com', 'https://field.example.com/path', 'https://u:p@field.example.com', 'https://localhost', 'https://127.0.0.1', 'https://field.internal', 'https://field.example.test', 'https://field.invalid', 'https://field.example.com.', 'https://field.example.com:8443']) {
     assert.equal(workspaceConnections({ ECC_FIELD_APP_ORIGIN: target }).applications[0].navigationUrl, null);
   }
   let calls = 0;

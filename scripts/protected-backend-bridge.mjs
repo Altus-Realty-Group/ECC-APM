@@ -103,7 +103,7 @@ export function workspaceConnections(env) {
     try {
       if (!env[name]) return null;
       const target = new URL(origin(env[name]));
-      if (!target.hostname.includes('.') || /(^localhost$|\.(local|internal)$|^[\d.]+$|:)/i.test(target.hostname) || target.port) return null;
+      if (!target.hostname.includes('.') || target.hostname.endsWith('.') || /(^localhost$|\.(localhost|local|internal|test|invalid)$|^[\d.]+$|:)/i.test(target.hostname) || target.port) return null;
       return target.origin + path;
     } catch { return null; }
   };

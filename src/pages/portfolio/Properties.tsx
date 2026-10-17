@@ -4,6 +4,7 @@ import { useAllProperties } from "../../lib/ecc-resolvers";
 import { BLANK, formatPercent } from "@/lib/format";
 import CanonicalDenseTableShell from "@/features/command-surface/CanonicalDenseTableShell";
 import EccCommandPalette from "@/features/command-surface/EccCommandPalette";
+import StateNotice from "@/components/ui/StateNotice";
 import TriageBoardShell from "@/features/command-surface/TriageBoardShell";
 import { CommandSurfaceConfig, CommandSurfaceRow } from "@/features/command-surface/types";
 
@@ -28,18 +29,24 @@ const PROPERTY_SURFACE_CONFIG: CommandSurfaceConfig = {
   rowHref: (id) => `/card/property/${id}`,
 };
 
-export default function Properties() {
+type PropertiesQuery = Pick<ReturnType<typeof useAllProperties>,
+  "data" | "isLoading" | "isFetching" | "isError" | "isSuccess" | "error" | "refetch">;
+
+/** The routed page and render regressions share this exact presentation boundary. */
+export function PropertiesSurface({ query }: { query: PropertiesQuery }) {
   const [q, setQ] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const query = useAllProperties();
   const { isLoading, isFetching, error, refetch } = query;
   // After a 401/403 TanStack keeps the previous rows; they must not be shown, summarized or selectable.
   const { data, denied } = accessGuard(query);
-  const epoch = useResetOnAccessLoss(denied, () => setSelectedIds([]));
+  // Only a completed successful read can support counts or selectable review rows.
+  // A failed refresh may retain cached data; it must not look like a current verified result.
+  const ready = query.isSuccess && !query.isError && !isFetching && !denied && !error && Array.isArray(data);
+  const epoch = useResetOnAccessLoss(!ready, () => setSelectedIds([]));
 
   const rows = useMemo(() => {
-    if (!data) return [];
+    if (!ready || !data) return [];
 
     const mapped: CommandSurfaceRow[] = data.map((prop: any) => {
       const address = [prop.street_1, prop.city, prop.state].filter(Boolean).join(", ");
@@ -60,7 +67,7 @@ export default function Properties() {
     return mapped.filter((row) =>
       [row.primary, row.secondary, row.id, row.segment].join(" ").toLowerCase().includes(needle),
     );
-  }, [data, q]);
+  }, [data, q, ready]);
   const selectedRows = rows.filter((row) => selectedIds.includes(row.id));
 
   return (
@@ -68,7 +75,7 @@ export default function Properties() {
       <div className="ecc-command-surface-layout">
         <div>
           <EccCommandPalette config={PROPERTY_SURFACE_CONFIG} onFocusSearch={() => searchInputRef.current?.focus()} />
-          <CanonicalDenseTableShell
+          {ready ? <CanonicalDenseTableShell
             rows={rows}
             config={PROPERTY_SURFACE_CONFIG}
             loading={isLoading || (isFetching && rows.length === 0)}
@@ -80,10 +87,32 @@ export default function Properties() {
             searchInputRef={searchInputRef}
             selectedIds={selectedIds}
             onSelectionChange={(ids) => setSelectedIds(Array.from(new Set(ids)))}
-          />
+          /> : (
+            <section className="ecc-command-surface ecc-object">
+              <h1 className="ecc-command-surface__title">Properties</h1>
+              <StateNotice
+                kind={denied ? "denied" : query.isError || error ? "error" : isLoading || isFetching ? "loading" : "partial"}
+                title={denied ? "You don't have access to properties."
+                  : query.isError || error ? "Properties could not be loaded."
+                  : isLoading || isFetching ? "Loading properties..."
+                  : "Properties have not been confirmed."}
+                detail="Portfolio counts and selection review are unavailable until properties load successfully."
+                onRetry={isLoading || isFetching ? undefined : () => { void refetch(); }}
+              />
+            </section>
+          )}
         </div>
-        <TriageBoardShell key={epoch} items={selectedRows} config={PROPERTY_SURFACE_CONFIG} />
+        {ready ? <TriageBoardShell key={epoch} items={selectedRows} config={PROPERTY_SURFACE_CONFIG} /> : (
+          <aside className="ecc-triage-shell ecc-object">
+            <p className="ecc-command-surface__eyebrow">Review</p>
+            <p>Selection review is unavailable until properties load successfully.</p>
+          </aside>
+        )}
       </div>
     </section>
   );
+}
+
+export default function Properties() {
+  return <PropertiesSurface query={useAllProperties()} />;
 }

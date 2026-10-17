@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import DataHub from "../../src/pages/DataHub";
 import IntegrationsHealthPage from "../../src/features/systems/integrations/IntegrationsHealthPage";
+import { toRows } from "../../src/lib/ecc-resolvers";
 import { dataHubRows } from "../../src/lib/ecc-collection-hooks";
 import { getSessionEpoch } from "../../src/lib/sessionScope";
 import { HttpError } from "../../src/lib/http";
@@ -76,4 +77,13 @@ test("Integration existing success interface still renders after verified read r
     assert.match(html, /Monitoring/);
     assert.doesNotMatch(html, /Integration health could not be loaded/);
   } finally { console.warn = savedWarn; qc.clear(); }
+});
+
+
+test("shared portfolio reader rejects malformed rows before mounted pages can crash", () => {
+  for (const raw of [[null], [7], [[]], { data: [null] }, { data: [[1]] }, { data: "invalid" }]) {
+    assert.throws(() => toRows(raw), /Unexpected collection response shape/);
+  }
+  assert.deepEqual(toRows([]), []);
+  assert.deepEqual(toRows({ data: [{ id: 7 }] }), [{ id: 7 }]);
 });

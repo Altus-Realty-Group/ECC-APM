@@ -39,3 +39,25 @@ owning backend and needs a separate scoped assignment.
 
 No API target/base URL, authentication, credentials, environment, schema, grant,
 operating data, workflow, provider call or runtime was changed by this discovery.
+
+## Owner-supplied official DoorLoop reference
+
+Owner supplied https://api.doorloop.com/reference/introduction on2026-10-17.
+Direct page/markdown retrieval was unavailable, but official reference pages
+were retrieved through indexed search. Relevant provider documentation:
+
+- https://api.doorloop.com/reference/get-leases: lease/tenant relationships are
+  available through GET /leases/tenants. Provider page_number is1-based;
+  page_size defaults50 and allows up to1000; list responses report a total.
+- That page distinguishes filter_status from filter_calculatedStatus. Its
+  calculatedStatus ACTIVE excludes collection states that can still represent
+  occupied/paying leases; the documented current-occupant route/filter is
+  /leases/tenants?filter_status=CURRENT. Do not assume ECC's internal status field
+  maps to either provider concept without lineage proof.
+- https://api.doorloop.com/reference/rate-limiting: provider documents credential
+  and IP limits, response rate headers and Retry-After handling. No request
+  cadence, credentials, background runner or vendor call is enabled here.
+
+These provider contracts do not prove ECC stored columns, money units, local
+portfolio membership or actor permissions. Rent-unit and tenant-key conflicts
+remain unresolved until the ingestion lineage and current schema are verified.

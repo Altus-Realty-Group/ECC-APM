@@ -190,3 +190,35 @@ success-path token/sync interface is NOT accepted as Control Plane integration;
 that remains separate unfinished work. These changes prove source behavior,
 not live backend authorization or production readiness. Roll back the PR to
 restore the prior consumer implementation; no database rollback applies.
+
+## C3 boundary review and consumer alignment - 2026-10-17
+
+PR146 corrected head5f8bff205b975ec7389a8752456dbc0ccc77b4d2 remains a
+source-only proposal, not an activated reader. Its query contract accepts one
+allow-listed column.asc/desc order with an id tiebreak, and digits-only limit /
+offset. The cap remains500; returned rows are distinct from exact totalCount.
+Metadata includes returned/totalCount/limit/offset/truncated/nextOffset. Invalid
+DB success shapes, missing/non-integer exact counts, unselected returned columns
+or page/count inconsistencies fail with a generic read error. No source consumer
+used the old totalCount definition. Live PostgREST/RLS/grants remain unverified.
+
+Data Hub now requests the compatible source-declared lease projection:
+id,property_id,unit_id,tenant_id,status,start_date,end_date,rent. It no longer
+requests vendor doorloop_id or unresolved primary_tenant_id/rent_cents. This
+explorer shows raw source fields; it does not translate rent into cents or claim
+a live schema. The conflicting historical money/tenant columns remain a live
+schema-verification prerequisite. No policy field was added to silence a denial.
+
+The shared portfolio collection adapter now rejects scalar/null/array rows before
+page mapping. A malformed successful envelope cannot crash the mounted page or
+become a verified empty collection. This does not validate all row fields or
+resolve portfolio response drift and completeness. Array and data-array
+envelopes remain accepted for the existing consumers. No endpoint or backend
+binding changes. A combined local browser review reproduced the old [null]
+crash; the source adapter fix is separately tested from Grok's page mappings.
+
+RPC findings remain activation blockers: caller-controlled privileged POST
+forwarding, unauthenticated diagnostics/raw DB errors, unscoped card reads and
+vendor-ID fallback lookup. The next bounded containment slice may remove unused
+generic forwarding/diagnostic surfaces; it must not claim the remaining card or
+portfolio reads authorized. No RPC or Azure Function was changed here.

@@ -13,7 +13,8 @@ import LiveLogs from "./components/LiveLogs";
 import DLQPanel from "./components/DLQPanel";
 import { Clock, Settings, Database, MessageSquare, Shield, AlertTriangle, Send, RefreshCw } from "lucide-react";
 import { useShowToast } from "@/features/systems/integrations/useShowToast";
-import { schedulerDisplay } from "./schedulerDisplay";
+import { schedulerFromQueries } from "./schedulerDisplay";
+import SchedulerPanel from "./SchedulerPanel";
 
 // Define types for API responses
 interface SyncRun {
@@ -66,24 +67,28 @@ export default function IntegrationsHealthPage() {
   const { showToast } = useShowToast();
 
   // Enhanced API endpoints for Genesis v1
-  // Fetch comprehensive sync status
-  const { data: syncStatusData, refetch: refetchSyncStatus } = useQuery({
-    queryKey: ['/api/admin/sync/status'],
-    queryFn: async () => {
+  // Admin status is session-scoped. The revision isolates credential changes;
+  // the token itself is never part of the query key. Late responses from a
+  // previous scope cannot land in the new key.
+  const [adminStatusRevision, setAdminStatusRevision] = useState(1);
+  const adminStatusKey = ['/api/admin/sync/status', adminStatusRevision, sessionEpoch] as const;
+  const adminStatusQuery = useQuery({
+    queryKey: adminStatusKey,
+    queryFn: async ({ signal }) => {
       if (!adminToken) return null;
-      
       return apiRequest('/api/admin/sync/status', {
-        headers: {
-          'X-Admin-Token': adminToken,
-        },
+        signal,
+        headers: { 'X-Admin-Token': adminToken },
       });
     },
     enabled: !!adminToken,
-    refetchInterval: 10000, // Refresh every 10 seconds
+    refetchInterval: 10000,
   });
+  const syncStatusData = adminStatusQuery.data;
+  const refetchSyncStatus = adminStatusQuery.refetch;
 
   // Fetch sync health status
-  const { data: healthData, error: healthError, isPending: healthPending, refetch: refetchHealth } = useQuery<SyncHealthResponse>({
+  const { data: healthData, error: healthError, isPending: healthPending, isFetching: healthQueryIsFetching, refetch: refetchHealth } = useQuery<SyncHealthResponse>({
     queryKey: ['/api/health/sync'],
     queryFn: ({ signal }) => sessionFetchJSON<SyncHealthResponse>('/api/health/sync', { signal }),
     refetchInterval: 15000, // Refresh every 15 seconds
@@ -110,10 +115,14 @@ export default function IntegrationsHealthPage() {
   const refetchRuns = runsQuery.refetch;
   const currentHistory = readyHistoryRows(runsQuery, !!adminToken);
   function changeAdminToken(value: string) {
-    // Cancel/remove the old scope before replacing it; a late response cannot become the new token's history.
+    // Cancel/remove the old scopes before replacing the credential.
+    // Late responses from the previous token cannot become the new scope's data.
     void historyClient.cancelQueries({ queryKey: historyKey });
     historyClient.removeQueries({ queryKey: historyKey });
+    void historyClient.cancelQueries({ queryKey: adminStatusKey });
+    historyClient.removeQueries({ queryKey: adminStatusKey });
     setHistoryRevision(nextHistoryRevision());
+    setAdminStatusRevision((n) => n + 1);
     setSelectedRun(null); setSelectedHistorySource(null); setIsErrorPaneOpen(false);
     setAdminToken(value);
   }
@@ -512,78 +521,23 @@ export default function IntegrationsHealthPage() {
                 </div>
               )}
 
-              {/* Scheduler display — missing/malformed values are Not reported; no invented defaults */}
+              {/* Scheduler — cached values suppressed on unsettled reads; Next Run only from stored health observation */}
               {(() => {
-                const healthFailed = !!healthError;
-                const sched = healthFailed ? null : schedulerDisplay({
-                  preferred: syncStatusData?.scheduler ? {
-                    enabled: syncStatusData.scheduler.enabled,
-                    intervalMinutes: syncStatusData.scheduler.intervalMinutes,
-                    nightlyHour: syncStatusData.scheduler.fullSyncHourUTC ?? syncStatusData.scheduler.nightlyFullHourUtc,
-                    nextRunAt: syncStatusData.scheduler.nextRun,
-                    lastRunAt: syncStatusData.scheduler.lastRun,
-                  } : null,
-                  fallback: healthData ? {
-                    enabled: healthData.enabled,
-                    intervalMinutes: healthData.intervalMinutes,
-                    nightlyHour: healthData.nightlyFullHourUtc,
-                    nextRunAt: healthData.status?.next_run_at,
-                  } : null,
+                const sched = schedulerFromQueries({
+                  adminFlags: {
+                    isPending: adminStatusQuery.isPending,
+                    isFetching: adminStatusQuery.isFetching,
+                    isError: adminStatusQuery.isError,
+                  },
+                  adminData: syncStatusData,
+                  healthFlags: {
+                    isPending: healthPending,
+                    isFetching: healthQueryIsFetching,
+                    isError: !!healthError,
+                  },
+                  healthData,
                 });
-                if (!sched) return null;
-                return (
-              <div className="ecc-card" data-testid="scheduler-panel">
-                <div className="ecc-card__header">
-                  <h3 className="ecc-card__title flex items-center space-x-2">
-                    <Clock className="w-5 h-5" />
-                    <span>Scheduler</span>
-                  </h3>
-                </div>
-                <div className="ecc-card__body space-y-3">
-                  <div className="ecc-field-row">
-                    <span className="ecc-field-label">Status:</span>
-                    <span className={`ecc-badge ${
-                      sched.statusKind === "success" ? "ecc-badge--success"
-                        : sched.statusKind === "error" ? "ecc-badge--error"
-                        : ""
-                    }`} data-testid="scheduler-status">
-                      {sched.statusLabel}
-                    </span>
-                  </div>
-                  <div className="ecc-field-row">
-                    <span className="ecc-field-label">Interval:</span>
-                    <span className="ecc-field-value" data-testid="scheduler-interval">
-                      {sched.intervalLabel}
-                    </span>
-                  </div>
-                  <div className="ecc-field-row">
-                    <span className="ecc-field-label">Next Run:</span>
-                    <span className="ecc-field-value font-mono text-sm" data-testid="scheduler-next">
-                      {sched.nextRunLabel}
-                    </span>
-                  </div>
-                  <div className="ecc-field-row">
-                    <span className="ecc-field-label">Nightly Full:</span>
-                    <span className="ecc-field-value" data-testid="scheduler-nightly">
-                      {sched.nightlyLabel}
-                    </span>
-                  </div>
-                  {sched.lastRunLabel && (
-                    <div className="ecc-field-row">
-                      <span className="ecc-field-label">Last Run:</span>
-                      <span className="ecc-field-value text-sm">
-                        {sched.lastRunLabel}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div className="ecc-card__footer">
-                  <p className="text-sm text-gray-500">
-                    Configuration is environment-driven
-                  </p>
-                </div>
-              </div>
-                );
+                return sched ? <SchedulerPanel display={sched} /> : null;
               })()}
 
               {/* Enhanced Configuration */}

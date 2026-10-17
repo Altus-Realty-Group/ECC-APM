@@ -22,3 +22,10 @@
 .ops-lease { margin: 0 0 16px; }
 .ops-lease h3 { margin: 0 0 8px; font-size: 14px; font-weight: 800; }
 .ops-scroll:focus-visible { outline: 2px solid #d4af37; outline-offset: 2px; }
+
+.ops-filters { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+.ops-filters label { display: grid; gap: 4px; flex: 1 1 220px; min-width: 0; font-size: 13px; }
+.ops-filters input, .ops-filters select, .ops-filters button { min-height: 44px; min-width: 44px; }
+.ops-filters input, .ops-filters select { width: 100%; border: 1px solid var(--border, #555); border-radius: 6px; background: var(--surface, #171717); color: inherit; padding: 8px; }
+.ops-filters :is(input, select, button):focus-visible { outline: 2px solid #d4af37; outline-offset: 2px; }
+@media (max-width: 480px) { .ops-filters label, .ops-filters button { flex-basis: 100%; } }

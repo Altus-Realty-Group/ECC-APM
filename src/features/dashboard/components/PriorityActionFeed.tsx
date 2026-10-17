@@ -1,6 +1,7 @@
 // Genesis Grade Priority Action Feed - Critical Tasks & Alerts
 
 import React from 'react';
+import StateNotice from '@/components/ui/StateNotice';
 import { useDashboardData, type FeedItem } from '../hooks/useDashboardData';
 
 // Section Component for each feed category
@@ -44,7 +45,8 @@ function FeedSection({
 }
 
 export function PriorityActionFeed() {
-  const { feedData } = useDashboardData();
+  const { feedData, feedAvailable } = useDashboardData();
+  if (!feedAvailable) return <StateNotice kind="partial" title="Priority work is not available yet." detail="Open Operations to review confirmed records. A missing feed does not mean there is no work to do." />;
 
   return (
     <div className="priority-action-feed">

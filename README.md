@@ -30,6 +30,8 @@ npm run build
 
 `npm run start:replit` exercises the import startup. It uses a lockfile/Node fingerprint under ignored `node_modules` and fails if installation fails; there is no unlocked-install fallback. `npm run dev` is a legacy explicit full-stack developer command, requiring separately approved backend configuration. It is not the Replit startup. `npm run preview` serves the built frontend with the same guarded API boundary; publishing requires separate release approval.
 
+For a production web process independent of Replit/Vite, run `npm ci`, `npm run build`, then `npm run start:production` behind the approved HTTPS ingress. This Node process serves only the build and protected API boundary; it does not start the legacy API or synchronization jobs. `PORT` defaults to5000; `ECC_WEB_HOST` defaults to0.0.0.0. `/health/live` reports the built repository/commit, dirty-build flag and whether explicit connection configuration is present. Configuration presence is not backend readiness. Unknown/dirty builds are not accepted release identity. No host, secret or live connection is configured by adding this command.
+
 ## Standards and preservation
 
 GitHub owns source; Replit runs reviewed source. Use narrow PRs, mandatory full typecheck and existing bounded CI. UI uses black/white/gold, accessible financial information and no invented operational values. Never commit secrets or put credentials in public `VITE_*` variables.

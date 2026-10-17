@@ -160,3 +160,109 @@ Canonical address columns take precedence over legacy aliases in read mapping. S
 
 ## R7-G activity decision (2026-10-16)
 Property activity is canonical-first via mapPropertyActive. Present active (including false) wins. Exact booleans only. String "false" is unavailable. Legacy is_active only when active is absent and exact boolean. Wire false for unavailable does not mean known inactive. See docs/recovery/R7_GROK_PROPERTY_ACTIVITY.md.
+
+## R9-C generic entity read boundary (2026-10-16)
+
+`GET /api/entities/:table[/:id]` previously accepted any table name, selected `*` with the server's privileged client and
+returned database error text. It now sits behind `server/lib/readBoundary.ts` and `server/routes/entities.ts`:
+
+- Order: verified actor, then policy and scope validation, then the database. Anything earlier than the database is a fixed
+  body (`unauthenticated`, `not permitted`, `not found`, `unavailable`, `read failed`) that never echoes a table, column,
+  value, id or database message. Unverified callers also learn nothing about environment setup.
+- Explicit policy (`ENTITY_POLICY`, fields from `shared/schema.ts`, source-declared, not live-verified): `properties`,
+  `units`, `leases`, `owners`. Contact details, vendor ids, balances and audit columns are not readable. `select=*` means the
+  allow-list. Filters on non-allow-listed columns, unknown operators (formerly silently ignored, i.e. over-returning),
+  repeated keys and bad limits are refused. Rows are capped at 500.
+- Scope: rows are limited with `IN (scope ids)` on `properties.id` / `units.property_id` / `leases.property_id` /
+  `owners.id`. `tenants` has no column linking a row to an owner or property, so it is unavailable rather than inferred
+  through leases. An explicit out-of-scope filter is 403; an out-of-scope or missing id is an identical 404.
+- **Identity is not bound.** This repository has no verified-actor mechanism: the only server authorization is the shared
+  `ADMIN_SYNC_TOKEN` on sync routes, and the Control Plane consumer (#106) was retired. No login, user store, role fallback
+  or identity contract was added. The router takes an injected `ReadActorResolver`; production uses `noVerifiedActor`, so
+  every request is denied until Control Plane supplies a resolver that returns the actor's permitted owner/property ids.
+  Legitimate scoped reads are proven with an isolated test resolver only.
+- Consumer impact: `Entities.*` in `src/lib/ecc-api.ts` (DataHub) will receive 401 until the resolver is bound.
+- Not covered: `/api/rpc/*` (`server/routes/rpc.ts`) and the portfolio handlers in `server/index.ts` use the same privileged
+  client without an actor check (the latter is another lane's). Source-only evidence; no live database, RLS or grants checked.
+- Rollback: revert this commit. No schema, grant, migration or environment change.
+
+## Data Hub audit repairs - 2026-10-17
+
+Data Hub entity reads retain the existing /api/entities/<entity> URL family and
+request fields, including order=id.desc and historical lease selections. PR146
+still needs caller compatibility review; this UI repair does not declare its
+field allow-list or paging contract accepted. No backend binding is enabled.
+The Data Hub hooks now use the existing sessionFetchJSON and session epoch in
+query keys. A late previous-session result is rejected; HTTP denials retain
+status for the existing global cache purge. Raw arrays and the existing data /
+results array envelopes are accepted; malformed successes fail as contract
+errors instead of empty records. No total cardinality is inferred.
+
+The mounted Data Hub transfer initiation/approval/authorization/execution and
+transfer-context controls are removed, matching the existing transfer-route
+containment. Their workflow remains incomplete and must be restored with
+verified actor scope, contract, confirmation and audit/idempotency proof.
+No backend endpoint, database object, role, grant or data is changed. The
+original UI remains in Git history. Owner search remains a read-only request;
+its legacy source handler returns 410 and this is surfaced as failure.
+
+Integration health now explicitly fetches its existing health/config endpoints
+instead of relying on a missing default query function. Pending/error reads
+show a notice before health badges or sync controls can render. Browser build
+configuration uses import.meta.env rather than Node process.env. The legacy
+success-path token/sync interface is NOT accepted as Control Plane integration;
+that remains separate unfinished work. These changes prove source behavior,
+not live backend authorization or production readiness. Roll back the PR to
+restore the prior consumer implementation; no database rollback applies.
+
+## C3 boundary review and consumer alignment - 2026-10-17
+
+PR146 corrected head5f8bff205b975ec7389a8752456dbc0ccc77b4d2 remains a
+source-only proposal, not an activated reader. Its query contract accepts one
+allow-listed column.asc/desc order with an id tiebreak, and digits-only limit /
+offset. The cap remains500; returned rows are distinct from exact totalCount.
+Metadata includes returned/totalCount/limit/offset/truncated/nextOffset. Invalid
+DB success shapes, missing/non-integer exact counts, unselected returned columns
+or page/count inconsistencies fail with a generic read error. No source consumer
+used the old totalCount definition. Live PostgREST/RLS/grants remain unverified.
+
+Data Hub now requests the compatible source-declared lease projection:
+id,property_id,unit_id,tenant_id,status,start_date,end_date,rent. It no longer
+requests vendor doorloop_id or unresolved primary_tenant_id/rent_cents. This
+explorer shows raw source fields; it does not translate rent into cents or claim
+a live schema. The conflicting historical money/tenant columns remain a live
+schema-verification prerequisite. No policy field was added to silence a denial.
+
+The shared portfolio collection adapter now rejects scalar/null/array rows before
+page mapping. A malformed successful envelope cannot crash the mounted page or
+become a verified empty collection. This does not validate all row fields or
+resolve portfolio response drift and completeness. Array and data-array
+envelopes remain accepted for the existing consumers. No endpoint or backend
+binding changes. A combined local browser review reproduced the old [null]
+crash; the source adapter fix is separately tested from Grok's page mappings.
+
+RPC findings remain activation blockers: caller-controlled privileged POST
+forwarding, unauthenticated diagnostics/raw DB errors, unscoped card reads and
+vendor-ID fallback lookup. The next bounded containment slice may remove unused
+generic forwarding/diagnostic surfaces; it must not claim the remaining card or
+portfolio reads authorized. No RPC or Azure Function was changed here.
+
+## Live catalog read reconciliation -2026-10-17
+
+The historical ECC store is corroborated as project ssexobxvtuxwnblwplzh through the current DoorLoop pipeline's explicit host reference and historical portfolio startup evidence. Read-only information_schema queries confirmed live projections for properties/units/leases/owners. ENTITY_POLICY now excludes nonexistent property and unit aliases and uses leases.rent_cents (integer); leases.rent/start/end do not exist. No money is converted in this explorer. Shared ORM declarations remain stale and are not migration authority.
+
+This supersedes the earlier source-only lease field decision above. The paired Data Hub consumer must request rent_cents before connection. Missing field is not zero and raw count/paging remain distinct from completeness. Source read boundary default noVerifiedActor is unchanged. The backend owner/deployment collision, stale ingestion, Control Plane registration/session and record grants remain blockers; no live reader/authentication is activated. See docs/recovery/LIVE_SCHEMA_READ_20261017.md. No schema/grant/data/environment/credential changes.
+
+## Live catalog consumer correction -2026-10-17
+
+Read-only information_schema on the corroborated historical ECC store confirms leases.rent_cents integer and no leases.rent column. This supersedes the prior source-only request decision above. Data Hub now selects id,property_id,unit_id,tenant_id,status,start_date,end_date,rent_cents, matching the corrected PR146 allow-list. This is a raw explorer, with no inferred currency conversion or active backend binding. ORM schema remains stale. Existing privacy/actor/scope constraints stay unchanged; source presence never grants access. No live data/schema/grant/env changes. Protected API identity and current data completeness remain unresolved.
+
+## Protected connection and app navigation -2026-10-17
+
+PR155 adds an app-owned same-origin transport and standalone production web process. The read path is browser -> ECC boundary -> fresh centrally attested application session -> exact reviewed API route at an explicitly configured backend origin. No database driver or direct browser Supabase access is added. Collection/dashboard queries and arbitrary RPC/mutations are refused. Central authorization does not itself establish property membership; upstream record scope and deployment identity remain acceptance blockers.
+
+Central sign-in uses the existing Control Plane federation contract, sealed PKCE callback context and Secure/HttpOnly cookies. Application logout suspends reads before cache purge and central revocation; token-free BroadcastChannel/storage notices invalidate other tabs. No positive authorization is persisted in browser storage. Existing query/session epochs are reused; no new cache or persistence model exists.
+
+After Dion approved read-only Control Plane metadata verification, the canonical project srzwamukysmhiaaviwiv confirmed active ECC registration and the active protected owner. ECC has zero registered clients and no owner ECC-specific entitlement/developer-grant rows. The verified staging session route returns503, so no federation binding is claimed. No person, client, grant, session, database object or credential was created or modified. Historical ECC catalog evidence remains in LIVE_SCHEMA_READ_20261017.md; existing stale data and broad-grant findings are not repaired by this transport.
+
+Protected GET /api/workspace/connections returns four fixed application keys and nullable server-configured navigation URLs. Field App/Construction Manager/Deal Room list navigation does not join operating records or grant receiving-app access. Property Intelligence stays unavailable until an executable ECC consumer profile and durable identity mapping exist. No numeric-ID/address-based cross-app join, shared credential, data copy or automatic dispatch is introduced. Added/retired database objects:0/0. No measured database performance claim. See ECC_PROTECTED_CONNECTION_20261017.md for source/browser evidence and activation dependencies.

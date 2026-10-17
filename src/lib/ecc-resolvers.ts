@@ -47,10 +47,12 @@ export function useOwnerCard(id: number) {
  * (what some handlers emit). Accept both; anything else is a contract error, not an empty list.
  */
 export function toRows(raw: unknown): any[] {
-  if (Array.isArray(raw)) return raw;
-  const inner = (raw as { data?: unknown } | null)?.data;
-  if (Array.isArray(inner)) return inner;
-  throw new Error("Unexpected collection response shape");
+  const inner = raw && typeof raw === "object" ? (raw as { data?: unknown }).data : undefined;
+  const rows = Array.isArray(raw) ? raw : inner;
+  if (!Array.isArray(rows) || rows.some(row => !row || typeof row !== "object" || Array.isArray(row))) {
+    throw new ContractError("Unexpected collection response shape");
+  }
+  return rows;
 }
 
 export function useAllProperties() {

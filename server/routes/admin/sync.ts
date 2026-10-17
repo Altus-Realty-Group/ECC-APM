@@ -315,77 +315,9 @@ sync.post("/dlq/requeue", async (req, res) => {
     return res.status(401).json({ error: 'unauthorized' });
   }
 
-  const { id } = req.body;
-  const itemIndex = dlq.findIndex(item => item.id === id);
-  
-  if (itemIndex === -1) {
-    return res.status(404).json({ error: 'DLQ item not found' });
-  }
-
-  const item = dlq[itemIndex];
-  
-  // Remove from DLQ and attempt reprocess
-  dlq.splice(itemIndex, 1);
-  
-  emitLogEvent({
-    type: 'info',
-    message: `Requeuing ${item.entity} item ${item.id}`,
-  });
-
-  // Attempt to reprocess the item with retry logic
-  const maxRetries = 3;
-  let lastError: Error | null = null;
-  
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      // Implement actual reprocessing logic for the specific entity
-      await reprocessSingleItem(item.entity, item.payload);
-      
-      emitLogEvent({
-        type: 'info',
-        message: `Successfully requeued ${item.entity} item ${item.id} on attempt ${attempt}`,
-      });
-      
-      // Success - break out of retry loop
-      lastError = null;
-      break;
-      
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      
-      emitLogEvent({
-        type: 'warn',
-        message: `Requeue attempt ${attempt}/${maxRetries} failed for ${item.entity} item ${item.id}: ${lastError.message}`,
-      });
-      
-      // Wait before retrying (exponential backoff)
-      if (attempt < maxRetries) {
-        const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-  }
-  
-  // If all retries failed, put it back in DLQ
-  if (lastError) {
-    dlq.push({ 
-      ...item, 
-      retryCount: item.retryCount + 1, 
-      timestamp: Date.now(),
-      error: lastError.message 
-    });
-    
-    emitLogEvent({
-      type: 'error',
-      message: `Failed to requeue ${item.entity} item ${item.id} after ${maxRetries} attempts: ${lastError.message}`,
-    });
-    
-    return res.status(500).json({ ok: false, error: 'Requeue failed after retries' });
-  }
-
-  await logAdminAction(req, 'DLQ_REQUEUE', { id, entity: item.entity });
-  
-  res.json({ ok: true, message: 'Item requeued successfully' });
+  // No failed item is removed and no provider request/audit-success is emitted.
+  // A real item-specific persisted replay must replace this unavailable boundary.
+  return res.status(503).json({ ok: false, error: "Requeue is not available." });
 });
 
 // Background sync execution
@@ -562,32 +494,6 @@ async function runSyncInBackground(
     });
 
     await sendTeamsAlert(`🚨 DoorLoop sync fatal error: ${errorMsg.slice(0, 200)}`);
-  }
-}
-
-// Helper to reprocess a single DLQ item
-async function reprocessSingleItem(entity: string, payload: any) {
-  const { runId, mode, since } = payload;
-  
-  // For now, simulate reprocessing by fetching a small sample
-  // In a real implementation, this would process the specific failed item
-  try {
-    const response = await dlFetchFull(`/${entity}`, {
-      method: "GET",
-      query: { page_size: 1 }
-    });
-    
-    if (!response.data) {
-      throw new Error(`No data returned for ${entity}`);
-    }
-    
-    // Simulate processing the item (in real implementation, would insert/update to DB)
-    console.log(`[dlq] Reprocessed ${entity} item successfully`);
-    
-    return true;
-  } catch (error) {
-    console.error(`[dlq] Reprocessing failed for ${entity}:`, error);
-    throw error;
   }
 }
 

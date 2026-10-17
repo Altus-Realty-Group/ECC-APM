@@ -95,7 +95,7 @@ function TickerCard({
 
 export function KpiTicker() {
   const { data, kpiData, isLoading, occupancyChartData, collectionsSparklineData } = useDashboardData();
-  // useDashboardData defaults missing data to zeros; show an em dash instead of a fake 0.
+  // Unknown source metrics stay unavailable; confirmed zero remains zero.
   const missing = isLoading || !data;
   const rentReady = kpiData.rentReady;
 

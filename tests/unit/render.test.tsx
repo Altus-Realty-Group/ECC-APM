@@ -55,7 +55,7 @@ test("rendering at different locations is stable (hook order does not depend on 
 });
 
 test("every nav destination appears exactly once in the expanded rail markup", () => {
-  const all = NAV_SECTIONS.filter((s) => s.children).map((s) => s.children!.map((c) => c.path)).flat();
+  const all = NAV_SECTIONS.filter((s) => s.children).map((s) => s.children!.filter((c) => !c.unavailable).map((c) => c.path)).flat();
   const html = at("/", <Sidebar />);
   // Only the active group is expanded; every direct link is always present.
   for (const s of NAV_SECTIONS.filter((x) => x.path)) assert.match(html, new RegExp(`href="${s.path}"`));
@@ -286,9 +286,8 @@ test("properties list: cached rows, averages and counts are NOT rendered after a
   const html = renderIn(seeded(["portfolio", "properties"], propRows, denied403()), "/portfolio/properties", <PropertiesPage />);
   assert.match(html, /state-denied/);
   assert.doesNotMatch(html, /Elm Court|1 Elm St|Indy|90%|card\/property\/12/);
-  assert.match(html, /Average occupancy not reported/);
-  assert.match(html, /0 loaded/);
-  assert.match(html, /Selected IDs: none/);
+  assert.doesNotMatch(html, /Average occupancy not reported|\d+ loaded|Markets:|visible rows?|Selected IDs:/);
+  assert.match(html, /Selection review is unavailable/);
 });
 
 test("units list: cached rows are NOT rendered after a denied refresh", () => {
@@ -330,5 +329,18 @@ test("owner transfer recovery pages add no second <main> landmark and no links o
     assert.doesNotMatch(html, /<(?:a|form|textarea)\b|contenteditable/i, `${path} exposes an interactive element`);
     assert.match(html, /data-testid="owner-transfer-unavailable"/);
     assert.match(html, /<h1>Owner transfers<\/h1>/);
+  }
+});
+
+test("unavailable destinations remain visible without clickable routes", () => {
+  for (const path of ["/reports/saved", "/data"]) {
+    const html = at(path, <Sidebar />);
+    const section = NAV_SECTIONS.find((s) => s.title === (path === "/data" ? "Data Hub" : "Reports"))!;
+    for (const child of section.children!.filter((c) => c.unavailable)) {
+      assert.ok(!anchor(html, child.path), child.path);
+      assert.ok(html.includes(child.title), child.title);
+    }
+    assert.match(html, /aria-disabled="true"/);
+    assert.match(html, /Not available/);
   }
 });

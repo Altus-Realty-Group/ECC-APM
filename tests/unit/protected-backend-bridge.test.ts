@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { createHash } from "node:crypto";
-import { bridgeConfig, allowedRead, protectedBackendMiddleware } from "../../scripts/protected-backend-bridge.mjs";
+import { bridgeConfig, allowedRead, protectedBackendMiddleware, workspaceConnections } from "../../scripts/protected-backend-bridge.mjs";
 
 const person = "10000000-0000-4000-8000-000000000001", account = "20000000-0000-4000-8000-000000000001";
 const env = { ECC_BACKEND_ORIGIN: "https://records.example.test", ECC_CONTROL_PLANE_ORIGIN: "https://control.example.test", ECC_PUBLIC_ORIGIN: "https://ecc.example.test",
@@ -21,6 +21,29 @@ async function withServer(options: Record<string, unknown>, action: (base: strin
   finally { await new Promise<void>(resolve => server.close(() => resolve())); }
 }
 const auth = { cookie: "__Host-ecc-session=isolated-session" };
+
+test('operational navigation is server-configured, session-gated and never sent to the business backend', async () => {
+  const configured = { ...env, ECC_FIELD_APP_ORIGIN: 'https://field.example.test', ECC_CONSTRUCTION_MANAGER_ORIGIN: 'https://construction.example.test', ECC_DEAL_ROOM_ORIGIN: 'https://deal.example.test' };
+  const expected = { applications: [
+    { key: 'field-app', navigationUrl: 'https://field.example.test/properties' },
+    { key: 'construction-manager', navigationUrl: 'https://construction.example.test/projects' },
+    { key: 'deal-room', navigationUrl: 'https://deal.example.test/' },
+    { key: 'property-intelligence', navigationUrl: null },
+  ] };
+  assert.deepEqual(workspaceConnections(configured), expected);
+  for (const target of [undefined, 'http://field.example.test', 'https://field.example.test/path', 'https://u:p@field.example.test', 'https://localhost', 'https://127.0.0.1', 'https://field.internal', 'https://field.example.test:8443']) {
+    assert.equal(workspaceConnections({ ECC_FIELD_APP_ORIGIN: target }).applications[0].navigationUrl, null);
+  }
+  let calls = 0;
+  await withServer({ env: configured, now: () => instant, fetcher: async (url: string) => { calls++; assert.match(url, /\/session\/current$/); return json(envelope(identity())); } }, async base => {
+    assert.equal((await fetch(base + '/api/workspace/connections')).status, 401); assert.equal(calls, 0);
+    const response = await fetch(base + '/api/workspace/connections', { headers: auth });
+    assert.equal(response.status, 200); assert.equal(response.headers.get('cache-control'), 'no-store'); assert.deepEqual(await response.json(), expected);
+    assert.equal((await fetch(base + '/api/workspace/connections?origin=https://other.example.test', { headers: auth })).status, 404);
+    assert.equal((await fetch(base + '/api/workspace/connections', { headers: auth, method: 'POST' })).status, 405);
+    assert.equal(calls, 2);
+  });
+});
 
 test("bridge requires every explicit server binding; no insecure target or local role fallback", () => {
   assert.ok(bridgeConfig(env));

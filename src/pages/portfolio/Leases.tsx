@@ -1,95 +1,58 @@
-import * as React from "react";
+import React, { useMemo, useState } from "react";
 import DataTable, { type DataColumn } from "../../components/DataTable";
-import { useCollection } from "../../features/data/useCollection";
-import { money, shortDate } from "../../utils/format";
-import { indexBy } from "../../utils/dict";
+import StateNotice from "@/components/ui/StateNotice";
+import { accessGuard, useResetOnAccessLoss } from "@/lib/useAccessGuard";
+import { useAllLeases } from "../../lib/ecc-resolvers";
+import { BLANK } from "@/lib/format";
+import { knownRentDollars, summarizeActiveRent, safeCardHref, joinTenants, reportedStatus } from "./portfolioTruth";
 
-type Lease = {
-  id: string | number;
-  property_id?: string | number;
-  unit_id?: string | number;
-  primary_tenant_id?: string | number;
-  tenant_id?: string | number;
-  rent?: number;
-  rent_cents?: number;
-  start_date?: string;
-  end_date?: string;
-  status?: string;
-};
-
-type Property = { id: string | number; name?: string };
-type Tenant = {
-  id: string | number;
-  display_name?: string;
-  full_name?: string;
-  first_name?: string;
-  last_name?: string;
-};
-
-type Row = {
+type LeaseRow = {
+  id: string;
   tenants: string;
   property: string;
-  rent: number;
+  rent: number | null;
   start: string;
   end: string;
   status: string;
 };
 
+function moneyOrBlank(rent: number | null): string {
+  if (rent === null || !Number.isFinite(rent) || rent < 0) return BLANK;
+  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(rent);
+}
+
 export default function LeasesPage() {
-  // Pull raw data
-  const leases = useCollection<Lease>("leases");
-  const props = useCollection<Property>("properties");
-  const tenants = useCollection<Tenant>("tenants");
+  const [q, setQ] = useState("");
+  const query = useAllLeases();
+  const { isLoading, isFetching, error, refetch } = query;
+  const { data, denied } = accessGuard(query);
+  useResetOnAccessLoss(denied, () => setQ(""));
 
-  // Fast lookup maps
-  const pById = React.useMemo(() => indexBy(props.data, "id"), [props.data]);
-  const tById = React.useMemo(() => indexBy(tenants.data, "id"), [tenants.data]);
-
-  // Normalize rows the table needs (defensive against schema drift)
-  const rows: Row[] = React.useMemo(() => {
-    return leases.data.map((l) => {
-      const prop = (pById as any)[l.property_id]?.name || "Unknown property";
-      const t1 = (tById as any)[l.primary_tenant_id];
-      const t2 = (tById as any)[l.tenant_id];
-
-      const tn =
-        t1?.display_name ||
-        t1?.full_name ||
-        [t1?.first_name, t1?.last_name].filter(Boolean).join(" ") ||
-        t2?.display_name ||
-        t2?.full_name ||
-        [t2?.first_name, t2?.last_name].filter(Boolean).join(" ") ||
-        "No tenant assigned";
-
-      const rent =
-        typeof l.rent === "number"
-          ? l.rent
-          : typeof l.rent_cents === "number"
-          ? Math.round(l.rent_cents) / 100
-          : 0;
-
+  const rows = useMemo<LeaseRow[]>(() => {
+    if (!data) return [];
+    return data.map((l: any) => {
+      const rent = knownRentDollars(l);
+      const status = reportedStatus(l.status) ?? BLANK;
+      const tenants = joinTenants(l.tenants) || BLANK;
       return {
-        tenants: tn,
-        property: prop,
+        id: l.id != null ? String(l.id) : "",
+        tenants,
+        property: l.propertyName ?? BLANK,
         rent,
-        start: l.start_date || "",
-        end: l.end_date || "",
-        status: String(l.status || "").toLowerCase() || "unknown",
+        start: l.start ?? BLANK,
+        end: l.end ?? BLANK,
+        status,
       };
+    }).filter((r) => {
+      if (!q.trim()) return true;
+      const needle = q.trim().toLowerCase();
+      return [r.tenants, r.property, r.status, r.id].join(" ").toLowerCase().includes(needle);
     });
-  }, [leases.data, pById, tById]);
+  }, [data, q]);
 
-  // KPIs
-  const total = rows.length;
-  const active = rows.filter((r) => r.status === "active");
-  const ended = rows.filter((r) => r.status === "ended");
-  const mrr = active.reduce((s, r) => s + (Number.isFinite(Number(r.rent)) ? Number(r.rent) : 0), 0);
-  const avg = rows.length
-    ? rows.reduce((s, r) => s + (Number.isFinite(Number(r.rent)) ? Number(r.rent) : 0), 0) / rows.length
-    : 0;
+  const summary = summarizeActiveRent(rows);
 
-  // Columns
-  const columns: DataColumn<Row>[] = [
+  const columns: DataColumn<LeaseRow>[] = [
     { key: "tenants", header: "TENANT(S)" },
     { key: "property", header: "PROPERTY" },
     {
@@ -97,38 +60,86 @@ export default function LeasesPage() {
       header: "RENT",
       align: "right",
       type: "number",
-      render: (_v, r) => money(r.rent),
+      render: (_v, r) => moneyOrBlank(r.rent),
     },
-    { key: "start", header: "START", type: "date", render: (_v, r) => shortDate(r.start) },
-    { key: "end", header: "END", type: "date", render: (_v, r) => shortDate(r.end) },
+    { key: "start", header: "START" },
+    { key: "end", header: "END" },
     { key: "status", header: "STATUS" },
   ];
 
+  if (isLoading || (isFetching && !data)) {
+    return <StateNotice kind="loading" title="Loading leases…" />;
+  }
+
+  if (denied || error) {
+    return (
+      <StateNotice
+        kind={denied ? "denied" : "error"}
+        title={denied ? "You don't have access to leases." : "Leases could not be loaded."}
+        detail={denied ? "No lease records or revenue figures are shown." : "No figures are shown because the read failed. Try again."}
+        onRetry={() => { void refetch(); }}
+        retrying={isFetching}
+      />
+    );
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <StateNotice
+        kind="empty"
+        title="No leases are available yet."
+        detail="No revenue figures are shown. Counts and rent below would be loaded-result statistics only."
+        onRetry={() => { void refetch(); }}
+        retrying={isFetching}
+      />
+    );
+  }
+
+  const mrrLabel = summary.total === null
+    ? "Loaded MRR not reported"
+    : summary.partial
+      ? `Loaded MRR (partial, ${summary.knownCount}/${summary.activeCount} active loaded)`
+      : "Loaded MRR";
+
+  const mrrValue = summary.total === null ? BLANK : moneyOrBlank(summary.total);
+
   return (
-    <div>
-      {/* KPI strip (styled by .ecc-kpis in table.css) */}
-      <div className="ecc-kpis">
+    <div className="ecc-page">
+      <div className="ecc-kpis" data-testid="leases-kpis">
         <div className="ecc-kpi">
-          <div className="ecc-kpi-n">{total.toLocaleString()}</div>
-          <div className="ecc-kpi-l">LEASES</div>
+          <div className="ecc-kpi-n">{rows.length.toLocaleString()}</div>
+          <div className="ecc-kpi-l">LOADED LEASES</div>
         </div>
         <div className="ecc-kpi">
-          <div className="ecc-kpi-n">{active.length.toLocaleString()}</div>
-          <div className="ecc-kpi-l">ACTIVE</div>
+          <div className="ecc-kpi-n">{summary.activeCount.toLocaleString()}</div>
+          <div className="ecc-kpi-l">LOADED ACTIVE</div>
         </div>
         <div className="ecc-kpi">
-          <div className="ecc-kpi-n">{ended.length.toLocaleString()}</div>
-          <div className="ecc-kpi-l">ENDED</div>
-        </div>
-        <div className="ecc-kpi">
-          <div className="ecc-kpi-n">{money(mrr)}</div>
-          <div className="ecc-kpi-l">MRR</div>
+          <div className="ecc-kpi-n">{mrrValue}</div>
+          <div className="ecc-kpi-l">{mrrLabel}</div>
         </div>
       </div>
-
-      <DataTable rows={rows} columns={columns} />
+      {summary.partial ? (
+        <StateNotice
+          kind="partial"
+          title={
+            summary.unclassifiedCount > 0
+              ? "Loaded rent summary is uncertain."
+              : "Some loaded active lease rents were not reported."
+          }
+          detail={
+            summary.unclassifiedCount > 0
+              ? `${summary.unclassifiedCount} loaded lease(s) have missing or unclassified status. They are not assumed active or inactive. The loaded MRR includes only explicitly active leases with a reported non-negative rent. Missing or invalid rents are not treated as zero. These are loaded-result statistics, not proven full-portfolio totals.`
+              : "The loaded MRR includes only leases with a reported non-negative rent. Missing or invalid rents are not treated as zero. These are loaded-result statistics, not proven full-portfolio totals."
+          }
+        />
+      ) : null}
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowHref={(r) => safeCardHref("lease", r.id)}
+        getRowId={(r) => r.id || "blank"}
+      />
     </div>
   );
 }
-
-

@@ -25,13 +25,17 @@ All names below are server-only; no values belong in source, browser bundles, PR
 | ECC_ENVIRONMENT | Explicit development/test/preview/staging/production |
 | ECC_SESSION_SEAL_KEY | Independently provisioned 32-byte hex key |
 
-Missing or invalid configuration remains 503. No legacy host or credential fallback exists. Middleware is mounted in Vite development and preview; a production host must prove it runs the same boundary before deployment acceptance. Do not serve the frontend statically with a separate unprotected API route.
+Missing or invalid configuration remains 503. No legacy host or credential fallback exists. Middleware is mounted in Vite development/preview and the standalone production web host (`npm run build` then `npm run start:production`). The production host serves API requests before SPA fallback, rejects static path/symlink escapes and never starts the legacy API or vendor jobs. Build identity is emitted from the checkout at build time; `/health/live` reports that identity, dirty/unknown status and configuration presence, not operating readiness. Deployed process/source alignment still requires runtime proof. Do not serve the frontend statically with a separate unprotected API route.
+
+Optional server-only `ECC_FIELD_APP_ORIGIN`, `ECC_CONSTRUCTION_MANAGER_ORIGIN` and `ECC_DEAL_ROOM_ORIGIN` supply fixed application-list navigation through the freshly authorized `GET /api/workspace/connections`. Invalid/missing targets stay unavailable. The browser supplies no target. Property Intelligence remains unavailable because the producer has no executable ECC consumer profile. Navigation does not establish record identity, data integration or receipt delivery.
 
 ## Database architecture and remaining blockers
 
 No direct browser Supabase connection is introduced. Read-only catalog evidence identifies historical ECC store AltusCommandCenter `ssexobxvtuxwnblwplzh`; it does not establish current freshness or actor membership. Existing source projections are separately corrected in PR146/148. Old anonymous generic collection handlers are not an activation target. Broad grants/RLS and ingestion freshness require separate authorized remediation.
 
 Automatic approval review blocked read-only metadata verification in the separate Control Plane database `srzwamukysmhiaaviwiv` because its relationship and ownership were not established by user-authored instructions. No alternate query or bypass was attempted. Explicit approval is needed to inspect ECC registration and the existing owner's access metadata there. No credentials or database writes are needed for that verification.
+
+Superseding evidence after Dion's explicit2026-10-17 approval: read-only metadata verification succeeded. ECC registry entry is active (`application_key=ecc`, billing mode none), and the protected owner account/Person is active and matches Dion. There are zero registered ECC clients, owner ECC entitlements and owner ECC developer grants. No registration, grant or identity was created or changed. These observations do not independently decide the central protected-owner access policy. Current staging `/health/live` reports `Altus-Realty-Group/altus-control-plane` at `d2b9126f896c447a56bfe6cbe3e5923fcf3a9afa`; `/api/control/v1/session/current` returns503 `SESSION_FEDERATION_UNAVAILABLE`. `/health/ready` returns503 with admin_mutations/invitations/developer_mode/deployed_acceptance remaining. Thus the earlier approval blocker is resolved; central federation readiness and client registration remain actual service dependencies.
 
 ## Verification
 
@@ -51,3 +55,7 @@ Independent browser verification against source 9faae5bd7d95a8194a7dc664edff966f
 Verify, CodeQL and proof-pack workflows succeeded at the exact published heads for PR146–154. PR155 stays draft. No main merge or deployment has occurred. No paid external Claude/Grok jobs were launched; no direct execution channel was available. Internal review/browser workers completed their bounded assignments. Subscription/compute marginal cost was not metered here; no claim of zero execution cost is made.
 
 Activation remains blocked on verified Control Plane registration, upstream deployment identity/protection, fresh real-data journeys and explicit release approval. No main merge or deployment is performed by this slice.
+
+## Production host follow-up
+
+The standalone host/configured-navigation follow-up passes typecheck, build and170 unit tests on its isolated branch. Actual HTTP tests cover SPA reload, immutable hashed assets, missing files, HEAD, mutation refusal, API-before-SPA behavior, encoded paths, dotfiles and symlink escape. Build identity cannot claim a known clean revision when Git evidence is absent or dirty. Configured workspace navigation requires current central attestation and makes no backend business request. Independent targeted source review passed15 checks with no identified credential leak or authentication bypass. No runtime configuration or deployment occurred.

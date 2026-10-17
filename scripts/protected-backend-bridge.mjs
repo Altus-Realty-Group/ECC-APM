@@ -98,6 +98,24 @@ export function allowedRead(url) {
   return false;
 }
 
+export function workspaceConnections(env) {
+  const navigation = (name, path) => {
+    try {
+      if (!env[name]) return null;
+      const target = new URL(origin(env[name]));
+      if (!target.hostname.includes('.') || /(^localhost$|\.(local|internal)$|^[\d.]+$|:)/i.test(target.hostname) || target.port) return null;
+      return target.origin + path;
+    } catch { return null; }
+  };
+  return { applications: [
+    { key: 'field-app', navigationUrl: navigation('ECC_FIELD_APP_ORIGIN', '/properties') },
+    { key: 'construction-manager', navigationUrl: navigation('ECC_CONSTRUCTION_MANAGER_ORIGIN', '/projects') },
+    { key: 'deal-room', navigationUrl: navigation('ECC_DEAL_ROOM_ORIGIN', '/') },
+    // No executable ECC consumer profile exists in the current PI producer.
+    { key: 'property-intelligence', navigationUrl: null },
+  ] };
+}
+
 export function protectedBackendMiddleware({ env = process.env, fetcher = fetch, now = Date.now } = {}) {
   const config = bridgeConfig(env);
   const attestHeaders = config ? { 'X-Control-Client-Id': config.client, 'X-Control-Client-Assertion': config.assertion, Accept: 'application/json' } : {};
@@ -186,6 +204,10 @@ export function protectedBackendMiddleware({ env = process.env, fetcher = fetch,
         return reply(res, 403, { error: 'NOT_PERMITTED', message: 'Access could not be confirmed.' });
       }
       res.setHeader('X-ECC-Review-Mode', identity.decisionMode === 'developer_bypass' ? 'read-only' : 'canonical');
+      if (url.pathname === '/api/workspace/connections' && !url.search) {
+        if (method === 'HEAD') { res.writeHead(200, jsonHeaders); return res.end(); }
+        return reply(res, 200, workspaceConnections(env));
+      }
       if (!allowedRead(url)) return reply(res, 404, { error: 'NOT_FOUND', message: 'This read is not available.' });
       const response = await fetcher(config.api + url.pathname + url.search, { method: 'GET', headers: { Accept: 'application/json' },
         redirect: 'error', signal: AbortSignal.timeout(10000) });

@@ -1,34 +1,32 @@
-# ECC PM completion ledger
+# ECC delivery ledger
 
-Interim PM: Claude (appointed by Dion, 2026-10-17). Repository: Altus-Realty-Group/ECC-APM (ID 1058195656). Codex is advisory only.
-Verified main: `c0939cf39c4e5f67b52b2d2e6b51f79b2d62451e` (merged PR165). Backend `AltusDD/empirecommandcenter-backend` (ID 1044939166) main last reported `5a571f3b`; not refreshed (no access).
-Standing holds (unchanged): no merge, deploy, live DB write, or cloud/access change without Dion's specific authorization.
+Execution owner: Codex, restored by Dion on 2026-10-17. Claude is no longer interim PM. No worker/watch is claimed active without a current receipt.
 
-## Defects and workstreams
+Verified main: c0939cf39c4e5f67b52b2d2e6b51f79b2d62451e, through PR165. Source readiness and deployed acceptance are separate. Existing holds remain: no main merge, deployment, live write or cloud/access change without specific authorization.
 
-| ID | Defect / goal | Owner | Exact head | Proof so far | Blocker | Next action |
-| --- | --- | --- | --- | --- | --- | --- |
-| G7/G8 | Scheduler panel shows cached/estimated values as truth | Claude (acceptance review) | PR166 head `42273dfcb2fceadbed440101a9abc3424258a2d9` (AltusDD, ready for review) | Reviewer-run on this head: typecheck clean; `npm test` 315/315; `test:dependencies` 16/16; `npm run build` passes; CI `verify` and `proof-pack` success, CodeQL pending at review time; date validator rejects Feb 31, Apr 31, hour 24, bad offsets, non-leap Feb 29 and accepts leap days. Author reports Chromium proof at 1280/390 (not re-run by reviewer). PM's own local fix commit `4647a9e5` abandoned as redundant | Merge hold in force; CodeQL result | Accept source once CodeQL green; merge needs Dion's approval |
-| C7 | Owner-token validation for existing Properties read (disabled by default) | Claude | n/a | none | Backend repo not attached to this session | Dion access step below; meanwhile no backend writes |
-| ACCESS | Protected sign-in: Entra app exists, no backend validation, localhost-only redirects | Claude (plan), Dion (cloud) | n/a | A5 report only | Audience, delegated scope and actor-to-record policy unverified | Do not accept ID tokens as API tokens; no new login |
-| VS1 | Protected real-data vertical: sign-in, property list, detail, refresh, failure recovery, session isolation | Claude | n/a | PR165 source only; deployed identity unresolved | Depends on ACCESS and C7; data freshness unproven | Prove list/detail/refresh/failure/session-replacement in mounted tests first |
-| G9 | Route truth audit | cancelled | n/a | `tests/unit/navigation.test.ts` already fails on nav links to missing routes and on unbuilt destinations being routed; 37 of 58 ledger paths are intentional unavailable inventory (`PLANNED_DESTINATIONS`) | none | none; ledger CSV statuses are from the stale published audit |
-| PR155/156 | Control Plane host/session bridge stack | parked | `54e42095`, `51ab788e` | none | Control Plane parked | Do not merge or activate |
+| Work | Current evidence | Remaining gate / next action |
+| --- | --- | --- |
+| Scheduler PR166 | Corrected head42273dfcb2fceadbed440101a9abc3424258a2d9.315 unit tests,16 dependency checks,typecheck/build pass. Actual-page Chromium153 at1280/390 passes background refresh, stored next-run display, late old credential, cached503/403, health failure and session replacement. No page errors/writes/overflow. Tested tree0767e0aa149839be9d58bca24420b27babc21f49 equals published tree. | Ready for review; exact-head hosted checks and existing merge approval remain. No deployment acceptance. |
+| Claude's local Scheduler corrections | Reported4647a9e5b70eeb849e8a7f1406028f20c0f54a8e is not available from GitHub. Its323-test claim is historical reported evidence, not evidence for current head. | Reimplemented and independently tested on existingPR166; no permission to push or further Claude handoff is needed. |
+| Backend C7 access | Existing backend source is readable through this session's GitHub connector. Its identity/base match the prior record. Claude's connector limitation is not a repository transfer or missing-source blocker. | No Claude installation change is needed for this execution path. |
+| Backend C7 protection | A default-off bounded owner Properties reader is prepared in the existing owning backend's draftPR. Ten offline tests use actual signatures and the actual handler; all uncontrolled network calls prohibited. Other historical handlers remain outside the slice. | Held: actor-to-record activation, existing-app token issuance, full runtime protection/identity and frontend consumer contract still unverified. Existing main push workflow deploys staging, so backend merge requires explicit deployment-aware review. No cloud/config/data changes. |
+| Protected real-data vertical workflow | Frontend still has no accepted owner sign-in transport/backend binding. Existing A5 evidence establishes an application, not a usable deployed session. | Prepare/verify the existing-app frontend/API client contract and target-specific rollout under explicit authority. Preserve network containment. Then prove list/detail/refresh/denial/session replacement against current real records. |
+| Feature recovery / former G9 | Source inventory currently has17 linked destinations and41 planned/unavailable destinations. Navigation unit tests verify route wiring and prevent routing known stubs; they do not verify completed business workflows. | OPEN. Do not cancel feature recovery or accept the41 unavailable destinations as completed. Reconcile the historical workflow ledger against current source/runtime; current-data access is the primary dependency. |
+| PR155/156 | Parked Control Plane-dependent bridge/Connections stack. | Do not merge/activate as the assumed release path. |
 
-## Delegation state labels (Grok)
+## Findings closed in the Scheduler source slice
 
-| Item | drafted | delivered | acknowledged | active | returned | accepted |
-| --- | --- | --- | --- | --- | --- | --- |
-| G8 corrections | n/a | n/a | n/a | n/a | n/a | superseded: done by Claude |
-| G9 route truth | cancelled as redundant | n/a | n/a | n/a | n/a | n/a |
-| G7 initial work | yes | yes | yes | n/a | yes (eb9281e) | no |
+- Calendar parser rejected impossible days, nonleap dates, hour24 and malformed offsets.
+- Background polling retains current successful observations without source flapping; errors/denials never retain stale Scheduler assertions.
+- Explicit canonical null blocks the legacy hour alias.
+- Real-browser proof found an extra session race: active-query refetch ran before React rerendered and could send the old credential once. Both credential-bearing reads now reject old render epochs before network I/O. The regression failed before the fix and passed after.
+- Unique nonsecret revisions isolate remount/credential cache scopes. Health keys include the epoch. Old session credentials are disabled immediately and removed from storage.
+- Scoped Scheduler styling fixes touching labels/wrapped values; phone screenshot inspected.
 
-## Freshness rule
+## Acceptance and cost
 
-A healthy response or populated list never proves current data. Acceptance requires a displayed, source-attributed observation time.
+No source fixture or unavailable notice establishes current operating-data completeness, sign-in, scheduler activation or deployed acceptance. Old dataset observations remain a freshness concern until independently reconciled. No new paid services, API jobs, cloud resources, upgrades or provider calls were activated. Existing tool/CI marginal spend is unmetered, not assumed zero. No automatic continuation runner is claimed.
 
-## Why VS1 is gated (source facts, main c0939cf)
+Required owner action, when exact-head checks are green: approval to merge frontendPR166 under the standing hold. Backend rollout is separately held; do not bundle it into that frontend approval.
 
-- `src/lib/sessionScope.ts` states the frontend has no authentication transport. No `Authorization` header is attached to `/api` reads; the only bearer use is an admin token typed on the owner-transfer page.
-- Real protection therefore needs two things outside this repo: (1) backend token validation (C7, backend repo access), and (2) an approved audience, scope and redirect set for the existing Entra app. Until both exist the frontend can only show truthful denied/unavailable states.
-- Safe independent work: scope isolation, failure/retry, late-response and cache-purge behaviour already tested in `session.test.ts`; G8 scheduler corrections (done).
+Independent reviewer receipt: Claude's ledger commit c633f87b3a4c2ed83c1f055d3fd6a0ec89e9aa83 reports rerunning315 unit tests,16 dependency checks,typecheck/build on PR166 head42273dfc; it did not rerun browser proof. Current hosted Verify, proof-pack and CodeQL are green. Earlier draft-only skipped jobs are not counted as passes. The source gate is satisfied; the standing merge hold remains.

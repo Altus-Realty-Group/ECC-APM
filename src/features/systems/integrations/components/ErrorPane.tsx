@@ -8,6 +8,7 @@ interface ErrorPaneProps {
     timestamp: string;
     entity: string;
     mode: "delta" | "backfill";
+    dryRun?: boolean;
     rows: number;
     duration: number;
     result: "success" | "error" | "warning";
@@ -52,6 +53,7 @@ export default function ErrorPane({ isOpen, onClose, runDetails }: ErrorPaneProp
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <p>Audit history records reported outcomes; it does not verify persisted operating records.</p>
         {/* Summary */}
         <div className="ecc-object">
           <div className="ecc-header">
@@ -75,7 +77,7 @@ export default function ErrorPane({ isOpen, onClose, runDetails }: ErrorPaneProp
               </span>
             </div>
             <div className="ecc-field-row">
-              <span className="ecc-label">Rows Processed:</span>
+              <span className="ecc-label">Reported rows:</span>
               <span className="ecc-field-value font-mono">
                 {runDetails.rows.toLocaleString()}
               </span>
@@ -87,13 +89,13 @@ export default function ErrorPane({ isOpen, onClose, runDetails }: ErrorPaneProp
               </span>
             </div>
             <div className="ecc-field-row">
-              <span className="ecc-label">Result:</span>
+              <span className="ecc-label">Reported outcome:</span>
               <span className={`ecc-badge ${
                 runDetails.result === 'success' ? 'ecc-badge--success' :
                 runDetails.result === 'error' ? 'ecc-badge--error' :
                 'ecc-badge--warning'
               }`}>
-                {runDetails.result}
+                {runDetails.dryRun ? (runDetails.result === "error" ? "Preview failed" : "Preview completed") : runDetails.result}
               </span>
             </div>
           </div>
@@ -109,6 +111,7 @@ export default function ErrorPane({ isOpen, onClose, runDetails }: ErrorPaneProp
               </h3>
             </div>
             <div className="ecc-card__body">
+        <p>Audit history records reported outcomes; it does not verify persisted operating records.</p>
               <pre className="text-sm text-red-600 dark:text-red-400 whitespace-pre-wrap font-mono bg-red-50 dark:bg-red-950 p-3 rounded">
                 {runDetails.error}
               </pre>
@@ -123,6 +126,7 @@ export default function ErrorPane({ isOpen, onClose, runDetails }: ErrorPaneProp
               <h3 className="ecc-title">Full Error Message</h3>
             </div>
             <div className="ecc-card__body">
+        <p>Audit history records reported outcomes; it does not verify persisted operating records.</p>
               <pre className="text-sm whitespace-pre-wrap font-mono bg-gray-50 dark:bg-gray-800 p-3 rounded max-h-64 overflow-y-auto">
                 {runDetails.fullMessage}
               </pre>
@@ -137,6 +141,7 @@ export default function ErrorPane({ isOpen, onClose, runDetails }: ErrorPaneProp
               <h3 className="ecc-title">Response Body (First 2KB)</h3>
             </div>
             <div className="ecc-card__body">
+        <p>Audit history records reported outcomes; it does not verify persisted operating records.</p>
               <pre className="text-sm whitespace-pre-wrap font-mono bg-gray-50 dark:bg-gray-800 p-3 rounded max-h-64 overflow-y-auto">
                 {runDetails.responseBody}
               </pre>
@@ -151,6 +156,7 @@ export default function ErrorPane({ isOpen, onClose, runDetails }: ErrorPaneProp
               <h3 className="ecc-title">Raw Details</h3>
             </div>
             <div className="ecc-card__body">
+        <p>Audit history records reported outcomes; it does not verify persisted operating records.</p>
               <pre className="text-sm whitespace-pre-wrap font-mono bg-gray-50 dark:bg-gray-800 p-3 rounded max-h-96 overflow-y-auto">
                 {JSON.stringify(runDetails.fullDetails, null, 2)}
               </pre>

@@ -6,6 +6,7 @@ interface SyncRun {
   timestamp: string;
   entity: string;
   mode: "delta" | "backfill";
+  dryRun?: boolean;
   rows: number;
   duration: number;
   result: "success" | "error" | "warning";
@@ -43,14 +44,15 @@ export default function LastRunTable({ runs, onRowClick }: LastRunTableProps) {
   return (
     <div className="ecc-card">
       <div className="ecc-card__header">
-        <h3 className="ecc-card__title">Last 20 Runs</h3>
+        <h3 className="ecc-card__title">Reported completion history</h3>
       </div>
       
       <div className="ecc-card__body">
+        <p>Audit history records reported outcomes; it does not verify persisted operating records.</p>
         {runs.length === 0 ? (
           <div className="text-center py-8">
             <Clock className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-            <p className="text-gray-500">No sync runs yet</p>
+            <p className="text-gray-500">No completion history was returned.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -60,9 +62,9 @@ export default function LastRunTable({ runs, onRowClick }: LastRunTableProps) {
                   <th className="ecc-table__header">Time</th>
                   <th className="ecc-table__header">Entity</th>
                   <th className="ecc-table__header">Mode</th>
-                  <th className="ecc-table__header">Rows</th>
+                  <th className="ecc-table__header">Reported rows</th>
                   <th className="ecc-table__header">Duration</th>
-                  <th className="ecc-table__header">Result</th>
+                  <th className="ecc-table__header">Reported outcome</th>
                   <th className="ecc-table__header">Error</th>
                 </tr>
               </thead>
@@ -90,7 +92,7 @@ export default function LastRunTable({ runs, onRowClick }: LastRunTableProps) {
                           ? 'ecc-badge--warning' 
                           : 'ecc-badge--info'
                       }`}>
-                        {run.mode}
+                        {run.dryRun ? `Read-only preview · ${run.mode}` : run.mode}
                       </span>
                     </td>
                     <td className="ecc-table__cell">
@@ -106,7 +108,7 @@ export default function LastRunTable({ runs, onRowClick }: LastRunTableProps) {
                     <td className="ecc-table__cell">
                       <div className="flex items-center space-x-1">
                         <ResultIcon result={run.result} />
-                        <span className="capitalize">{run.result}</span>
+                        <span className="capitalize">{run.dryRun ? (run.result === "error" ? "Preview failed" : "Preview completed") : run.result}</span>
                       </div>
                     </td>
                     <td className="ecc-table__cell">

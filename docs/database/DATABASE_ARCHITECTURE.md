@@ -256,3 +256,8 @@ This supersedes the earlier source-only lease field decision above. The paired D
 ## Live catalog consumer correction -2026-10-17
 
 Read-only information_schema on the corroborated historical ECC store confirms leases.rent_cents integer and no leases.rent column. This supersedes the prior source-only request decision above. Data Hub now selects id,property_id,unit_id,tenant_id,status,start_date,end_date,rent_cents, matching the corrected PR146 allow-list. This is a raw explorer, with no inferred currency conversion or active backend binding. ORM schema remains stale. Existing privacy/actor/scope constraints stay unchanged; source presence never grants access. No live data/schema/grant/env changes. Protected API identity and current data completeness remain unresolved.
+
+
+## Local email template authoring —2026-10-17
+
+Communications Templates uses tab-local user input only. No database object, backend endpoint or stored template library is introduced. JSON export excludes recipient/completion values; email draft export is a local file download, not delivery. Session epoch changes and reload clear the workspace, including pending imports. No provider, schema, grants or backend binding changes. See docs/recovery/EMAIL_TEMPLATES_20261017.md.

@@ -15,3 +15,9 @@ Draft state is tab-local and cleared on reload or session epoch changes. Delayed
 - Independent source review covered import, header validation, plain-text rendering, session reset and replacement workflow.
 
 Backend connection, stored template libraries and message delivery remain separate unfinished work. This change does not activate authentication, a database, a provider, deployment or Control Plane configuration.
+
+## Independent UX follow-up
+
+Replacement confirmation now exposes a named, described non-modal dialog and moves focus to Keep editing. Escape cancels; cancellation returns focus to the invoking button/file input. Confirmed replacement moves focus to Template name. Editing recipient or completion values clears stale validation alerts immediately.
+
+Focused regression proof: six email unit tests and typecheck passed. Two actual-source Playwright regressions at 1280px/390px passed (keyboard confirmation/cancellation/focus return, import confirmation focus, confirmed replacement focus, stale recipient/merge validation clearing). Test: `e2e/email-template-ux.spec.ts`; isolated local runner configuration and artifacts: `/tmp/ecc-email-ux-playwright.config.mjs`, `/tmp/ecc-email-ux-proof`. No API reads/writes or published-runtime acceptance. Earlier full-suite/build proof predates this bounded UX follow-up; those were not rerun for it.

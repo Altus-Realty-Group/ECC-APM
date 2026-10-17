@@ -280,7 +280,7 @@ test("property card contract: invalid counts/cents are rejected, nulls stay null
 });
 
 const propRows = [{ id: 12, name: "Elm Court", street_1: "1 Elm St", city: "Indy", state: "IN", units: 40, occupancy_pct: 90 }];
-const unitRows = [{ id: 31, label: "Apt 4B", property_name: "Elm Court", beds: 2, baths: 1, market_rent_cents: 150000, status: "VACANT" }];
+const unitRows = [{ id: 31, unitLabel: "Apt 4B", propertyName: "Elm Court", beds: 2, baths: 1, marketRent: 1500, status: "VACANT" }];
 
 test("properties list: cached rows, averages and counts are NOT rendered after a denied refresh", () => {
   const html = renderIn(seeded(["portfolio", "properties"], propRows, denied403()), "/portfolio/properties", <PropertiesPage />);

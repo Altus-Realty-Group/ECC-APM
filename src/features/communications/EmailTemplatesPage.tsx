@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { getSessionEpoch, useSessionEpoch } from "@/lib/sessionScope";
 import { MERGE_FIELDS, MAX_TEMPLATE_BYTES, blankTemplate, blankValues, parseTemplate, previewTemplate, templateJson, emailDraft, templateFilename, downloadDraftFile, type EmailTemplate, type MergeKey } from "./emailDraft";
 import "./emailTemplates.css";
@@ -12,6 +12,18 @@ export function EmailTemplateWorkspace({ epoch }: { epoch: number }) {
   const [error, setError] = useState("");
   const [reading, setReading] = useState(false);
   const readNumber = useRef(0);
+  const keepEditingButton = useRef<HTMLButtonElement>(null);
+  const confirmationTrigger = useRef<HTMLElement | null>(null);
+  const nameInput = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (pending) keepEditingButton.current?.focus(); }, [pending]);
+  function confirmReplacement(next: EmailTemplate, trigger: HTMLElement | null) {
+    confirmationTrigger.current = trigger;
+    setPending(next);
+  }
+  function keepEditing() {
+    setPending(null);
+    confirmationTrigger.current?.focus();
+  }
   let templateError = "";
   let preview: ReturnType<typeof previewTemplate>;
   try { preview = previewTemplate(template, values); }
@@ -19,9 +31,9 @@ export function EmailTemplateWorkspace({ epoch }: { epoch: number }) {
   const edited = !!(template.name || template.subject || template.body || recipient || Object.values(values).some(Boolean));
   function change(field: "name" | "subject" | "body", text: string) { setTemplate(current => ({ ...current, [field]: text })); setMessage(""); setError(""); }
   function replace(next: EmailTemplate) {
-    readNumber.current++; setReading(false); setTemplate(next); setValues(blankValues()); setRecipient(""); setPending(null); setMessage(""); setError("");
+    readNumber.current++; setReading(false); setTemplate(next); setValues(blankValues()); setRecipient(""); setPending(null); setMessage(""); setError(""); nameInput.current?.focus();
   }
-  async function importFile(file?: File) {
+  async function importFile(file: File | undefined, trigger: HTMLElement) {
     if (!file) return;
     const request = ++readNumber.current; setReading(true); setError(""); setMessage("");
     try {
@@ -29,7 +41,7 @@ export function EmailTemplateWorkspace({ epoch }: { epoch: number }) {
       const next = parseTemplate(await file.text());
       if (getSessionEpoch() !== epoch || request !== readNumber.current) return;
       // Deliberate replacement is required even if the user typed while the file was reading.
-      setPending(next);
+      confirmReplacement(next, trigger);
     } catch (failure) {
       if (getSessionEpoch() === epoch && request === readNumber.current) setError(failure instanceof Error ? failure.message : "The template file could not be opened.");
     } finally { if (getSessionEpoch() === epoch && request === readNumber.current) setReading(false); }
@@ -48,22 +60,22 @@ export function EmailTemplateWorkspace({ epoch }: { epoch: number }) {
   return <section className="ecc-email" aria-labelledby="email-title">
     <header><p className="ecc-email-eyebrow">Communication</p><h1 id="email-title">Email templates</h1><p>Write reusable wording, complete the message fields and download an email draft for review.</p></header>
     <aside className="ecc-email-scope"><strong>Your work stays in this tab.</strong><p>Download the template before leaving. Templates are not saved to your account. ECC does not send email from this page.</p></aside>
-    <div className="ecc-email-toolbar"><label className="ecc-email-import">Open template file<input type="file" accept=".json,application/json" disabled={reading} onChange={event => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ""; void importFile(file); }} /></label>
-      <button type="button" disabled={reading} onClick={() => { if (edited) setPending(blankTemplate()); else replace(blankTemplate()); }}>New blank template</button>
+    <div className="ecc-email-toolbar"><label className="ecc-email-import">Open template file<input type="file" accept=".json,application/json" disabled={reading} onChange={event => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ""; void importFile(file, event.currentTarget); }} /></label>
+      <button type="button" disabled={reading} onClick={event => { if (edited) confirmReplacement(blankTemplate(), event.currentTarget); else replace(blankTemplate()); }}>New blank template</button>
       <button type="button" onClick={() => download("template")}>Download template</button></div>
     {reading && <p role="status">Opening template file…</p>}
-    {pending && <section className="ecc-email-replace" aria-label="Replace current draft"><h2>Replace the current draft?</h2><p>Download your current template first if you want to keep it. Preview values and the recipient will be cleared.</p>
-      <button type="button" onClick={() => replace(pending)}>Replace current draft</button><button type="button" onClick={() => setPending(null)}>Keep editing</button></section>}
+    {pending && <section className="ecc-email-replace" role="dialog" aria-labelledby="email-replace-title" aria-describedby="email-replace-description" onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); keepEditing(); } }}><h2 id="email-replace-title">Replace the current draft?</h2><p id="email-replace-description">Download your current template first if you want to keep it. Preview values and the recipient will be cleared.</p>
+      <button type="button" onClick={() => replace(pending)}>Replace current draft</button><button ref={keepEditingButton} type="button" onClick={keepEditing}>Keep editing</button></section>}
     {(error || templateError) && <p className="ecc-email-error" role="alert">{error || templateError}</p>}
     {message && <p role="status">{message}</p>}
     <div className="ecc-email-columns"><section className="ecc-email-editor" aria-label="Template editor"><h2>1. Write your template</h2>
-      <label htmlFor="email-template-name">Template name</label><input id="email-template-name" maxLength={100} value={template.name} onChange={event => change("name", event.target.value)} />
+      <label htmlFor="email-template-name">Template name</label><input ref={nameInput} id="email-template-name" maxLength={100} value={template.name} onChange={event => change("name", event.target.value)} />
       <label htmlFor="email-subject">Subject</label><input id="email-subject" maxLength={250} value={template.subject} onChange={event => change("subject", event.target.value)} />
       <label htmlFor="email-body">Message</label><textarea id="email-body" maxLength={20000} rows={10} value={template.body} onChange={event => change("body", event.target.value)} />
       <fieldset><legend>Insert a reusable message field</legend><p>Each button adds a field to the end of your message. You can also place these fields in the subject.</p><div className="ecc-email-fields">{MERGE_FIELDS.map(field => <button type="button" key={field.key} onClick={() => insertField(field.key)}>{field.label}</button>)}</div></fieldset>
     </section><section className="ecc-email-completion" aria-label="Complete email draft"><h2>2. Complete this message</h2><p>Enter the actual values for this email. These values are not included in your reusable template file.</p>
-      <label htmlFor="email-recipient">Recipient email</label><input id="email-recipient" type="email" autoComplete="off" maxLength={254} value={recipient} onChange={event => { setRecipient(event.target.value); setMessage(""); }} />
-      {MERGE_FIELDS.filter(field => preview.used.includes(field.key)).map(field => <React.Fragment key={field.key}><label htmlFor={`email-value-${field.key}`}>{field.label}</label><input id={`email-value-${field.key}`} maxLength={500} value={values[field.key]} onChange={event => { setValues(current => ({ ...current, [field.key]: event.target.value })); setMessage(""); }} /></React.Fragment>)}
+      <label htmlFor="email-recipient">Recipient email</label><input id="email-recipient" type="email" autoComplete="off" maxLength={254} value={recipient} onChange={event => { setRecipient(event.target.value); setMessage(""); setError(""); }} />
+      {MERGE_FIELDS.filter(field => preview.used.includes(field.key)).map(field => <React.Fragment key={field.key}><label htmlFor={`email-value-${field.key}`}>{field.label}</label><input id={`email-value-${field.key}`} maxLength={500} value={values[field.key]} onChange={event => { setValues(current => ({ ...current, [field.key]: event.target.value })); setMessage(""); setError(""); }} /></React.Fragment>)}
       <div className="ecc-email-preview"><h3>Message preview</h3><p className="ecc-email-preview-subject"><strong>Subject: </strong>{preview.subject || "No subject entered"}</p><div className="ecc-email-preview-body">{preview.body || "Your message preview will appear here."}</div></div>
       {preview.unresolved.length > 0 && <p className="ecc-email-missing" role="status">Complete or remove these fields: {preview.unresolved.join(", ")}.</p>}
       <button type="button" className="ecc-email-primary" disabled={!!templateError || preview.unresolved.length > 0 || !preview.subject.trim() || !preview.body.trim() || !recipient.trim()} onClick={() => download("email")}>Download email draft</button><p>Open the downloaded draft in your email app. Confirm the sender, recipient and final wording before sending.</p>

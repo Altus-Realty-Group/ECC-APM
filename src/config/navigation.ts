@@ -63,6 +63,9 @@ const BUILT_NAV_SECTIONS: NavSection[] = [
   { title: "Accounting", icon: "FileSpreadsheet", children: [
     { title: "Tenant Ledgers", path: "/ops/accounting/tenant-ledgers", icon: "FileSpreadsheet" },
   ] },
+  { title: "AI Analytics", icon: "BarChart3", children: [
+    { title: "Renewal planning", path: "/ops/ai/renewal-forecasting", icon: "FileSpreadsheet" },
+  ] },
   { title: "Communication", icon: "FileText", children: [
     { title: "Templates", path: "/ops/comms/templates", icon: "FileText" },
   ] },
@@ -116,7 +119,7 @@ export const PLANNED_DESTINATIONS: PlannedDestination[] = [
     dependency: "Needs an accounting data contract from the verified backend owner. " + STUB,
   })),
   ...[
-    ["Risk Summary", "risk-summary"], ["Renewal Forecasting", "renewal-forecasting"],
+    ["Risk Summary", "risk-summary"],
     ["Vacancy Analytics", "vacancy-analytics"], ["ML Leasing Logs", "ml-leasing-logs"],
   ].map(([title, slug]) => ({
     title, path: `/ops/ai/${slug}`, group: "AI Analytics",

@@ -55,7 +55,7 @@ test("Integration read failures suppress scheduler assertions, token entry and m
   try {
     for (const status of [401, 403, 503]) {
       const qc = client();
-      fail(qc, ["/api/health/sync"], status);
+      fail(qc, ["/api/health/sync", getSessionEpoch()], status);
       fail(qc, ["/api/config/integrations"], status);
       const html = render(qc, <IntegrationsHealthPage />);
       assert.match(html, /Integration health could not be loaded/);
@@ -67,7 +67,7 @@ test("Integration read failures suppress scheduler assertions, token entry and m
 
 test("Integration existing success interface still renders after verified read responses", () => {
   const qc = client();
-  qc.setQueryData(["/api/health/sync"], { status: { last_success_at: "2026-10-17T12:00:00Z" }, enabled: false });
+  qc.setQueryData(["/api/health/sync", getSessionEpoch()], { status: { last_success_at: "2026-10-17T12:00:00Z" }, enabled: false });
   qc.setQueryData(["/api/config/integrations"], { integrations: {} });
   const savedWarn = console.warn;
   console.warn = () => {};

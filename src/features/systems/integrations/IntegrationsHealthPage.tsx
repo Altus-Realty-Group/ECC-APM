@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import StateNotice from "@/components/ui/StateNotice";
 import { errorKind } from "@/lib/dataState";
-import { sessionFetchJSON, useSessionEpoch } from "@/lib/sessionScope";
+import { getSessionEpoch, sessionFetchJSON, StaleSessionError, useSessionEpoch } from "@/lib/sessionScope";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import StatusCard from "./components/StatusCard";
@@ -13,6 +13,8 @@ import LiveLogs from "./components/LiveLogs";
 import DLQPanel from "./components/DLQPanel";
 import { Clock, Settings, Database, MessageSquare, Shield, AlertTriangle, Send, RefreshCw } from "lucide-react";
 import { useShowToast } from "@/features/systems/integrations/useShowToast";
+import { schedulerFromQueries } from "./schedulerDisplay";
+import SchedulerPanel from "./SchedulerPanel";
 
 // Define types for API responses
 interface SyncRun {
@@ -52,7 +54,8 @@ export default function IntegrationsHealthPage() {
   const [selectedEntities, setSelectedEntities] = useState(["owners", "properties"]);
   const [selectedRun, setSelectedRun] = useState<SyncRun | null>(null);
   const [isErrorPaneOpen, setIsErrorPaneOpen] = useState(false);
-  const [adminToken, setAdminToken] = useState(() => {
+  const [tokenEpoch, setTokenEpoch] = useState(sessionEpoch);
+  const [storedAdminToken, setAdminToken] = useState(() => {
     // Load admin token from localStorage on initial render
     try {
       return localStorage.getItem('ecc-admin-token') || "";
@@ -61,29 +64,42 @@ export default function IntegrationsHealthPage() {
       return "";
     }
   });
+  // An old session's credential is disabled during render, before effects or queries run.
+  const adminToken = tokenEpoch === sessionEpoch ? storedAdminToken : '';
+  useEffect(() => {
+    if (tokenEpoch !== sessionEpoch) {
+      setAdminToken('');
+      try { localStorage.removeItem('ecc-admin-token'); } catch { /* Storage may be unavailable. */ }
+    }
+  }, [sessionEpoch, tokenEpoch]);
   const [activeTab, setActiveTab] = useState<"monitoring" | "logs" | "dlq">("monitoring");
   const { showToast } = useShowToast();
 
   // Enhanced API endpoints for Genesis v1
-  // Fetch comprehensive sync status
-  const { data: syncStatusData, refetch: refetchSyncStatus } = useQuery({
-    queryKey: ['/api/admin/sync/status'],
-    queryFn: async () => {
+  // Admin status is session-scoped. The revision isolates credential changes;
+  // the token itself is never part of the query key. Late responses from a
+  // previous scope cannot land in the new key.
+  const [adminStatusRevision, setAdminStatusRevision] = useState(nextHistoryRevision);
+  const adminStatusKey = ['/api/admin/sync/status', adminStatusRevision, sessionEpoch] as const;
+  const adminStatusQuery = useQuery({
+    queryKey: adminStatusKey,
+    queryFn: async ({ signal }) => {
+      if (sessionEpoch !== getSessionEpoch()) throw new StaleSessionError();
       if (!adminToken) return null;
-      
-      return apiRequest('/api/admin/sync/status', {
-        headers: {
-          'X-Admin-Token': adminToken,
-        },
+      return sessionFetchJSON<any>('/api/admin/sync/status', {
+        signal,
+        headers: { 'X-Admin-Token': adminToken },
       });
     },
     enabled: !!adminToken,
-    refetchInterval: 10000, // Refresh every 10 seconds
+    refetchInterval: 10000,
   });
+  const syncStatusData = adminStatusQuery.data;
+  const refetchSyncStatus = adminStatusQuery.refetch;
 
   // Fetch sync health status
-  const { data: healthData, error: healthError, isPending: healthPending, refetch: refetchHealth } = useQuery<SyncHealthResponse>({
-    queryKey: ['/api/health/sync'],
+  const { data: healthData, error: healthError, isPending: healthPending, isFetching: healthQueryIsFetching, refetch: refetchHealth } = useQuery<SyncHealthResponse>({
+    queryKey: ['/api/health/sync', sessionEpoch],
     queryFn: ({ signal }) => sessionFetchJSON<SyncHealthResponse>('/api/health/sync', { signal }),
     refetchInterval: 15000, // Refresh every 15 seconds
   });
@@ -99,6 +115,7 @@ export default function IntegrationsHealthPage() {
   const runsQuery = useQuery({
     queryKey: historyKey,
     queryFn: async ({ signal }) => {
+      if (sessionEpoch !== getSessionEpoch()) throw new StaleSessionError();
       if (!adminToken) throw new Error('Completion history is unavailable.');
       return parseSyncHistory(await sessionFetchJSON('/api/admin/sync/runs?limit=20', {
         signal, headers: { 'X-Admin-Token': adminToken },
@@ -109,12 +126,17 @@ export default function IntegrationsHealthPage() {
   const refetchRuns = runsQuery.refetch;
   const currentHistory = readyHistoryRows(runsQuery, !!adminToken);
   function changeAdminToken(value: string) {
-    // Cancel/remove the old scope before replacing it; a late response cannot become the new token's history.
+    // Cancel/remove the old scopes before replacing the credential.
+    // Late responses from the previous token cannot become the new scope's data.
     void historyClient.cancelQueries({ queryKey: historyKey });
     historyClient.removeQueries({ queryKey: historyKey });
+    void historyClient.cancelQueries({ queryKey: adminStatusKey });
+    historyClient.removeQueries({ queryKey: adminStatusKey });
     setHistoryRevision(nextHistoryRevision());
+    setAdminStatusRevision(nextHistoryRevision());
     setSelectedRun(null); setSelectedHistorySource(null); setIsErrorPaneOpen(false);
     setAdminToken(value);
+    setTokenEpoch(sessionEpoch);
   }
 
   // Enhanced ping with comprehensive response
@@ -290,17 +312,6 @@ export default function IntegrationsHealthPage() {
 
   const getCurrentProgress = () => {
     return syncStatusData?.currentRun?.progress;
-  };
-
-  const formatNextRun = () => {
-    if (!healthData?.status?.next_run_at) return "Not scheduled";
-    const nextRun = new Date(healthData.status.next_run_at);
-    const now = new Date();
-    const minutes = Math.floor((nextRun.getTime() - now.getTime()) / 60000);
-    
-    if (minutes < 0) return "Overdue";
-    if (minutes < 60) return `${minutes}m`;
-    return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
   };
 
   const readError = healthError || configError;
@@ -511,60 +522,24 @@ export default function IntegrationsHealthPage() {
                 </div>
               )}
 
-              {/* Enhanced Scheduler Card */}
-              <div className="ecc-card">
-                <div className="ecc-card__header">
-                  <h3 className="ecc-card__title flex items-center space-x-2">
-                    <Clock className="w-5 h-5" />
-                    <span>Scheduler</span>
-                  </h3>
-                </div>
-                <div className="ecc-card__body space-y-3">
-                  <div className="ecc-field-row">
-                    <span className="ecc-field-label">Status:</span>
-                    <span className={`ecc-badge ${
-                      (syncStatusData?.scheduler?.enabled ?? healthData?.enabled)
-                        ? 'ecc-badge--success' 
-                        : 'ecc-badge--error'
-                    }`}>
-                      {(syncStatusData?.scheduler?.enabled ?? healthData?.enabled) ? 'Enabled' : 'Disabled'}
-                    </span>
-                  </div>
-                  <div className="ecc-field-row">
-                    <span className="ecc-field-label">Interval:</span>
-                    <span className="ecc-field-value">
-                      {syncStatusData?.scheduler?.intervalMinutes ?? healthData?.intervalMinutes ?? 10} minutes
-                    </span>
-                  </div>
-                  <div className="ecc-field-row">
-                    <span className="ecc-field-label">Next Run:</span>
-                    <span className="ecc-field-value font-mono text-sm">
-                      {formatNextRun()}
-                    </span>
-                  </div>
-                  <div className="ecc-field-row">
-                    <span className="ecc-field-label">Nightly Full:</span>
-                    <span className="ecc-field-value">
-                      {(syncStatusData?.scheduler?.nightlyFullHourUtc ?? healthData?.nightlyFullHourUtc) 
-                        ? `${syncStatusData?.scheduler?.nightlyFullHourUtc ?? healthData?.nightlyFullHourUtc}:00 UTC` 
-                        : 'Disabled'}
-                    </span>
-                  </div>
-                  {syncStatusData?.scheduler?.lastRun && (
-                    <div className="ecc-field-row">
-                      <span className="ecc-field-label">Last Run:</span>
-                      <span className="ecc-field-value text-sm">
-                        {new Date(syncStatusData.scheduler.lastRun).toLocaleString()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div className="ecc-card__footer">
-                  <p className="text-sm text-gray-500">
-                    Configuration is environment-driven
-                  </p>
-                </div>
-              </div>
+              {/* Scheduler — cached values suppressed on unsettled reads; Next Run only from stored health observation */}
+              {(() => {
+                const sched = schedulerFromQueries({
+                  adminFlags: {
+                    isPending: adminStatusQuery.isPending,
+                    isFetching: adminStatusQuery.isFetching,
+                    isError: adminStatusQuery.isError,
+                  },
+                  adminData: syncStatusData,
+                  healthFlags: {
+                    isPending: healthPending,
+                    isFetching: healthQueryIsFetching,
+                    isError: !!healthError,
+                  },
+                  healthData,
+                });
+                return sched ? <SchedulerPanel display={sched} /> : null;
+              })()}
 
               {/* Enhanced Configuration */}
               <div className="ecc-card">

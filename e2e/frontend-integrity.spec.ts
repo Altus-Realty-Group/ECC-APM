@@ -349,7 +349,7 @@ test.describe("session boundary: cached data, selections and late responses", ()
     // account switch #1: refetch begins (call 2) and is held open
     await page.evaluate(() => window.dispatchEvent(new Event("ecc:session-boundary")));
     await expect(page.getByRole("link", { name: "Previous Account Court" })).toHaveCount(0);
-    await expect(page.getByText("0 selected").first()).toBeVisible();
+    await expect(page.getByText("Selection review is unavailable until properties load successfully.")).toBeVisible();
     // account switch #2 supersedes it; the new session's data (call 3) loads
     await page.evaluate(() => window.dispatchEvent(new Event("ecc:session-boundary")));
     await expect(page.getByRole("link", { name: "New Account Plaza" })).toBeVisible();
@@ -367,8 +367,9 @@ test.describe("session boundary: cached data, selections and late responses", ()
     await page.goto("/portfolio/properties");
     await expect(page.getByTestId("state-denied")).toBeVisible();
     await expect(page.getByRole("link")).not.toContainText(["Previous Account Court"]);
-    await expect(page.getByText("0 loaded")).toBeVisible();
-    await expect(page.getByText("Average occupancy not reported")).toBeVisible();
+    await expect(page.getByText("0 loaded")).toHaveCount(0);
+    await expect(page.getByText("Average occupancy not reported")).toHaveCount(0);
+    await expect(page.getByText("Selection review is unavailable until properties load successfully.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
   });
 

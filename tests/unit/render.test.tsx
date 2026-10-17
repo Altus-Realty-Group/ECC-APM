@@ -286,9 +286,8 @@ test("properties list: cached rows, averages and counts are NOT rendered after a
   const html = renderIn(seeded(["portfolio", "properties"], propRows, denied403()), "/portfolio/properties", <PropertiesPage />);
   assert.match(html, /state-denied/);
   assert.doesNotMatch(html, /Elm Court|1 Elm St|Indy|90%|card\/property\/12/);
-  assert.match(html, /Average occupancy not reported/);
-  assert.match(html, /0 loaded/);
-  assert.match(html, /Selected IDs: none/);
+  assert.doesNotMatch(html, /Average occupancy not reported|\d+ loaded|Markets:|visible rows?|Selected IDs:/);
+  assert.match(html, /Selection review is unavailable/);
 });
 
 test("units list: cached rows are NOT rendered after a denied refresh", () => {

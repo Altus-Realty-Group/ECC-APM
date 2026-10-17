@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import StateNotice from "@/components/ui/StateNotice";
+import { errorKind } from "@/lib/dataState";
+import { sessionFetchJSON } from "@/lib/sessionScope";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import StatusCard from "./components/StatusCard";
@@ -73,14 +76,16 @@ export default function IntegrationsHealthPage() {
   });
 
   // Fetch sync health status
-  const { data: healthData, refetch: refetchHealth } = useQuery<SyncHealthResponse>({
+  const { data: healthData, error: healthError, isPending: healthPending, refetch: refetchHealth } = useQuery<SyncHealthResponse>({
     queryKey: ['/api/health/sync'],
+    queryFn: ({ signal }) => sessionFetchJSON<SyncHealthResponse>('/api/health/sync', { signal }),
     refetchInterval: 15000, // Refresh every 15 seconds
   });
 
   // Fetch integration status
-  const { data: configData } = useQuery<IntegrationsConfigResponse>({
+  const { data: configData, error: configError, isPending: configPending, refetch: refetchConfig } = useQuery<IntegrationsConfigResponse>({
     queryKey: ['/api/config/integrations'],
+    queryFn: ({ signal }) => sessionFetchJSON<IntegrationsConfigResponse>('/api/config/integrations', { signal }),
   });
 
   // Fetch sync run history 
@@ -284,6 +289,17 @@ export default function IntegrationsHealthPage() {
     return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
   };
 
+  const readError = healthError || configError;
+  if (readError || healthPending || configPending) {
+    return <section className="ecc-page">
+      <h1>Integration health</h1>
+      <StateNotice kind={readError ? errorKind(readError) : "loading"}
+        title={readError ? "Integration health could not be loaded" : "Loading integration health"}
+        detail={readError ? "Connection status and sync controls are unavailable until health information can be verified." : undefined}
+        onRetry={readError ? () => { void refetchHealth(); void refetchConfig(); } : undefined} />
+    </section>;
+  }
+
   return (
     <div className="ecc-page">
       <div className="ecc-page__header">
@@ -376,7 +392,7 @@ export default function IntegrationsHealthPage() {
                   <StatusCard
                     title="DoorLoop"
                     status={getDoorLoopStatus()}
-                    baseUrl={process.env.VITE_DOORLOOP_BASE_URL || "Not configured"}
+                    baseUrl={import.meta.env?.VITE_DOORLOOP_BASE_URL || "Not configured"}
                     authenticated={!!configData?.integrations?.doorloop}
                     healthScore={getEnhancedHealthData().healthScore}
                     rateLimit={getEnhancedHealthData().rateLimit}
@@ -551,7 +567,7 @@ export default function IntegrationsHealthPage() {
                   <div className="ecc-field-row">
                     <span className="ecc-field-label">Base URL:</span>
                     <span className="ecc-field-value font-mono text-xs">
-                      {process.env.VITE_DOORLOOP_BASE_URL?.replace(/\/api$/, '/***') || 'Not set'}
+                      {import.meta.env?.VITE_DOORLOOP_BASE_URL?.replace(/\/api$/, '/***') || 'Not set'}
                     </span>
                   </div>
                   <div className="ecc-field-row">

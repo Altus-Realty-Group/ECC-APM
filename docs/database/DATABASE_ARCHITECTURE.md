@@ -186,9 +186,73 @@ returned database error text. It now sits behind `server/lib/readBoundary.ts` an
   client without an actor check (the latter is another lane's). Source-only evidence; no live database, RLS or grants checked.
 - Rollback: revert this commit. No schema, grant, migration or environment change.
 
+## Data Hub audit repairs - 2026-10-17
+
+Data Hub entity reads retain the existing /api/entities/<entity> URL family and
+request fields, including order=id.desc and historical lease selections. PR146
+still needs caller compatibility review; this UI repair does not declare its
+field allow-list or paging contract accepted. No backend binding is enabled.
+The Data Hub hooks now use the existing sessionFetchJSON and session epoch in
+query keys. A late previous-session result is rejected; HTTP denials retain
+status for the existing global cache purge. Raw arrays and the existing data /
+results array envelopes are accepted; malformed successes fail as contract
+errors instead of empty records. No total cardinality is inferred.
+
+The mounted Data Hub transfer initiation/approval/authorization/execution and
+transfer-context controls are removed, matching the existing transfer-route
+containment. Their workflow remains incomplete and must be restored with
+verified actor scope, contract, confirmation and audit/idempotency proof.
+No backend endpoint, database object, role, grant or data is changed. The
+original UI remains in Git history. Owner search remains a read-only request;
+its legacy source handler returns 410 and this is surfaced as failure.
+
+Integration health now explicitly fetches its existing health/config endpoints
+instead of relying on a missing default query function. Pending/error reads
+show a notice before health badges or sync controls can render. Browser build
+configuration uses import.meta.env rather than Node process.env. The legacy
+success-path token/sync interface is NOT accepted as Control Plane integration;
+that remains separate unfinished work. These changes prove source behavior,
+not live backend authorization or production readiness. Roll back the PR to
+restore the prior consumer implementation; no database rollback applies.
+
+## C3 boundary review and consumer alignment - 2026-10-17
+
+PR146 corrected head5f8bff205b975ec7389a8752456dbc0ccc77b4d2 remains a
+source-only proposal, not an activated reader. Its query contract accepts one
+allow-listed column.asc/desc order with an id tiebreak, and digits-only limit /
+offset. The cap remains500; returned rows are distinct from exact totalCount.
+Metadata includes returned/totalCount/limit/offset/truncated/nextOffset. Invalid
+DB success shapes, missing/non-integer exact counts, unselected returned columns
+or page/count inconsistencies fail with a generic read error. No source consumer
+used the old totalCount definition. Live PostgREST/RLS/grants remain unverified.
+
+Data Hub now requests the compatible source-declared lease projection:
+id,property_id,unit_id,tenant_id,status,start_date,end_date,rent. It no longer
+requests vendor doorloop_id or unresolved primary_tenant_id/rent_cents. This
+explorer shows raw source fields; it does not translate rent into cents or claim
+a live schema. The conflicting historical money/tenant columns remain a live
+schema-verification prerequisite. No policy field was added to silence a denial.
+
+The shared portfolio collection adapter now rejects scalar/null/array rows before
+page mapping. A malformed successful envelope cannot crash the mounted page or
+become a verified empty collection. This does not validate all row fields or
+resolve portfolio response drift and completeness. Array and data-array
+envelopes remain accepted for the existing consumers. No endpoint or backend
+binding changes. A combined local browser review reproduced the old [null]
+crash; the source adapter fix is separately tested from Grok's page mappings.
+
+RPC findings remain activation blockers: caller-controlled privileged POST
+forwarding, unauthenticated diagnostics/raw DB errors, unscoped card reads and
+vendor-ID fallback lookup. The next bounded containment slice may remove unused
+generic forwarding/diagnostic surfaces; it must not claim the remaining card or
+portfolio reads authorized. No RPC or Azure Function was changed here.
 
 ## Live catalog read reconciliation -2026-10-17
 
 The historical ECC store is corroborated as project ssexobxvtuxwnblwplzh through the current DoorLoop pipeline's explicit host reference and historical portfolio startup evidence. Read-only information_schema queries confirmed live projections for properties/units/leases/owners. ENTITY_POLICY now excludes nonexistent property and unit aliases and uses leases.rent_cents (integer); leases.rent/start/end do not exist. No money is converted in this explorer. Shared ORM declarations remain stale and are not migration authority.
 
 This supersedes the earlier source-only lease field decision above. The paired Data Hub consumer must request rent_cents before connection. Missing field is not zero and raw count/paging remain distinct from completeness. Source read boundary default noVerifiedActor is unchanged. The backend owner/deployment collision, stale ingestion, Control Plane registration/session and record grants remain blockers; no live reader/authentication is activated. See docs/recovery/LIVE_SCHEMA_READ_20261017.md. No schema/grant/data/environment/credential changes.
+
+## Live catalog consumer correction -2026-10-17
+
+Read-only information_schema on the corroborated historical ECC store confirms leases.rent_cents integer and no leases.rent column. This supersedes the prior source-only request decision above. Data Hub now selects id,property_id,unit_id,tenant_id,status,start_date,end_date,rent_cents, matching the corrected PR146 allow-list. This is a raw explorer, with no inferred currency conversion or active backend binding. ORM schema remains stale. Existing privacy/actor/scope constraints stay unchanged; source presence never grants access. No live data/schema/grant/env changes. Protected API identity and current data completeness remain unresolved.

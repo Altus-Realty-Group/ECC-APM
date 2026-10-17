@@ -51,3 +51,30 @@ Desktop/390px browser acceptance was attempted but not completed: Playwright's
 Chromium download repeatedly returned an invalid/truncated ZIP. No browser,
 mobile, touch-target, published-runtime or real-data acceptance is claimed.
 The source patch has not been merged or published.
+
+## Follow-up browser proof - 2026-10-17
+
+The browser-install blocker above is superseded for LOCAL source checks only.
+A scratch-only @sparticuz/chromium 153.0.0 package supplied Chromium after the
+standard Playwright download failed. Its extractor hit a container chown error;
+its bundled binary was decompressed directly into scratch instead. No package,
+lockfile, application config or CI change supports this local environment.
+
+Committed e2e/audit-datahub-integrations.spec.ts exercised the real Vite app,
+query implementation and routed pages with intercepted isolated API responses:
+4 tests passed (2 at 1280x844, 2 at 390x844), no retries/skips. Data Hub loading,
+503/no-empty, retry to confirmed empty, populated display, actual lease request
+fields/order, malformed-200 failure, 403 denial and transfer-command absence
+passed. Entity/limit/search targets measured at least 44x44; search keyboard
+focus and no page overflow passed. Integrations success rendering (including
+former process.env crash), 503 suppression of controls/status, Retry recovery,
+401 denial and no page overflow passed. No page errors or non-GET requests.
+
+This does not prove published alignment, live identity, DB completeness, real
+records or operational readiness. Legacy Integrations successful-read controls
+remain outside acceptance. Playwright is not run by the current Verify job;
+hosted unit/build verification and this local browser receipt are separate.
+
+Targeted owner-delivery handoffs: ECC_C3_G3_HANDOFFS_20261017.md.
+Connection source evidence: BACKEND_CONNECTION_EVIDENCE_20261017.md.
+Neither handoff is evidence that an external agent is running.

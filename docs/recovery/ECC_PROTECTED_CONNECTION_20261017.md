@@ -35,6 +35,19 @@ Automatic approval review blocked read-only metadata verification in the separat
 
 ## Verification
 
-Bridge branch: typecheck, build and 167 unit tests pass. Tests cover missing configuration, strict session envelope/identity/mode/expiry, revocation and outage, sealed callback tamper/expiry, permitted paths, query/mutation refusal, unsafe upstream responses, same-origin application logout, both cookie deletions and token-free cross-tab invalidation. Browser and combined integration receipts are recorded in the PR after verification. Isolated browser fixtures are test inputs only; they do not prove real-data operating journeys.
+Bridge branch: typecheck, build and 167 unit tests pass. Tests cover missing configuration, strict session envelope/identity/mode/expiry, revocation and outage, sealed callback tamper/expiry, permitted paths, query/mutation refusal, unsafe upstream responses, same-origin application logout, both cookie deletions and token-free cross-tab invalidation. Combined local integration with PR146–154 passes 257 unit tests, 16 dependency tests, typecheck and build. No tests failed or skipped. Integration revision before this documentation receipt: b3749d02.
+
+Independent browser verification against source 9faae5bd7d95a8194a7dc664edff966fafecb66e passed four two-tab journeys: BroadcastChannel and storage-only fallback, each at 1280×844 and 390×844. Both tabs loaded isolated records, showed the exact review banner and selected a record. Logout in one cleared rows/selection/banner in both; retries and explicit refetch attempts produced zero additional business requests. Two initial business GETs stayed two; exactly one application sign-out POST occurred. Both tabs ended with unknown mode and suspended reads. No page errors; token-free cross-tab notice contained only a UUID. Source hashes remained identical before/after. This branch's old Properties denial count is corrected separately by PR151 and was included in combined integration. Isolated browser fixtures are test inputs only; they do not prove real-data operating journeys.
+
+## Goal reconciliation and delivery receipt
+
+| Requested outcome | Delivered source and evidence | Remaining acceptance |
+| --- | --- | --- |
+| Zero mock operating data | PR149/152 remove mounted owner fixtures, invented dashboard series/funnel, fixed badges and simulated-success file/requeue paths. Source scan finds no business Math.random/mock fixture path; random toast IDs are UI identities only. | Deployed-source audit after authorized release; no claim all legacy inert archives are deleted. |
+| Backend attached | PR146/148 align safe projections to actual catalog; draft PR155 prepares protected transport/session lifecycle. | Control Plane verification, protected backend deployment identity/scope, data freshness and live journeys. Not connected yet. |
+| Missing pages/navigation | PR147 restores historical destination inventory and individual legal, maintenance and accounting read pages; PR154 restores source-backed report templates/preview/CSV export. | Roughly 43 destinations still unavailable; unverified operations contracts remain gated. Inventory is not workflow completion. |
+| Excellent dashboard/page workflow | PR153 redesigns dashboard context, KPI strip, actions and responsive states. PR151 fixes misleading Properties counts; PR147/154 improve operational/reporting workflows. Desktop/mobile isolated browser journeys passed. | Full remaining-page design and real-data runtime acceptance remain open. |
+
+Verify, CodeQL and proof-pack workflows succeeded at the exact published heads for PR146–154. PR155 stays draft. No main merge or deployment has occurred. No paid external Claude/Grok jobs were launched; no direct execution channel was available. Internal review/browser workers completed their bounded assignments. Subscription/compute marginal cost was not metered here; no claim of zero execution cost is made.
 
 Activation remains blocked on verified Control Plane registration, upstream deployment identity/protection, fresh real-data journeys and explicit release approval. No main merge or deployment is performed by this slice.

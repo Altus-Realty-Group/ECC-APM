@@ -1,79 +1,56 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { sessionFetchJSON, useSessionEpoch } from "@/lib/sessionScope";
+import { errorKind } from "@/lib/dataState";
+import StateNotice from "@/components/ui/StateNotice";
+import { parseFileList, type ListedFile } from "./fileReader";
 
-type Props = {
-  doorloop: boolean;
-  dropbox: boolean;
-  entity: "properties" | "units" | "leases" | "tenants" | "owners";
-  refId: string | number;
-};
+type Props = { doorloop: boolean; dropbox: boolean; entity: "properties" | "units" | "leases" | "tenants" | "owners"; refId: string | number };
+type Result = { key: string; state: "ready"; files: ListedFile[] } | { key: string; state: "error" | "denied" };
 
-type ListedFile = { id?:string; name:string; size?:number; modified?:string; url?:string; source:"DL"|"DBX" };
-
-async function getJSON(url:string){
-  const r = await fetch(url);
-  if (!r.ok) return { ok:false, status:r.status };
-  try { return await r.json(); } catch { return { ok:true, items:[] }; }
-}
-
-export default function FilesTab({ doorloop, dropbox, entity, refId }: Props){
-  const [tab, setTab] = useState<"dl"|"dbx">(doorloop ? "dl" : "dbx");
+export default function FilesTab({ doorloop, dropbox, entity, refId }: Props) {
+  const [tab, setTab] = useState<"dl" | "dbx">(doorloop ? "dl" : "dbx");
   const [query, setQuery] = useState("");
-  const [dl, setDL] = useState<ListedFile[]>([]);
-  const [dbx, setDBX] = useState<ListedFile[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  // fetch lists
-  useEffect(()=>{ (async()=>{
-    setLoading(true);
-    try{
-      if (doorloop){
-        const j:any = await getJSON(`/api/files/doorloop/list?table=${entity}&ref_id=${refId}`);
-        const items = (j?.items||[]).map((f:any)=>({ name:f.name||f.path||"File", size:f.size, modified:f.modified, url:f.url, source:"DL" as const }));
-        setDL(items);
-      } else setDL([]);
-      if (dropbox){
-        const j:any = await getJSON(`/api/files/dropbox/list?table=${entity}&ref_id=${refId}`);
-        const items = (j?.items||[]).map((f:any)=>({ name:f.name||f.path||"File", size:f.size, modified:f.client_modified||f.modified, url:f.url, source:"DBX" as const }));
-        setDBX(items);
-      } else setDBX([]);
-    } finally { setLoading(false); }
-  })(); }, [doorloop, dropbox, entity, refId]);
-
-  const current = useMemo(()=> (tab==="dl" ? dl : dbx).filter(f => !query || f.name.toLowerCase().includes(query.toLowerCase())), [tab, dl, dbx, query]);
+  const [attempt, setAttempt] = useState(0);
+  const [result, setResult] = useState<Result | null>(null);
+  const epoch = useSessionEpoch();
+  const enabled = tab === "dl" ? doorloop : dropbox;
+  const key = JSON.stringify([entity, refId, tab, epoch, attempt, enabled]);
+  useEffect(() => { setQuery(""); }, [entity, refId, tab, epoch]);
+  useEffect(() => {
+    if (!enabled) return;
+    const controller = new AbortController();
+    const params = new URLSearchParams({ table: entity, ref_id: String(refId) });
+    const source = tab === "dl" ? "doorloop" : "dropbox";
+    void sessionFetchJSON<unknown>(`/api/files/${source}/list?${params}`, { signal: controller.signal })
+      .then(payload => parseFileList(payload, tab === "dl" ? "DL" : "DBX"))
+      .then(files => { if (!controller.signal.aborted) setResult({ key, state: "ready", files }); })
+      .catch(error => { if (!controller.signal.aborted) setResult({ key, state: errorKind(error) }); });
+    return () => controller.abort();
+  }, [key]);
+  const current = result?.key === key ? result : null;
+  const files = useMemo(() => current?.state === "ready"
+    ? current.files.filter(f => f.name.toLowerCase().includes(query.trim().toLowerCase())) : [], [current, query]);
 
   return (
-    <div className="card">
-      <div className="card-head">
-        <div className="ecc-section-title">Files</div>
-        <div className="flex items-center gap-2">
-          <div className="ecc-tabs">
-            <button className="ecc-tab" aria-selected={tab==="dl"} aria-disabled={!doorloop} onClick={()=> doorloop && setTab("dl")}>DoorLoop</button>
-            <button className="ecc-tab" aria-selected={tab==="dbx"} aria-disabled={!dropbox} onClick={()=> dropbox && setTab("dbx")}>Dropbox</button>
-          </div>
+    <section className="card" aria-label="Record files">
+      <div className="card-head"><h2 className="ecc-section-title">Files</h2>
+        <div className="ecc-tabs" role="group" aria-label="File source">
+          <button type="button" className="ecc-tab ecc-touch" aria-pressed={tab === "dl"} disabled={!doorloop} onClick={() => setTab("dl")}>DoorLoop</button>
+          <button type="button" className="ecc-tab ecc-touch" aria-pressed={tab === "dbx"} disabled={!dropbox} onClick={() => setTab("dbx")}>Dropbox</button>
         </div>
       </div>
-
-      <div className="filter">
-        <input className="input" placeholder="Search all files…" value={query} onChange={e=>setQuery(e.target.value)} />
-      </div>
-
-      <div style={{padding:"10px 14px"}} className="list">
-        {!doorloop && !dropbox ? (
-          <div className="text-sm text-neutral-400">No file sources connected. Connect Dropbox or DoorLoop to manage files.</div>
-        ) : loading ? (
-          <div className="text-sm text-neutral-400">Loading files…</div>
-        ) : current.length === 0 ? (
-          <div className="text-sm text-neutral-400">No files.</div>
-        ) : current.map((f, i) => (
-          <div key={i} className="ecc-file-row">
-            <div className="truncate">
-              <div className="font-medium text-[13px] truncate">{f.name}</div>
-              <small>{f.source}{f.modified ? ` • ${new Date(f.modified).toLocaleDateString()}` : ""}</small>
-            </div>
-            {f.url ? <a className="text-[12px] underline" href={f.url} target="_blank">Open</a> : <span className="text-[12px] text-neutral-500">No link</span>}
-          </div>
-        ))}
-      </div>
-    </div>
+      {!enabled ? <StateNotice kind="partial" title="This file source is not connected." detail="No file list has been confirmed." />
+        : !current ? <StateNotice kind="loading" title="Loading files..." />
+        : current.state !== "ready" ? <StateNotice kind={current.state} title={current.state === "denied" ? "You don't have access to these files." : "Files could not be loaded."}
+            detail="No file list is shown. Try again." onRetry={() => setAttempt(n => n + 1)} />
+        : <>
+          <div className="filter"><label>Search files<input className="input ecc-touch" value={query} onChange={e => setQuery(e.target.value)} /></label></div>
+          {files.length === 0 ? <StateNotice kind="empty" title={query.trim() ? "No files match this search." : "No files were returned for this record."} />
+            : files.map((file, i) => <div className="ecc-file-row" key={file.id ?? `${file.name}-${i}`}>
+                <div><div>{file.name}</div><small>{file.source}{file.modified ? ` · ${new Date(file.modified).toLocaleDateString()}` : ""}</small></div>
+                {file.url ? <a className="ecc-touch" href={file.url} target="_blank" rel="noopener noreferrer">Open</a> : <span>No link reported</span>}
+              </div>)}
+        </>}
+    </section>
   );
 }

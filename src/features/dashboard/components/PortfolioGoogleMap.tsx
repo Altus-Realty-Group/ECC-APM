@@ -58,9 +58,11 @@ function PropertyPin({ status, onClick }: {
 }
 
 export function PortfolioGoogleMap() {
-  const { mapData } = useDashboardData();
+  const { mapData, mapAvailable } = useDashboardData();
   const [selectedProperty, setSelectedProperty] = useState<MapDataProperty | null>(null);
   
+  if (!mapAvailable) return <div className="map-fallback" role="status">Property locations are not available yet. Open Properties to review the loaded records.</div>;
+
   // Check for Google Maps API key
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   
@@ -80,12 +82,6 @@ export function PortfolioGoogleMap() {
   const validPoints = mapData.filter(
     p => typeof p.lat === "number" && typeof p.lng === "number" && Number.isFinite(p.lat) && Number.isFinite(p.lng)
   );
-
-  console.log('🗺️ Map Data Debug:', {
-    totalProperties: mapData.length,
-    validProperties: validPoints.length,
-    sampleProperty: validPoints[0]
-  });
 
   // Show empty state if no valid coordinates
   if (validPoints.length === 0) {

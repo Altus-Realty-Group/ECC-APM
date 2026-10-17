@@ -3,6 +3,12 @@ import { Clock } from "lucide-react";
 import type { SchedulerDisplay } from "./schedulerDisplay";
 import './scheduler.css';
 
+function timestampLabel(value: string) {
+  if (!value.endsWith('Z') || !value.includes('T')) return value;
+  const [date, clock] = value.split('T');
+  return <time dateTime={value}><span className="ecc-scheduler__date">{date}</span>{' '}<span className="ecc-scheduler__date">{clock.replace(/(?:\.000)?Z$/, ' UTC')}</span></time>;
+}
+
 /** Presentational Scheduler panel. Receives already-resolved display labels. */
 export default function SchedulerPanel({ display }: { display: SchedulerDisplay }) {
   return (
@@ -38,7 +44,7 @@ export default function SchedulerPanel({ display }: { display: SchedulerDisplay 
         <div className="ecc-field-row">
           <span className="ecc-field-label">Next Run:</span>
           <span className="ecc-field-value font-mono text-sm" data-testid="scheduler-next">
-            {display.nextRunLabel}
+            {timestampLabel(display.nextRunLabel)}
           </span>
         </div>
         <div className="ecc-field-row">
@@ -50,7 +56,7 @@ export default function SchedulerPanel({ display }: { display: SchedulerDisplay 
         {display.lastRunLabel && (
           <div className="ecc-field-row">
             <span className="ecc-field-label">Last Run:</span>
-            <span className="ecc-field-value text-sm">{display.lastRunLabel}</span>
+            <span className="ecc-field-value text-sm">{timestampLabel(display.lastRunLabel)}</span>
           </div>
         )}
       </div>

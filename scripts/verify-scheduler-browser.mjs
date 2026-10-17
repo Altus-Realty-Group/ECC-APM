@@ -58,7 +58,8 @@ try {
     await page.goto(`${base}/systems/integrations`);
     await expect(page.getByTestId('scheduler-interval')).toHaveText('7 minutes');
     await expect(page.getByTestId('scheduler-nightly')).toHaveText('00:00 UTC');
-    await expect(page.getByTestId('scheduler-next')).toHaveText('2026-10-18T05:00:00.000Z');
+    await expect(page.getByTestId('scheduler-next')).toHaveText('2026-10-18 05:00:00 UTC');
+    await expect(page.getByTestId('scheduler-next').locator('time')).toHaveAttribute('datetime', '2026-10-18T05:00:00.000Z');
     await page.getByTestId('scheduler-panel').screenshot({ path: `/tmp/ecc-scheduler-${width}.png` });
 
     holdAdmin = true; holdHealth = true;

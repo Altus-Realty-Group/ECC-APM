@@ -5,3 +5,4 @@
 .ecc-scheduler .ecc-field-label { color: var(--ecc-muted, #b7bbc3); font-size: 14px; text-align: left; }
 .ecc-scheduler .ecc-field-value { min-width: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; text-align: left; }
 .ecc-scheduler .ecc-card__footer p { margin: 0; color: var(--ecc-muted, #b7bbc3); font-size: 12px; line-height: 1.5; text-align: left; }
+.ecc-scheduler__date { display: inline-block; white-space: nowrap; font-size: 13px; }

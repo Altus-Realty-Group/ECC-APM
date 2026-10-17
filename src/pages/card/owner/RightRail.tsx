@@ -6,18 +6,15 @@ export default function RightRail({ owner, properties }:{ owner?: any|null; prop
   return (
     <div className="space-y-3">
       <Section title="Portfolio Summary">
-        <div className="text-sm opacity-70">Property overview (placeholder).</div>
+        <div className="text-sm opacity-70">Portfolio summary is not available in this panel yet.</div>
       </Section>
 
       <Section title="Contact Methods">
-        <div className="text-sm opacity-70">Email, phone, address (placeholder).</div>
+        <div className="text-sm opacity-70">Contact information is not available in this panel yet.</div>
       </Section>
 
       <Section title="Pinned Files">
-        <ul className="text-sm list-disc pl-5">
-          <li>W-9 form.pdf</li>
-          <li>Operating agreement.pdf</li>
-        </ul>
+        <div className="text-sm opacity-70">File listing is not available on this card yet.</div>
       </Section>
     </div>
   );

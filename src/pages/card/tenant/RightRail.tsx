@@ -16,14 +16,11 @@ export default function RightRail({ activeLease }:{ activeLease?: any|null }) {
       </Section>
 
       <Section title="Contact Methods">
-        <div className="text-sm opacity-70">Email, phone, emergency (placeholder).</div>
+        <div className="text-sm opacity-70">Contact information is not available in this panel yet.</div>
       </Section>
 
       <Section title="Pinned Files">
-        <ul className="text-sm list-disc pl-5">
-          <li>ID copy.pdf</li>
-          <li>Reference check.pdf</li>
-        </ul>
+        <div className="text-sm opacity-70">File listing is not available on this card yet.</div>
       </Section>
     </div>
   );

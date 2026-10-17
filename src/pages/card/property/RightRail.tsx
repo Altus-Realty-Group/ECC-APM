@@ -32,14 +32,11 @@ export default function RightRail({ property }: { property?: Property | null }) 
       </CardPanel>
 
       <CardPanel title="Key Dates">
-        <div className="text-sm opacity-70">Upcoming inspections, renewals, notices will appear here.</div>
+        <div className="text-sm opacity-70">Key dates are not available on this card yet.</div>
       </CardPanel>
 
       <CardPanel title="Pinned Files">
-        <ul className="text-sm list-disc pl-5">
-          <li><span className="opacity-70">Insurance policy.pdf</span> (placeholder)</li>
-          <li><span className="opacity-70">Mortgage_note.pdf</span> (placeholder)</li>
-        </ul>
+        <div className="text-sm opacity-70">File listing is not available on this card yet.</div>
       </CardPanel>
     </div>
   );

@@ -39,6 +39,7 @@ import AdminGeocodeManagementPage from "./features/admin/pages/AdminGeocodeManag
 import AdminTransferManagementPage from "./features/admin/pages/AdminTransferManagementPage";
 
 // Systems Pages
+import RenewalPlanningPage from "./features/renewals/RenewalPlanningPage";
 import IntegrationsHealthPage from "./features/systems/integrations/IntegrationsHealthPage";
 
 // Owner Transfer
@@ -109,6 +110,7 @@ export default function App() {
             <Route path="/dashboard" component={DashboardPage} />
             <Route path="/data" component={DataHub} />
             <Route path="/ops/operations" component={OperationsRecoveryPage} />
+            <Route path="/ops/ai/renewal-forecasting" component={RenewalPlanningPage} />
             <Route path="/ops/legal/case-manager" component={LegalCaseManagerPage} />
             <Route path="/ops/maintenance/work-orders" component={WorkOrdersPage} />
             <Route path="/ops/accounting/tenant-ledgers" component={TenantLedgersPage} />

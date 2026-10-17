@@ -6,7 +6,7 @@ import { Router } from "wouter";
 import { PropertiesSurface } from "../../src/pages/portfolio/Properties";
 
 type Query = React.ComponentProps<typeof PropertiesSurface>["query"];
-const property = { id: 42, name: "Verified property", city: "Gary", units: 4, occupancy_pct: 75 };
+const property = { id: 42, name: "Verified property", city: "Gary", units: 4, occPct: 75 };
 function render(overrides: Partial<Query> = {}) {
   const query = {
     data: undefined, isLoading: false, isFetching: false, isError: false, isSuccess: false,
@@ -78,4 +78,16 @@ test("Properties completed populated read preserves source counts, metrics and c
   assert.match(html, /href="\/card\/property\/42"/);
   assert.match(html, /1 visible row/);
   assert.match(html, /type="checkbox"/);
+});
+
+
+test("Properties accepts only finite occupancy percentages within zero to one hundred", () => {
+  for (const occPct of [0, 100]) {
+    const html = render({ data: [{ ...property, occPct }], isSuccess: true });
+    assert.match(html, new RegExp(`${occPct}% avg occupancy`));
+  }
+  for (const occPct of [null, undefined, -1, 101, NaN, Infinity, "75"]) {
+    const html = render({ data: [{ ...property, occPct }], isSuccess: true });
+    assert.doesNotMatch(html, /avg occupancy|NaN%|Infinity%|101%|-1%/);
+  }
 });

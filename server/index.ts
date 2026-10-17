@@ -1,7 +1,8 @@
 import express from "express";
 import cors from "cors";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { PropertyOut, LeaseOut, TenantOut, OwnerOut } from "./mappings";
+import { LeaseOut, TenantOut, OwnerOut } from "./mappings";
+import { readPropertyCollection } from "./lib/propertyProjection";
 import { readUnitCollection } from "./lib/unitProjection";
 import type { UnitReadClient } from "./lib/unitProjection";
 import { installOwnerRoutes } from './routes/owners';
@@ -79,7 +80,6 @@ if (hasBffConfig) {
 import { getMissingServerEnv, serverEnvPresence } from './lib/env.js';
 import { getRouteManifest } from './lib/routeRegistry.js';
 import { setContract } from './lib/contractHeaders.js';
-import { mapPropertyActive } from './lib/mapping.js';
 import { installPropertyRoutes } from './routes/properties.js';
 import { installOwnerRoutes as installOwnerRoutesNew } from './routes/owners.js'; // Renamed to avoid conflict with existing import
 
@@ -480,86 +480,15 @@ app.use(['/api/portfolio', '/api/maintenance', '/api/accounting', '/api/geocode'
   next();
 });
 
-/** Properties with computed units & occupancy */
+/** Properties with verified related-unit counts; occupancy remains unreported. */
 app.get("/api/portfolio/properties", async (req, res) => {
-  if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
-
+  if (!supa.client) return res.status(503).json({ error: "Property records could not be loaded." });
   try {
-    // Get properties - use actual column names from the current database
-    const { data: propertiesData, error: propsError } = await supa.client
-      .from(TABLE.properties)
-      .select("id, name, doorloop_id, address_city, address_state, address_zip, type, class, active, lat, lng")
-      .limit(5000);
-
-    if (propsError) throw propsError;
-
-    // build property maps by id and by doorloop_id
-    const byId = new Map((propertiesData ?? []).map(p => [String(p.id), p]));
-    const byDL = new Map((propertiesData ?? []).filter(p => p.doorloop_id).map(p => [String(p.doorloop_id), p]));
-
-    // Get units data for occupancy calculation
-    const { data: unitsData, error: unitsError } = await supa.client
-      .from(TABLE.units)
-      .select(`
-        id,
-        property_id,
-        doorloop_property_id,
-        status
-      `);
-
-    if (unitsError) throw unitsError;
-
-    // Group units by property using dual-key mapping
-    const unitsByProperty = new Map();
-    const occupiedByProperty = new Map();
-
-    (unitsData || []).forEach((unit: any) => {
-      // when attributing a unit to a property:
-      const p =
-        (unit.property_id && byId.get(String(unit.property_id))) ||
-        (unit.doorloop_property_id && byDL.get(String(unit.doorloop_property_id))) ||
-        null;
-      const propKey = p ? String(p.id) : String(unit.property_id ?? '');
-
-      if (!propKey) return;
-
-      if (!unitsByProperty.has(propKey)) {
-        unitsByProperty.set(propKey, 0);
-        occupiedByProperty.set(propKey, 0);
-      }
-      unitsByProperty.set(propKey, unitsByProperty.get(propKey) + 1);
-
-      if (unit.status && ['occupied', 'occ', 'active'].includes(unit.status.toLowerCase())) {
-        occupiedByProperty.set(propKey, occupiedByProperty.get(propKey) + 1);
-      }
-    });
-
-    const properties: PropertyOut[] = (propertiesData || []).map((row: any) => {
-      const propId = String(row.id);
-      const totalUnits = unitsByProperty.get(propId) || 0;
-      const occupiedUnits = occupiedByProperty.get(propId) || 0;
-      const occPct = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0;
-
-      return {
-        id: row.id,
-        name: row.name || "—",
-        type: row.type || "—",
-        class: row.class || "—",
-        state: row.address_state || "—",
-        city: row.address_city || "—",
-        zip: row.address_zip || "—",
-        units: totalUnits,
-        occPct: occPct,
-        active: mapPropertyActive(row) ?? false, // false = unavailable, not known inactive
-        lat: row.lat || null,
-        lng: row.lng || null
-      };
-    });
-
+    const result = await readPropertyCollection(supa.client as unknown as UnitReadClient, { properties: TABLE.properties, units: TABLE.units });
     setContract(req, res, '/api/portfolio/properties');
-    res.json({ data: properties, meta: { totalCount: properties.length } });
-  } catch (e: any) {
-    return sendErr(res, 500, e);
+    res.json(result);
+  } catch {
+    res.status(503).json({ error: "Property records could not be loaded." });
   }
 });
 

@@ -65,6 +65,41 @@ test("safeCardHref only links positive safe integers; invalid IDs unlinked", () 
   assert.equal(safeCardHref("lease", Number.MAX_SAFE_INTEGER + 1), undefined);
 });
 
+test("unexpected and malformed lease statuses keep raw and mounted rent summaries uncertain", () => {
+  for (const status of ["unclassified", "nonsense", "pending_review", "unknown", "", "   ", null, undefined, {}, false, 7, ["active"]]) {
+    for (const suppliedStatus of [status, reportedStatus(status) ?? "—"]) {
+      const summary = summarizeActiveRent([
+        { status: "active", rent: 1000 },
+        { status: suppliedStatus, rent: 500 },
+      ]);
+      assert.equal(summary.total, 1000);
+      assert.equal(summary.partial, true, `Status ${String(status)} must preserve uncertainty`);
+      assert.equal(summary.activeCount, 1);
+      assert.equal(summary.unclassifiedCount, 1);
+    }
+  }
+  for (const status of [{}, false, 7, ["active"]]) {
+    assert.equal(reportedStatus(status), null);
+  }
+});
+
+test("trimmed Active preserves zero while only source-supported ended statuses are excluded as known", () => {
+  const endedStatuses = ["ended", "terminated", "closed", "past", "inactive", "cancelled", "canceled"];
+  const summary = summarizeActiveRent([
+    { status: " Active ", rent: 1000 },
+    { status: " ACTIVE ", rent: 0 },
+    ...endedStatuses.map((status) => ({ status: ` ${status.toUpperCase()} `, rent: 500 })),
+  ]);
+  assert.equal(summary.total, 1000);
+  assert.equal(summary.activeCount, 2);
+  assert.equal(summary.knownCount, 2);
+  assert.equal(summary.partial, false);
+  assert.equal(summary.unclassifiedCount, 0);
+  const missing = summarizeActiveRent([{ status: " Active ", rent: null }]);
+  assert.equal(missing.total, null);
+  assert.equal(missing.partial, true);
+});
+
 test("source-shaped helpers", () => {
   assert.equal(joinTenants(["Jane Doe", "John Smith"]), "Jane Doe, John Smith");
   assert.equal(joinTenants([]), "");

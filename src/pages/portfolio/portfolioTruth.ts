@@ -25,19 +25,29 @@ export type RentSummary = {
   loadedOnly: true;
 };
 
+// Existing source classification: server/lib/mapping.ts normalizeStatus maps these
+// values to ended. Keep other non-active values uncertain; do not invent activity
+// from a reported string or broaden the explicitly-active rent calculation.
+const ENDED_LEASE_STATUSES = new Set([
+  "ended", "terminated", "closed", "past", "inactive", "cancelled", "canceled",
+]);
+
 /**
  * Aggregate only known non-negative rents on explicitly active loaded rows.
  * Missing or unclassified status makes the result uncertain/partial.
  * Do not assume unclassified leases are active or inactive.
  */
 export function summarizeActiveRent(
-  rows: Array<{ status?: string | null; rent: number | null }>
+  rows: Array<{ status?: unknown; rent: number | null }>
 ): RentSummary {
-  const active = rows.filter((r) => String(r.status ?? "").toLowerCase() === "active");
-  const unclassified = rows.filter((r) => {
-    const s = String(r.status ?? "").trim().toLowerCase();
-    return s === "" || s === "—" || s === "unknown";
-  });
+  const classified = rows.map((row) => ({
+    row,
+    status: reportedStatus(row.status)?.toLowerCase() ?? "",
+  }));
+  const active = classified.filter(({ status }) => status === "active").map(({ row }) => row);
+  const unclassified = classified.filter(({ status }) =>
+    status !== "active" && !ENDED_LEASE_STATUSES.has(status)
+  );
   const known = active.filter((r) => r.rent !== null && Number.isFinite(r.rent) && (r.rent as number) >= 0);
   const partial =
     known.length < active.length || unclassified.length > 0;
@@ -65,8 +75,8 @@ export function summarizeActiveRent(
 
 /** Status is reported only when the source provides it. Never invent "Current". */
 export function reportedStatus(value: unknown): string | null {
-  if (value === null || value === undefined) return null;
-  const s = String(value).trim();
+  if (typeof value !== "string") return null;
+  const s = value.trim();
   return s.length > 0 ? s : null;
 }
 

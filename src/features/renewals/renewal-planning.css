@@ -1,0 +1,36 @@
+.ecc-renewals { color: #fff; min-width: 0; max-width: 1440px; margin: 0 auto; padding: clamp(16px, 2.4vw, 32px); display: grid; gap: 18px; }
+.ecc-renewals h1, .ecc-renewals p { margin: 0; }
+.ecc-renewals h1 { color: #fff; font-size: clamp(25px, 3vw, 32px); line-height: 1.25; margin-block: 6px 8px; }
+.ecc-renewals p { color: #deded6; font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; }
+.ecc-renewals a, .ecc-renewals button, .ecc-renewals input, .ecc-renewals select { min-height: 44px; min-width: 44px; font-size: 14px; }
+.ecc-renewals a { color: #fff; display: inline-flex; align-items: center; padding: 10px 8px; }
+.ecc-renewals a:focus-visible, .ecc-renewals button:focus-visible, .ecc-renewals input:focus-visible, .ecc-renewals select:focus-visible, .ecc-renewals-table-scroll:focus-visible { outline: 2px solid #d4af37; outline-offset: 3px; }
+.ecc-renewals-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.ecc-renewals-heading > div { flex: 1 1 440px; }
+.ecc-renewals .ecc-renewals-eyebrow { text-transform: uppercase; font-size: 12px; letter-spacing: .08em; }
+.ecc-renewals .ecc-renewals-primary { background: #d4af37; color: #111; border-radius: 6px; padding: 12px 16px; font-weight: 600; text-decoration: none; }
+.ecc-renewals-source { border-block: 1px solid #363630; padding: 12px 0; display: grid; gap: 6px; }
+.ecc-renewals-source p { font-size: 13px; }
+.ecc-renewals-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid #363630; border-radius: 7px; background: #151511; overflow: hidden; }
+.ecc-renewals-metrics > div { padding: 16px; border-right: 1px solid #363630; }
+.ecc-renewals-metrics > div:last-child { border-right: 0; }
+.ecc-renewals-metrics span { color: #deded6; font-size: 13px; line-height: 1.5; display: block; }
+.ecc-renewals-metrics strong { color: #fff; font-size: 28px; display: block; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.ecc-renewals-coverage { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.ecc-renewals-coverage p { flex: 1 1 300px; font-size: 13px; }
+.ecc-renewals button { color: #fff; background: transparent; border: 1px solid #68685c; border-radius: 6px; padding: 10px 12px; cursor: pointer; }
+.ecc-renewals button:hover { background: #24241e; }
+.ecc-renewals-filters { display: grid; grid-template-columns: minmax(170px, 1.2fr) repeat(2, minmax(160px, 1fr)) auto; gap: 12px; align-items: end; }
+.ecc-renewals-filters > div { display: grid; gap: 7px; min-width: 0; }
+.ecc-renewals-filters label { color: #fff; font-size: 13px; }
+.ecc-renewals input, .ecc-renewals select { width: 100%; color: #fff; background: #171713; border: 1px solid #68685c; border-radius: 6px; padding: 10px 12px; }
+.ecc-renewals .ecc-renewals-result-count { font-size: 13px; }
+.ecc-renewals-table-scroll { max-width: 100%; min-width: 0; overflow-x: auto; border: 1px solid #363630; border-radius: 6px; }
+.ecc-renewals table { width: 100%; min-width: 920px; border-collapse: collapse; text-align: left; color: #fff; font-size: 14px; }
+.ecc-renewals caption { text-align: left; padding: 12px; font-size: 13px; color: #deded6; }
+.ecc-renewals th { background: #1d1d17; font-size: 13px; }
+.ecc-renewals th, .ecc-renewals td { padding: 12px; border-bottom: 1px solid #363630; vertical-align: top; overflow-wrap: anywhere; max-width: 240px; }
+.ecc-renewals td > span { display: block; margin-top: 5px; font-size: 13px; color: #c8c8bf; }
+@media (max-width: 1050px) { .ecc-renewals-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 650px) { .ecc-renewals-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ecc-renewals-metrics > div { border-bottom: 1px solid #363630; } .ecc-renewals-metrics > div:nth-child(2) { border-right: 0; } .ecc-renewals-metrics > div:nth-child(n+3) { border-bottom: 0; } }
+@media (max-width: 580px) { .ecc-renewals-filters { grid-template-columns: minmax(0, 1fr); } .ecc-renewals-heading .ecc-renewals-primary { width: 100%; justify-content: center; } }

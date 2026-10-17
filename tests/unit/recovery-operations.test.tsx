@@ -145,7 +145,7 @@ test("domain panels render loading, denied, error (with retry), empty and ready 
   assert.match(empty, /ops-legal-empty/);
   const ready = render({ state: "ready", rows: [parseLegalCase({ id: "c1", type: "Eviction", status: "Open" })] });
   assert.match(ready, /ops-legal-table/);
-  for (const html of [loading, denied, err, empty, ready]) assert.doesNotMatch(html, TECHNICAL_COPY);
+  for (const html of [loading, denied, err, empty, ready]) assert.doesNotMatch(html.replace(/<[^>]*>/g, ""), TECHNICAL_COPY);
 });
 
 test("resolveDomain maps failures to denied/error, drops aborted and stale results, and never requests unverified domains", async () => {

@@ -1,3 +1,4 @@
+import { clearAccessMode, getAccessState, recordAccessMode } from "./accessState";
 // src/lib/http.ts
 export function isAbortError(e: unknown) {
   return (
@@ -18,7 +19,10 @@ export class HttpError extends Error {
 
 export async function fetchJSON<T>(input: RequestInfo, init?: RequestInit & { signal?: AbortSignal }) {
   try {
+    if (getAccessState().suspended && (!init?.method || ["GET", "HEAD"].includes(init.method.toUpperCase()))) throw new HttpError("Sign in with Altus to continue", 401);
     const res = await fetch(input, init);
+    if (res.ok) recordAccessMode(res.headers.get("X-ECC-Review-Mode"));
+    else if (res.status === 401 || res.status === 403) clearAccessMode();
     if (!res.ok) {
       let bodyText = await res.text();
       let errorMsg = `HTTP ${res.status}`;

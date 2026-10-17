@@ -2,10 +2,10 @@ import React, { useMemo, useState } from "react";
 import FilterBar from "../../components/FilterBar";
 import DataTable, { type DataColumn } from "../../components/DataTable";
 import StateNotice from "@/components/ui/StateNotice";
-import { accessGuard } from "@/lib/useAccessGuard";
+import { accessGuard, useResetOnAccessLoss } from "@/lib/useAccessGuard";
 import { useAllTenants } from "../../lib/ecc-resolvers";
 import { BLANK } from "@/lib/format";
-import { reportedStatus } from "./portfolioTruth";
+import { reportedStatus, safeCardHref } from "./portfolioTruth";
 
 type TenantRow = {
   id: string;
@@ -22,17 +22,18 @@ export default function Tenants() {
   const query = useAllTenants();
   const { isLoading, isFetching, error, refetch } = query;
   const { data, denied } = accessGuard(query);
+  useResetOnAccessLoss(denied, () => setQ(""));
 
   const rows = useMemo(() => {
     if (!data) return [];
     const mapped: TenantRow[] = data.map((tenant: any) => ({
-      id: String(tenant.id),
-      name: tenant.display_name ?? tenant.name ?? `Tenant ${tenant.id}`,
-      property: tenant.property_name ?? BLANK,
-      unit: tenant.unit_label ?? BLANK,
+      id: tenant.id != null ? String(tenant.id) : "",
+      name: tenant.name ?? BLANK,
+      property: tenant.propertyName ?? BLANK,
+      unit: tenant.unitLabel ?? BLANK,
       email: tenant.email ?? BLANK,
       phone: tenant.phone ?? BLANK,
-      status: reportedStatus(tenant.status) ?? BLANK,
+      status: reportedStatus(tenant.type) ?? BLANK, // TenantOut uses type, not status; do not invent Current
     }));
     const needle = q.trim().toLowerCase();
     if (!needle) return mapped;
@@ -47,7 +48,7 @@ export default function Tenants() {
     { key: "unit", header: "Unit" },
     { key: "email", header: "Email" },
     { key: "phone", header: "Phone" },
-    { key: "status", header: "Status" },
+    { key: "status", header: "Type" },
   ];
 
   if (isLoading || (isFetching && !data)) {
@@ -86,13 +87,13 @@ export default function Tenants() {
         title="Tenants"
         value={q}
         onChange={setQ}
-        placeholder="Search name / property / status"
+        placeholder="Search name / property / type"
       />
       <DataTable
         columns={columns}
         rows={rows}
-        rowHref={(r) => `/card/tenant/${r.id}`}
-        getRowId={(r) => r.id}
+        rowHref={(r) => safeCardHref("tenant", r.id)}
+        getRowId={(r) => r.id || "blank"}
       />
     </section>
   );

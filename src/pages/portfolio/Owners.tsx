@@ -2,14 +2,15 @@ import React, { useMemo, useState } from "react";
 import FilterBar from "../../components/FilterBar";
 import DataTable, { type DataColumn } from "../../components/DataTable";
 import StateNotice from "@/components/ui/StateNotice";
-import { accessGuard } from "@/lib/useAccessGuard";
+import { accessGuard, useResetOnAccessLoss } from "@/lib/useAccessGuard";
 import { useAllOwners } from "../../lib/ecc-resolvers";
 import { BLANK } from "@/lib/format";
+import { safeCardHref } from "./portfolioTruth";
 
 type OwnerRow = {
   id: string;
   name: string;
-  portfolio: string;
+  company: string;
   email: string;
   phone: string;
 };
@@ -19,27 +20,28 @@ export default function Owners() {
   const query = useAllOwners();
   const { isLoading, isFetching, error, refetch } = query;
   const { data, denied } = accessGuard(query);
+  useResetOnAccessLoss(denied, () => setQ(""));
 
   const rows = useMemo(() => {
     if (!data) return [];
     const mapped: OwnerRow[] = data.map((owner: any) => ({
-      id: String(owner.id ?? BLANK),
-      name: owner.name ?? owner.display_name ?? owner.entity_name ?? BLANK,
-      portfolio: owner.portfolio ?? owner.portfolio_name ?? BLANK,
+      id: owner.id != null ? String(owner.id) : "",
+      name: owner.name ?? BLANK,
+      company: owner.company ?? BLANK,
       email: owner.email ?? BLANK,
       phone: owner.phone ?? BLANK,
     }));
     const needle = q.trim().toLowerCase();
     if (!needle) return mapped;
     return mapped.filter((r) =>
-      [r.name, r.portfolio, r.id, r.email].join(" ").toLowerCase().includes(needle)
+      [r.name, r.company, r.id, r.email].join(" ").toLowerCase().includes(needle)
     );
   }, [data, q]);
 
   const columns: DataColumn<OwnerRow>[] = [
     { key: "id", header: "Owner ID" },
-    { key: "name", header: "Owner / Entity" },
-    { key: "portfolio", header: "Portfolio" },
+    { key: "name", header: "Name" },
+    { key: "company", header: "Company" },
     { key: "email", header: "Email" },
     { key: "phone", header: "Phone" },
   ];
@@ -76,12 +78,12 @@ export default function Owners() {
 
   return (
     <section className="ecc-page">
-      <FilterBar title="Owners" value={q} onChange={setQ} placeholder="Search name / portfolio / id" />
+      <FilterBar title="Owners" value={q} onChange={setQ} placeholder="Search name / company / id" />
       <DataTable
         columns={columns}
         rows={rows}
-        rowHref={(r) => `/card/owner/${r.id}`}
-        getRowId={(r) => r.id}
+        rowHref={(r) => safeCardHref("owner", r.id)}
+        getRowId={(r) => r.id || "blank"}
       />
     </section>
   );

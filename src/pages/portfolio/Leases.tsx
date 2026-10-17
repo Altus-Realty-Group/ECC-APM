@@ -1,10 +1,10 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import DataTable, { type DataColumn } from "../../components/DataTable";
 import StateNotice from "@/components/ui/StateNotice";
-import { accessGuard } from "@/lib/useAccessGuard";
+import { accessGuard, useResetOnAccessLoss } from "@/lib/useAccessGuard";
 import { useAllLeases } from "../../lib/ecc-resolvers";
-import { BLANK, formatCurrencyFromCents } from "@/lib/format";
-import { knownRentDollars, summarizeActiveRent } from "./portfolioTruth";
+import { BLANK } from "@/lib/format";
+import { knownRentDollars, summarizeActiveRent, safeCardHref, joinTenants, reportedStatus } from "./portfolioTruth";
 
 type LeaseRow = {
   id: string;
@@ -17,32 +17,38 @@ type LeaseRow = {
 };
 
 function moneyOrBlank(rent: number | null): string {
-  if (rent === null || !Number.isFinite(rent)) return BLANK;
-  // Preserve reported zero. Format as currency dollars without inventing unit conversion beyond the existing rent/rent_cents contract.
+  if (rent === null || !Number.isFinite(rent) || rent < 0) return BLANK;
   return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(rent);
 }
 
 export default function LeasesPage() {
+  const [q, setQ] = useState("");
   const query = useAllLeases();
   const { isLoading, isFetching, error, refetch } = query;
   const { data, denied } = accessGuard(query);
+  useResetOnAccessLoss(denied, () => setQ(""));
 
   const rows = useMemo<LeaseRow[]>(() => {
     if (!data) return [];
     return data.map((l: any) => {
       const rent = knownRentDollars(l);
-      const status = l.status != null && String(l.status).trim() !== "" ? String(l.status) : BLANK;
+      const status = reportedStatus(l.status) ?? BLANK;
+      const tenants = joinTenants(l.tenants) || BLANK;
       return {
-        id: String(l.id ?? ""),
-        tenants: l.tenant_name ?? l.display_name ?? BLANK,
-        property: l.property_name ?? l.property ?? BLANK,
+        id: l.id != null ? String(l.id) : "",
+        tenants,
+        property: l.propertyName ?? BLANK,
         rent,
-        start: l.start_date ?? BLANK,
-        end: l.end_date ?? BLANK,
+        start: l.start ?? BLANK,
+        end: l.end ?? BLANK,
         status,
       };
+    }).filter((r) => {
+      if (!q.trim()) return true;
+      const needle = q.trim().toLowerCase();
+      return [r.tenants, r.property, r.status, r.id].join(" ").toLowerCase().includes(needle);
     });
-  }, [data]);
+  }, [data, q]);
 
   const summary = summarizeActiveRent(rows);
 
@@ -82,7 +88,7 @@ export default function LeasesPage() {
       <StateNotice
         kind="empty"
         title="No leases are available yet."
-        detail="No revenue figures are shown."
+        detail="No revenue figures are shown. Counts and rent below would be loaded-result statistics only."
         onRetry={() => { void refetch(); }}
         retrying={isFetching}
       />
@@ -90,10 +96,10 @@ export default function LeasesPage() {
   }
 
   const mrrLabel = summary.total === null
-    ? "MRR not reported"
+    ? "Loaded MRR not reported"
     : summary.partial
-      ? `MRR (partial, ${summary.knownCount}/${summary.activeCount} active)`
-      : "MRR";
+      ? `Loaded MRR (partial, ${summary.knownCount}/${summary.activeCount} active loaded)`
+      : "Loaded MRR";
 
   const mrrValue = summary.total === null ? BLANK : moneyOrBlank(summary.total);
 
@@ -102,11 +108,11 @@ export default function LeasesPage() {
       <div className="ecc-kpis" data-testid="leases-kpis">
         <div className="ecc-kpi">
           <div className="ecc-kpi-n">{rows.length.toLocaleString()}</div>
-          <div className="ecc-kpi-l">LEASES</div>
+          <div className="ecc-kpi-l">LOADED LEASES</div>
         </div>
         <div className="ecc-kpi">
           <div className="ecc-kpi-n">{summary.activeCount.toLocaleString()}</div>
-          <div className="ecc-kpi-l">ACTIVE</div>
+          <div className="ecc-kpi-l">LOADED ACTIVE</div>
         </div>
         <div className="ecc-kpi">
           <div className="ecc-kpi-n">{mrrValue}</div>
@@ -116,15 +122,15 @@ export default function LeasesPage() {
       {summary.partial && summary.total !== null ? (
         <StateNotice
           kind="partial"
-          title="Some active lease rents were not reported."
-          detail="The MRR figure includes only leases with a reported rent. Missing rents are not treated as zero."
+          title="Some loaded active lease rents were not reported."
+          detail="The loaded MRR includes only leases with a reported non-negative rent. Missing or invalid rents are not treated as zero. These are loaded-result statistics, not proven full-portfolio totals."
         />
       ) : null}
       <DataTable
         columns={columns}
         rows={rows}
-        rowHref={(r) => r.id ? `/card/lease/${r.id}` : undefined}
-        getRowId={(r) => r.id}
+        rowHref={(r) => safeCardHref("lease", r.id)}
+        getRowId={(r) => r.id || "blank"}
       />
     </div>
   );

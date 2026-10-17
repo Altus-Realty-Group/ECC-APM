@@ -1,6 +1,6 @@
 # Dashboard workflow presentation - 2026-10-17
 
-STATUS: SOURCE VERIFIED; BROWSER AND LIVE ACCEPTANCE PENDING.
+STATUS: LOCAL SOURCE AND BROWSER VERIFIED; LIVE ACCEPTANCE PENDING.
 Repository: Altus-Realty-Group/ECC-APM (1058195656).
 Branch: codex/ecc-dashboard-workflow-20261017.
 Base: bfe9540b7c0058e7368838117679b17ccc04e54a.
@@ -87,13 +87,38 @@ Existing history disclosure has a 44px target. Body/metadata text uses readable
 white/neutral tones; gold is limited to primary action, focus and chart emphasis.
 No orange, no new dependencies and no shared CSS selectors were introduced.
 
-LIMITS: Render tests are fixture/source evidence, not browser interaction or real
-operating data. Chromium download availability was unresolved in this environment;
-no new desktop/mobile screenshot, measured layout/touch targets, keyboard journey,
-console/network run or live endpoint acceptance is claimed. Refresh/persistence
-uses the existing query behavior; real refresh/session/reload acceptance remains
-pending. Parent must review at 1363px and 390px and validate the actual source
-binding before release. No deployment/publication is part of this lane.
+## Follow-up local browser proof
+
+Reusable scratch Chromium153 at /tmp/ecc-browser-runtime/chromium resolved the
+initial download blocker. Playwright launched the actual worktree Vite source
+at 1280x844 and 390x844 touch viewports with isolated intercepted API fixtures.
+No installed package, lockfile or Vite config changed. Each scratch server used
+its own temporary optimization cache to avoid shared-worktree cache collisions.
+
+Both desktop and mobile journeys passed loading, successful source metrics,
+reported-history disclosure, cached failed refresh, cached 403 denial and initial
+503 failure. Primary/context/workflow links remained discoverable; keyboard focus
+on Review leases and 44px controls were checked. Six dashboard controls had
+minimum height44px and minimum width131.265625px; no horizontal page overflow,
+page errors or non-GET API requests. The source chart's animation was allowed to
+finish before screenshots. Exact source observations remained accessible in the
+disclosure table. Mobile visual review corrected wrapped revenue decimals and
+narrow observation table text using page-scoped CSS; final screenshots reviewed.
+
+Scratch evidence (not operating records):
+- /tmp/ecc-ui-proof/dashboard-1280.png
+- /tmp/ecc-ui-proof/dashboard-390.png
+- /tmp/ecc-ui-proof/dashboard-denied-1280.png
+- /tmp/ecc-ui-proof/dashboard-denied-390.png
+- /tmp/ecc-ui-proof/receipts.json and run.mjs
+
+Guardrail/build passed after the mobile CSS correction. The previous163-test and
+typecheck results apply to unchanged TypeScript; only CSS/proof changed afterward.
+
+LIMITS: Browser interceptions and rendered fixtures are source behavior proof,
+not real operating data, deployed source alignment, live identity/backend scope
+or production acceptance. Real source refresh/session/reload acceptance remains
+pending. No deployment/publication occurred in this lane.
 
 ## Scope and rollback
 

@@ -95,3 +95,8 @@
   .ecc-dashboard-metrics .ecc-kpi-card:nth-child(n+3) { border-bottom: 0; }
   .ecc-dashboard-section-heading { display: grid; }
 }
+@media (max-width: 580px) {
+  .ecc-dashboard-metrics .ecc-kpi-card { padding: 14px 10px; }
+  .ecc-dashboard-metrics .ecc-kpi-card:last-child .ecc-kpi-card__value { font-size: clamp(18px, 5vw, 22px); white-space: nowrap; letter-spacing: -.035em; }
+  .ecc-dashboard-history .recovery-history th, .ecc-dashboard-history .recovery-history td { padding: 10px 5px; font-size: 13px; }
+}

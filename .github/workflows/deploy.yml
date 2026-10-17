@@ -1,94 +1,18 @@
-name: Deploy ECC Functions to Azure
+name: Legacy Azure deployment quarantined
 
-on:
-  push:
-    branches: [ main ]
-    paths: [ 'ecc-functions/**' ]
+# Retirement only. No automatic trigger or credentialed operation may be restored here.
+"on":
   workflow_dispatch:
 
-env:
-  AZURE_FUNCTIONAPP_NAME: empirecommandcenter-altus-staging
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: './ecc-functions'
-  PYTHON_VERSION: '3.11'
+permissions: {}
 
 jobs:
-  build-and-deploy:
+  quarantine-refusal:
     runs-on: ubuntu-latest
+    timeout-minutes: 1
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-
-    - name: Setup Python version
-      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-
-    - name: Create and start virtual environment
-      run: |
-        python -m venv venv
-        source venv/bin/activate
-
-    - name: Install dependencies
-      run: |
-        source venv/bin/activate
-        pip install setuptools
-        pip install -r ecc-functions/requirements.txt --target=".python_packages/lib/site-packages"
-      continue-on-error: true
-
-    - name: Create requirements.txt if not exists
-      run: |
-        if [ ! -f ecc-functions/requirements.txt ]; then
-          echo "azure-functions" > ecc-functions/requirements.txt
-          echo "azure-functions-worker" >> ecc-functions/requirements.txt
-        fi
-
-    - name: Zip artifact for deployment
-      run: |
-        cd ecc-functions
-        zip -r ../ecc-functions-package.zip .
-
-    - name: Deploy to Azure Function App
-      uses: Azure/functions-action@v1
-      with:
-        app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
-        package: ecc-functions-package.zip
-        publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
-        scm-do-build-during-deployment: false
-        enable-oryx-build: false
-
-    - name: Set environment variables
-      uses: Azure/appservice-settings@v1
-      with:
-        app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
-        app-settings-json: |
-          [
-            {
-              "name": "FUNCTIONS_WORKER_RUNTIME",
-              "value": "python"
-            },
-            {
-              "name": "FUNCTIONS_EXTENSION_VERSION", 
-              "value": "~4"
-            },
-            {
-              "name": "WEBSITE_RUN_FROM_PACKAGE",
-              "value": "1"
-            },
-            {
-              "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
-              "value": "false"
-            },
-            {
-              "name": "SUPABASE_URL",
-              "value": "${{ secrets.SUPABASE_URL }}"
-            },
-            {
-              "name": "SUPABASE_SERVICE_ROLE_KEY",
-              "value": "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
-            },
-            {
-              "name": "ADMIN_SYNC_TOKEN", 
-              "value": "${{ secrets.ADMIN_SYNC_TOKEN }}"
-            }
-          ]
-        connection-string-json: ${{ secrets.AZURE_APP_SETTINGS }}
+      - name: Refuse retired operation
+        shell: bash
+        run: |
+          printf '%s\n' 'Deployment is quarantined. No operation was attempted. See docs/recovery/LEGACY_AUTOMATION_QUARANTINE_20261017.md.' >&2
+          exit 1

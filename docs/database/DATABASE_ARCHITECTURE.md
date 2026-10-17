@@ -160,3 +160,35 @@ Canonical address columns take precedence over legacy aliases in read mapping. S
 
 ## R7-G activity decision (2026-10-16)
 Property activity is canonical-first via mapPropertyActive. Present active (including false) wins. Exact booleans only. String "false" is unavailable. Legacy is_active only when active is absent and exact boolean. Wire false for unavailable does not mean known inactive. See docs/recovery/R7_GROK_PROPERTY_ACTIVITY.md.
+
+## R9-C generic entity read boundary (2026-10-16)
+
+`GET /api/entities/:table[/:id]` previously accepted any table name, selected `*` with the server's privileged client and
+returned database error text. It now sits behind `server/lib/readBoundary.ts` and `server/routes/entities.ts`:
+
+- Order: verified actor, then policy and scope validation, then the database. Anything earlier than the database is a fixed
+  body (`unauthenticated`, `not permitted`, `not found`, `unavailable`, `read failed`) that never echoes a table, column,
+  value, id or database message. Unverified callers also learn nothing about environment setup.
+- Explicit policy (`ENTITY_POLICY`, fields from `shared/schema.ts`, source-declared, not live-verified): `properties`,
+  `units`, `leases`, `owners`. Contact details, vendor ids, balances and audit columns are not readable. `select=*` means the
+  allow-list. Filters on non-allow-listed columns, unknown operators (formerly silently ignored, i.e. over-returning),
+  repeated keys and bad limits are refused. Rows are capped at 500.
+- Scope: rows are limited with `IN (scope ids)` on `properties.id` / `units.property_id` / `leases.property_id` /
+  `owners.id`. `tenants` has no column linking a row to an owner or property, so it is unavailable rather than inferred
+  through leases. An explicit out-of-scope filter is 403; an out-of-scope or missing id is an identical 404.
+- **Identity is not bound.** This repository has no verified-actor mechanism: the only server authorization is the shared
+  `ADMIN_SYNC_TOKEN` on sync routes, and the Control Plane consumer (#106) was retired. No login, user store, role fallback
+  or identity contract was added. The router takes an injected `ReadActorResolver`; production uses `noVerifiedActor`, so
+  every request is denied until Control Plane supplies a resolver that returns the actor's permitted owner/property ids.
+  Legitimate scoped reads are proven with an isolated test resolver only.
+- Consumer impact: `Entities.*` in `src/lib/ecc-api.ts` (DataHub) will receive 401 until the resolver is bound.
+- Not covered: `/api/rpc/*` (`server/routes/rpc.ts`) and the portfolio handlers in `server/index.ts` use the same privileged
+  client without an actor check (the latter is another lane's). Source-only evidence; no live database, RLS or grants checked.
+- Rollback: revert this commit. No schema, grant, migration or environment change.
+
+
+## Live catalog read reconciliation -2026-10-17
+
+The historical ECC store is corroborated as project ssexobxvtuxwnblwplzh through the current DoorLoop pipeline's explicit host reference and historical portfolio startup evidence. Read-only information_schema queries confirmed live projections for properties/units/leases/owners. ENTITY_POLICY now excludes nonexistent property and unit aliases and uses leases.rent_cents (integer); leases.rent/start/end do not exist. No money is converted in this explorer. Shared ORM declarations remain stale and are not migration authority.
+
+This supersedes the earlier source-only lease field decision above. The paired Data Hub consumer must request rent_cents before connection. Missing field is not zero and raw count/paging remain distinct from completeness. Source read boundary default noVerifiedActor is unchanged. The backend owner/deployment collision, stale ingestion, Control Plane registration/session and record grants remain blockers; no live reader/authentication is activated. See docs/recovery/LIVE_SCHEMA_READ_20261017.md. No schema/grant/data/environment/credential changes.

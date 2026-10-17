@@ -1,0 +1,41 @@
+.ecc-reports { color: #fff; min-width: 0; max-width: 1440px; margin: 0 auto; padding: clamp(16px, 2.4vw, 32px); display: grid; gap: 20px; }
+.ecc-reports h1, .ecc-reports h2, .ecc-reports p { margin: 0; }
+.ecc-reports h1 { font-size: clamp(25px, 3vw, 32px); line-height: 1.25; color: #fff; margin-bottom: 8px; }
+.ecc-reports h2 { font-size: 18px; color: #fff; margin-bottom: 8px; }
+.ecc-reports p { font-size: 14px; line-height: 1.55; color: #deded8; overflow-wrap: anywhere; }
+.ecc-reports a, .ecc-reports button, .ecc-reports select, .ecc-reports input { min-height: 44px; min-width: 44px; font-size: 14px; }
+.ecc-reports a { display: inline-flex; align-items: center; color: #fff; padding: 10px 8px; }
+.ecc-reports a:focus-visible, .ecc-reports button:focus-visible, .ecc-reports select:focus-visible, .ecc-report-table-scroll:focus-visible { outline: 2px solid #d4af37; outline-offset: 3px; }
+.ecc-report-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.ecc-report-heading > div { flex: 1 1 300px; }
+.ecc-reports .ecc-report-eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+.ecc-reports .ecc-report-primary { display: inline-flex; align-items: center; justify-content: center; padding: 12px 16px; background: #d4af37; color: #111; border: 1px solid #d4af37; border-radius: 6px; font-weight: 600; text-decoration: none; cursor: pointer; }
+.ecc-reports .ecc-report-primary:hover { background: #e4c350; }
+.ecc-report-selection { border-block: 1px solid #363630; padding: 16px 0; display: grid; gap: 10px; }
+.ecc-report-selection label { font-weight: 600; }
+.ecc-report-selection select { width: min(100%, 440px); color: #fff; background: #181814; border: 1px solid #66665b; border-radius: 6px; padding: 10px 12px; }
+.ecc-report-preview { display: grid; gap: 16px; min-width: 0; }
+.ecc-reports .ecc-report-scope { border-left: 3px solid #d4af37; padding: 10px 14px; background: #181814; }
+.ecc-report-read-status { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 20px; font-size: 13px; color: #fff; }
+.ecc-report-read-status button { background: transparent; color: #fff; border: 1px solid #66665b; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+.ecc-report-table-scroll { min-width: 0; max-width: 100%; overflow-x: auto; border: 1px solid #363630; border-radius: 6px; }
+.ecc-report-table-scroll table { min-width: 650px; width: 100%; border-collapse: collapse; color: #fff; text-align: left; font-size: 14px; }
+.ecc-report-table-scroll caption { text-align: left; padding: 12px; color: #deded8; }
+.ecc-report-table-scroll th { background: #1c1c17; font-weight: 600; }
+.ecc-report-table-scroll th, .ecc-report-table-scroll td { padding: 12px; border-bottom: 1px solid #363630; vertical-align: top; overflow-wrap: anywhere; max-width: 320px; }
+.ecc-report-missing { color: #c5c5bc; }
+.ecc-reports .ecc-report-footnote { color: #c5c5bc; font-size: 13px; }
+.ecc-report-layouts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.ecc-report-layouts article { padding: 20px; border: 1px solid #363630; border-radius: 8px; background: #141411; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.ecc-report-layouts article .ecc-report-primary { margin-top: auto; }
+@media (max-width: 900px) { .ecc-report-layouts { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 580px) { .ecc-report-heading { align-items: stretch; } .ecc-report-heading .ecc-report-primary { width: 100%; } .ecc-report-selection select { width: 100%; } }
+
+.ecc-report-preview-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.ecc-report-preview-filter label { font-size: 14px; }
+.ecc-report-preview-filter input { flex: 1 1 200px; color: #fff; background: #181814; border: 1px solid #66665b; border-radius: 6px; padding: 10px 12px; min-width: 0; }
+.ecc-report-preview-filter button { color: #fff; background: transparent; border: 1px solid #66665b; border-radius: 6px; padding: 10px 12px; cursor: pointer; }
+.ecc-report-preview-filter button:disabled { opacity: .6; cursor: default; }
+.ecc-report-preview-filter p { width: 100%; }
+.ecc-reports input:focus-visible { outline: 2px solid #d4af37; outline-offset: 3px; }
+.ecc-reports .ecc-report-no-match { padding: 12px; }

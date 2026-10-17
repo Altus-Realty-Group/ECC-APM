@@ -43,7 +43,7 @@ export default function DataHub() {
   const [limit, setLimit]   = useState<number>(25);
 
   const params = entity === "leases"
-    ? { order: "id.desc", limit, select: "id,property_id,unit_id,tenant_id,status,start_date,end_date,rent" }
+    ? { order: "id.desc", limit, select: "id,property_id,unit_id,tenant_id,status,start_date,end_date,rent_cents" }
     : { order: "id.desc", limit };
 
   const entitiesQuery = useDataHubEntities(entity, params);

@@ -45,7 +45,7 @@ for (const width of [1280, 390]) {
     await page.getByLabel("Entity:").selectOption("leases");
     const leaseUrl = new URL((await request).url());
     expect(leaseUrl.searchParams.get("order")).toBe("id.desc");
-    expect(leaseUrl.searchParams.get("select")).toBe("id,property_id,unit_id,tenant_id,status,start_date,end_date,rent");
+    expect(leaseUrl.searchParams.get("select")).toBe("id,property_id,unit_id,tenant_id,status,start_date,end_date,rent_cents");
     // A malformed 200 must not become a successful empty collection.
     payload = { ok: true };
     await page.reload();

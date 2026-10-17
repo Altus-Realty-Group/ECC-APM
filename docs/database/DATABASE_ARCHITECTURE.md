@@ -222,3 +222,8 @@ forwarding, unauthenticated diagnostics/raw DB errors, unscoped card reads and
 vendor-ID fallback lookup. The next bounded containment slice may remove unused
 generic forwarding/diagnostic surfaces; it must not claim the remaining card or
 portfolio reads authorized. No RPC or Azure Function was changed here.
+
+
+## Live catalog consumer correction -2026-10-17
+
+Read-only information_schema on the corroborated historical ECC store confirms leases.rent_cents integer and no leases.rent column. This supersedes the prior source-only request decision above. Data Hub now selects id,property_id,unit_id,tenant_id,status,start_date,end_date,rent_cents, matching the corrected PR146 allow-list. This is a raw explorer, with no inferred currency conversion or active backend binding. ORM schema remains stale. Existing privacy/actor/scope constraints stay unchanged; source presence never grants access. No live data/schema/grant/env changes. Protected API identity and current data completeness remain unresolved.

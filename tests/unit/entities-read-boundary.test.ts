@@ -170,8 +170,8 @@ test("legitimate scoped reads work and are limited to the actor's scope", async 
   assert.equal(calls[0].limit, MAX_ROWS);
 
   reset({ propertyIds: [7, 8] });
-  await get("units?property_id=eq.8&rent=gte.1000.50");
-  assert.deepEqual(calls[0].ops, [["in", "property_id", [7, 8]], ["eq", "property_id", "8"], ["gte", "rent", "1000.50"]]);
+  await get("units?property_id=eq.8&market_rent=gte.1000.50");
+  assert.deepEqual(calls[0].ops, [["in", "property_id", [7, 8]], ["eq", "property_id", "8"], ["gte", "market_rent", "1000.50"]]);
 
   reset({ ownerIds: [3, 3, 4] });
   await get("owners");
@@ -284,21 +284,21 @@ test("a non-id order is accepted only on allow-listed columns and always ends in
   }
 });
 
-test("Data Hub's historical lease selection is refused for the unverified columns, with a generic body; the declared columns work", async () => {
-  // Exact string DataHub.tsx sends for leases. doorloop_id (vendor id), primary_tenant_id and rent_cents are not declared in
-  // shared/schema.ts (which declares tenant_id and rent), so the boundary refuses rather than widening access on a guess.
+test("Data Hub refuses vendor/unsupported columns while accepting the verified live rent_cents projection", async () => {
+  // Live catalog verifies rent_cents and no rent/start/end columns. Vendor IDs and unnecessary
+  // primary_tenant_id remain excluded; known column presence alone never grants read permission.
   reset({ propertyIds: [7] });
   const hist = await get("leases?order=id.desc&limit=25&select=doorloop_id,property_id,unit_id,primary_tenant_id,rent_cents,status,start_date,end_date");
   assert.equal(hist.status, 403);
   assert.deepEqual(body(hist.text), { error: "not permitted" });
   assert.doesNotMatch(hist.text, /doorloop|primary_tenant|rent_cents/);
   assert.equal(clientsCreated, 0);
-  for (const col of ["doorloop_id", "primary_tenant_id", "rent_cents"]) assert.ok(!ENTITY_POLICY.leases.fields.includes(col), col);
+  for (const col of ["doorloop_id", "primary_tenant_id", "rent", "start", "end"]) assert.ok(!ENTITY_POLICY.leases.fields.includes(col), col);
 
   reset({ propertyIds: [7] });
-  const ok = await get("leases?order=id.desc&limit=25&select=id,property_id,unit_id,tenant_id,status,start_date,end_date,rent");
+  const ok = await get("leases?order=id.desc&limit=25&select=id,property_id,unit_id,tenant_id,status,start_date,end_date,rent_cents");
   assert.equal(ok.status, 200);
-  assert.equal(calls[0].select, "id,property_id,unit_id,tenant_id,status,start_date,end_date,rent");
+  assert.equal(calls[0].select, "id,property_id,unit_id,tenant_id,status,start_date,end_date,rent_cents");
 });
 
 test("no allow-listed column can collide with a reserved request key", () => {
@@ -402,4 +402,14 @@ test("scope is still intersected on every ordered, paged read", async () => {
   reset({ propertyIds: [7] });
   assert.equal((await get("units?order=id.desc&property_id=eq.99")).status, 403);
   assert.equal(clientsCreated, 0);
+});
+
+
+test("live catalog reconciliation excludes nonexistent aliases and unsafe provider fields", () => {
+  for (const col of ["property_address", "address", "street_address", "full_address"]) assert.ok(!ENTITY_POLICY.properties.fields.includes(col), col);
+  for (const col of ["unit_name", "condition", "unit_condition", "rent", "marketRent"]) assert.ok(!ENTITY_POLICY.units.fields.includes(col), col);
+  assert.ok(ENTITY_POLICY.properties.fields.includes("address_street1"));
+  assert.ok(ENTITY_POLICY.leases.fields.includes("rent_cents"));
+  assert.ok(!ENTITY_POLICY.leases.fields.includes("rent"));
+  for (const policy of Object.values(ENTITY_POLICY)) for (const col of ["raw_payload", "bank_account_info_json", "federal_tax_info_json", "ssn", "email", "date_of_birth"]) assert.ok(!policy.fields.includes(col), col);
 });

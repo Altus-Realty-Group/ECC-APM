@@ -22,23 +22,24 @@ export type EntityPolicy = {
   scope?: { kind: ScopeKind; column: string };
 };
 
-// Fields come from shared/schema.ts (source-declared, not live-verified). Contact details, vendor ids, balances and
-// audit columns are deliberately absent. Tenants have no column that ties a row to an owner or property, so they stay
-// unavailable rather than guessing a relationship through leases.
+// Read projections are reconciled with the corroborated ECC store's live catalog on2026-10-17.
+// This corrects stale ORM declarations; it does not activate the reader, prove record scope,
+// reconcile ingestion, or establish current portfolio completeness. See docs/recovery/LIVE_SCHEMA_READ_20261017.md.
+// Contact details, vendor ids, balances, raw provider payloads and audit columns remain excluded.
 export const ENTITY_POLICY: Readonly<Record<string, EntityPolicy>> = Object.freeze({
   properties: {
     table: 'properties',
-    fields: ['id', 'name', 'type', 'class', 'active', 'address_state', 'address_city', 'address_zip', 'property_address', 'address', 'street_address', 'full_address', 'lat', 'lng'],
+    fields: ['id', 'name', 'type', 'class', 'active', 'address_street1', 'address_state', 'address_city', 'address_zip', 'lat', 'lng', 'updated_at'],
     scope: { kind: 'propertyIds', column: 'id' },
   },
   units: {
     table: 'units',
-    fields: ['id', 'property_id', 'name', 'unit_number', 'unit_name', 'beds', 'baths', 'sqft', 'status', 'condition', 'unit_condition', 'rent', 'market_rent', 'marketRent'],
+    fields: ['id', 'property_id', 'name', 'unit_number', 'unit_label', 'beds', 'baths', 'sqft', 'status', 'market_rent', 'market_rent_cents', 'asking_rent_cents', 'effective_rent_cents', 'updated_at'],
     scope: { kind: 'propertyIds', column: 'property_id' },
   },
   leases: {
     table: 'leases',
-    fields: ['id', 'property_id', 'unit_id', 'tenant_id', 'status', 'start', 'end', 'start_date', 'end_date', 'rent'],
+    fields: ['id', 'property_id', 'unit_id', 'tenant_id', 'status', 'start_date', 'end_date', 'rent_cents', 'updated_at'],
     scope: { kind: 'propertyIds', column: 'property_id' },
   },
   owners: {

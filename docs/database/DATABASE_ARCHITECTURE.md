@@ -185,3 +185,10 @@ returned database error text. It now sits behind `server/lib/readBoundary.ts` an
 - Not covered: `/api/rpc/*` (`server/routes/rpc.ts`) and the portfolio handlers in `server/index.ts` use the same privileged
   client without an actor check (the latter is another lane's). Source-only evidence; no live database, RLS or grants checked.
 - Rollback: revert this commit. No schema, grant, migration or environment change.
+
+
+## Live catalog read reconciliation -2026-10-17
+
+The historical ECC store is corroborated as project ssexobxvtuxwnblwplzh through the current DoorLoop pipeline's explicit host reference and historical portfolio startup evidence. Read-only information_schema queries confirmed live projections for properties/units/leases/owners. ENTITY_POLICY now excludes nonexistent property and unit aliases and uses leases.rent_cents (integer); leases.rent/start/end do not exist. No money is converted in this explorer. Shared ORM declarations remain stale and are not migration authority.
+
+This supersedes the earlier source-only lease field decision above. The paired Data Hub consumer must request rent_cents before connection. Missing field is not zero and raw count/paging remain distinct from completeness. Source read boundary default noVerifiedActor is unchanged. The backend owner/deployment collision, stale ingestion, Control Plane registration/session and record grants remain blockers; no live reader/authentication is activated. See docs/recovery/LIVE_SCHEMA_READ_20261017.md. No schema/grant/data/environment/credential changes.

@@ -147,3 +147,7 @@ documented `count: 'exact'` and `range` contract), a bound Control Plane resolve
 
 Revert the correction commit; PR146's first commit stands alone. No schema, grant, migration, environment, deployment or
 runtime-binding change. With `noVerifiedActor` the router still denies every request.
+
+## Superseding live catalog evidence -2026-10-17
+
+The earlier source-only field inventory and rent-vs-rent_cents hold are superseded by LIVE_SCHEMA_READ_20261017.md. Actual corroborated ECC schema has leases.rent_cents (integer), not rent. The policy now uses verified columns and excludes nonexistent aliases across properties/units/leases. Scope/actor behavior remains unactivated; no deployed, migration or operational-data acceptance follows from this correction.

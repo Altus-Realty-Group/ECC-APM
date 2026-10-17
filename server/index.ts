@@ -1,7 +1,9 @@
 import express from "express";
 import cors from "cors";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { PropertyOut, UnitOut, LeaseOut, TenantOut, OwnerOut } from "./mappings";
+import { PropertyOut, LeaseOut, TenantOut, OwnerOut } from "./mappings";
+import { readUnitCollection } from "./lib/unitProjection";
+import type { UnitReadClient } from "./lib/unitProjection";
 import { installOwnerRoutes } from './routes/owners';
 import { integrations } from './routes/admin/integrations';
 import { sync } from './routes/admin/sync';
@@ -566,40 +568,12 @@ app.get("/api/portfolio/units", async (req, res) => {
   if (!supa.client) return sendErr(res, 500, supa.error || "Supabase not configured");
 
   try {
-    const { data, error } = await supa.client
-      .from(TABLE.units)
-      .select("*")
-      .limit(5000);
-    if (error) throw error;
-
-    // build property maps by id and by doorloop_id
-    const { data: propertiesData } = await supa.client.from(TABLE.properties).select("id, name, doorloop_id").limit(5000);
-    const byId = new Map((propertiesData ?? []).map(p => [String(p.id), p]));
-    const byDL = new Map((propertiesData ?? []).filter(p => p.doorloop_id).map(p => [String(p.doorloop_id), p]));
-
-    const units: UnitOut[] = (data || []).map((row: any) => {
-      // when attributing a unit to a property:
-      const p =
-        (row.property_id && byId.get(String(row.property_id))) ||
-        (row.doorloop_property_id && byDL.get(String(row.doorloop_property_id))) ||
-        null;
-
-      return {
-        id: row.id,
-        propertyName: p?.name || "—",
-        unitLabel: row.unit_number || row.number || row.name || "—",
-        beds: row.beds || row.bedrooms,
-        baths: row.baths || row.bathrooms,
-        sqft: row.sq_ft || row.square_feet || row.sqft,
-        status: row.status,
-        marketRent: row.rent_amount || row.market_rent || 0
-      };
-    });
-
+    const result = await readUnitCollection(supa.client as unknown as UnitReadClient, { units: TABLE.units, properties: TABLE.properties });
     setContract(req, res, '/api/portfolio/units');
-    res.json({ data: units, meta: { totalCount: units.length } });
-  } catch (e: any) {
-    return sendErr(res, 500, e);
+    res.json(result);
+  } catch {
+    // Never expose database/query details or disguise a failed property lookup as missing context.
+    res.status(503).json({ error: "Unit records could not be loaded." });
   }
 });
 

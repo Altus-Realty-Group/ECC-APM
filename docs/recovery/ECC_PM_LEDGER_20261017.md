@@ -19,7 +19,6 @@ Standing holds (unchanged): no merge, deploy, live DB write, or cloud/access cha
 
 | Item | drafted | delivered | acknowledged | active | returned | accepted |
 | --- | --- | --- | --- | --- | --- | --- |
-| G7 corrections | yes | no (needs Dion to paste) | no | no | no | no |
 | G8 corrections (PR166) | yes | no (needs Dion to paste) | no | no | no | no |
 | G9 route truth | yes | no (needs Dion to paste) | no | no | no | no |
 | G7 initial work | yes | yes | yes | n/a | yes (eb9281e) | no |

@@ -1,8 +1,11 @@
 import React, { useMemo, useState } from "react";
 import FilterBar from "../../components/FilterBar";
 import DataTable, { type DataColumn } from "../../components/DataTable";
+import StateNotice from "@/components/ui/StateNotice";
+import { accessGuard } from "@/lib/useAccessGuard";
 import { useAllTenants } from "../../lib/ecc-resolvers";
-import { formatNumber, formatPercent, formatCurrencyFromCents, BLANK } from "@/lib/format";
+import { BLANK } from "@/lib/format";
+import { reportedStatus } from "./portfolioTruth";
 
 type TenantRow = {
   id: string;
@@ -11,17 +14,17 @@ type TenantRow = {
   unit: string;
   email: string;
   phone: string;
-  status: "Current" | "Former" | "Prospect";
+  status: string;
 };
 
 export default function Tenants() {
   const [q, setQ] = useState("");
-  const { data, isLoading, isFetching, error } = useAllTenants();
+  const query = useAllTenants();
+  const { isLoading, isFetching, error, refetch } = query;
+  const { data, denied } = accessGuard(query);
 
   const rows = useMemo(() => {
     if (!data) return [];
-    
-    // Map API data to table format
     const mapped: TenantRow[] = data.map((tenant: any) => ({
       id: String(tenant.id),
       name: tenant.display_name ?? tenant.name ?? `Tenant ${tenant.id}`,
@@ -29,17 +32,12 @@ export default function Tenants() {
       unit: tenant.unit_label ?? BLANK,
       email: tenant.email ?? BLANK,
       phone: tenant.phone ?? BLANK,
-      status: tenant.status ?? "Current"
+      status: reportedStatus(tenant.status) ?? BLANK,
     }));
-
-    // Apply search filter
-    const t = q.trim().toLowerCase();
-    if (!t) return mapped;
-    return mapped.filter(r =>
-      r.name.toLowerCase().includes(t) ||
-      r.property.toLowerCase().includes(t) ||
-      r.unit.toLowerCase().includes(t) ||
-      r.status.toLowerCase().includes(t)
+    const needle = q.trim().toLowerCase();
+    if (!needle) return mapped;
+    return mapped.filter((r) =>
+      [r.name, r.property, r.unit, r.status, r.email].join(" ").toLowerCase().includes(needle)
     );
   }, [data, q]);
 
@@ -52,19 +50,47 @@ export default function Tenants() {
     { key: "status", header: "Status" },
   ];
 
+  if (isLoading || (isFetching && !data)) {
+    return (
+      <section className="ecc-page">
+        <StateNotice kind="loading" title="Loading tenants…" />
+      </section>
+    );
+  }
+
+  if (denied || error) {
+    return (
+      <section className="ecc-page">
+        <StateNotice
+          kind={denied ? "denied" : "error"}
+          title={denied ? "You don't have access to tenants." : "Tenants could not be loaded."}
+          detail="No tenant records are shown."
+          onRetry={() => { void refetch(); }}
+          retrying={isFetching}
+        />
+      </section>
+    );
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <section className="ecc-page">
+        <StateNotice kind="empty" title="No tenants are available yet." onRetry={() => { void refetch(); }} retrying={isFetching} />
+      </section>
+    );
+  }
+
   return (
     <section className="ecc-page">
-      <FilterBar 
-        title="Tenants" 
-        value={q} 
-        onChange={setQ} 
-        placeholder="Search name / property / status" 
+      <FilterBar
+        title="Tenants"
+        value={q}
+        onChange={setQ}
+        placeholder="Search name / property / status"
       />
-      <DataTable 
-        columns={columns} 
-        rows={rows} 
-        loading={isLoading || (isFetching && rows.length === 0)}
-        error={error ? String(error) : undefined}
+      <DataTable
+        columns={columns}
+        rows={rows}
         rowHref={(r) => `/card/tenant/${r.id}`}
         getRowId={(r) => r.id}
       />

@@ -66,6 +66,9 @@ const BUILT_NAV_SECTIONS: NavSection[] = [
   { title: "AI Analytics", icon: "BarChart3", children: [
     { title: "Renewal planning", path: "/ops/ai/renewal-forecasting", icon: "FileSpreadsheet" },
   ] },
+  { title: "Communication", icon: "FileText", children: [
+    { title: "Templates", path: "/ops/comms/templates", icon: "FileText" },
+  ] },
   { title: "Data Hub", icon: "Database", path: "/data" },
   {
     title: "Systems",
@@ -130,7 +133,7 @@ export const PLANNED_DESTINATIONS: PlannedDestination[] = [
     dependency: "Needs a legal case contract and access rules. " + STUB,
   })),
   ...[
-    ["Queue", "queue"], ["Templates", "templates"], ["Logs", "logs"],
+    ["Queue", "queue"], ["Logs", "logs"],
   ].map(([title, slug]) => ({
     title, path: `/ops/comms/${slug}`, group: "Communication",
     dependency: "Needs an approved communications provider and send policy. " + STUB,

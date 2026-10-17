@@ -257,6 +257,10 @@ This supersedes the earlier source-only lease field decision above. The paired D
 
 Read-only information_schema on the corroborated historical ECC store confirms leases.rent_cents integer and no leases.rent column. This supersedes the prior source-only request decision above. Data Hub now selects id,property_id,unit_id,tenant_id,status,start_date,end_date,rent_cents, matching the corrected PR146 allow-list. This is a raw explorer, with no inferred currency conversion or active backend binding. ORM schema remains stale. Existing privacy/actor/scope constraints stay unchanged; source presence never grants access. No live data/schema/grant/env changes. Protected API identity and current data completeness remain unresolved.
 
+
+## Local email template authoring —2026-10-17
+
+Communications Templates uses tab-local user input only. No database object, backend endpoint or stored template library is introduced. JSON export excludes recipient/completion values; email draft export is a local file download, not delivery. Session epoch changes and reload clear the workspace, including pending imports. No provider, schema, grants or backend binding changes. See docs/recovery/EMAIL_TEMPLATES_20261017.md.
 ## Units portfolio projection repair - 2026-10-17
 
 The existing `GET /api/portfolio/units` handler delegates to `server/lib/unitProjection.ts`. Its source projection is reconciled to the retained catalog evidence in `docs/recovery/LIVE_SCHEMA_READ_20261017.md`: `id,property_id,unit_number,unit_label,name,beds,baths,sqft,status,market_rent`. Property context reads only `properties.id,name` by the actual `units.property_id` foreign key. Vendor-ID fallback and global property scanning are removed. Referenced IDs are deduplicated and read in batches of at most 250; an absent referenced row, lookup error or malformed result fails the read rather than silently replacing context with an unavailable join. A genuine null property_id/name remains unreported.

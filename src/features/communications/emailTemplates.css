@@ -1,0 +1,31 @@
+.ecc-email { max-width: 1440px; min-width: 0; margin: 0 auto; padding: clamp(16px, 2.4vw, 32px); color: #fff; display: grid; gap: 20px; }
+.ecc-email h1, .ecc-email h2, .ecc-email h3, .ecc-email p { margin: 0; }
+.ecc-email h1 { font-size: clamp(26px, 3vw, 34px); line-height: 1.2; margin-bottom: 10px; }
+.ecc-email h2 { font-size: 19px; margin-bottom: 8px; }
+.ecc-email h3 { font-size: 16px; }
+.ecc-email p { font-size: 14px; line-height: 1.55; color: #deded8; overflow-wrap: anywhere; }
+.ecc-email .ecc-email-eyebrow { text-transform: uppercase; font-size: 12px; letter-spacing: .09em; margin-bottom: 8px; }
+.ecc-email-scope { border-left: 3px solid #d4af37; padding: 12px 16px; background: #181814; }
+.ecc-email-scope strong { display: block; margin-bottom: 4px; }
+.ecc-email-toolbar, .ecc-email-fields { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.ecc-email button, .ecc-email input { min-height: 44px; min-width: 0; font-size: 14px; color: #fff; background: #181814; border: 1px solid #6f6f63; border-radius: 6px; padding: 10px 12px; }
+.ecc-email button { cursor: pointer; }
+.ecc-email button:disabled { opacity: .55; cursor: default; }
+.ecc-email button:focus-visible, .ecc-email input:focus-visible, .ecc-email textarea:focus-visible { outline: 2px solid #d4af37; outline-offset: 3px; }
+.ecc-email-import { font-size: 14px; display: grid; gap: 6px; flex: 1 1 260px; max-width: 420px; }
+.ecc-email-import input { width: 100%; }
+.ecc-email-columns { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.ecc-email-editor, .ecc-email-completion { min-width: 0; display: grid; gap: 10px; padding: 22px; background: #141411; border: 1px solid #363630; border-radius: 8px; }
+.ecc-email label { font-size: 14px; font-weight: 600; margin-top: 4px; }
+.ecc-email textarea { min-width: 0; width: 100%; resize: vertical; min-height: 220px; font: inherit; line-height: 1.55; color: #fff; background: #181814; border: 1px solid #6f6f63; border-radius: 6px; padding: 12px; }
+.ecc-email fieldset { min-width: 0; border: 0; padding: 0; margin: 8px 0 0; display: grid; gap: 12px; }
+.ecc-email legend { padding: 0 0 8px; font-size: 14px; font-weight: 600; }
+.ecc-email-preview { min-width: 0; display: grid; gap: 16px; background: #0a0a0a; padding: 16px; border: 1px solid #363630; border-radius: 6px; margin-block: 10px; }
+.ecc-email-preview-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; font-size: 14px; min-height: 100px; }
+.ecc-email .ecc-email-primary { background: #d4af37; color: #111; border-color: #d4af37; font-weight: 600; }
+.ecc-email .ecc-email-error { border-left: 3px solid #d97171; padding: 12px; color: #fff; background: #241515; }
+.ecc-email-missing { border-left: 3px solid #d4af37; padding: 10px 12px; }
+.ecc-email-replace { border: 1px solid #d4af37; border-radius: 6px; padding: 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.ecc-email-replace h2, .ecc-email-replace p { width: 100%; }
+@media (max-width: 900px) { .ecc-email-columns { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 580px) { .ecc-email-editor, .ecc-email-completion { padding: 16px; } .ecc-email-toolbar { align-items: stretch; } .ecc-email-toolbar > * { width: 100%; max-width: none; } .ecc-email-fields button { flex: 1 1 100%; } }

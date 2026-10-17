@@ -32,6 +32,7 @@ import OwnerCardPage from "./pages/card/owner";
 import ReportsCreatePage from "./pages/reports/Create";
 import ReportsSavedPage from "./pages/reports/Saved";
 import ReportsTemplatesPage from "./pages/reports/Templates";
+import EmailTemplatesPage from "./features/communications/EmailTemplatesPage";
 
 // Admin Pages
 import AdminSyncPage from "./features/admin/pages/AdminSyncPage";
@@ -138,6 +139,7 @@ export default function App() {
             <Route path="/reports/create" component={ReportsCreatePage} />
             <Route path="/reports/saved" component={ReportsSavedPage} />
             <Route path="/reports/templates" component={ReportsTemplatesPage} />
+            <Route path="/ops/comms/templates" component={EmailTemplatesPage} />
             {/* ------------------------------- */}
 
             {/* -------- Admin Pages -------- */}

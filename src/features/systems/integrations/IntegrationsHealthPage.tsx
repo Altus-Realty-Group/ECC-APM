@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import StateNotice from "@/components/ui/StateNotice";
 import { errorKind } from "@/lib/dataState";
-import { sessionFetchJSON, useSessionEpoch } from "@/lib/sessionScope";
+import { getSessionEpoch, sessionFetchJSON, StaleSessionError, useSessionEpoch } from "@/lib/sessionScope";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import StatusCard from "./components/StatusCard";
@@ -54,7 +54,8 @@ export default function IntegrationsHealthPage() {
   const [selectedEntities, setSelectedEntities] = useState(["owners", "properties"]);
   const [selectedRun, setSelectedRun] = useState<SyncRun | null>(null);
   const [isErrorPaneOpen, setIsErrorPaneOpen] = useState(false);
-  const [adminToken, setAdminToken] = useState(() => {
+  const [tokenEpoch, setTokenEpoch] = useState(sessionEpoch);
+  const [storedAdminToken, setAdminToken] = useState(() => {
     // Load admin token from localStorage on initial render
     try {
       return localStorage.getItem('ecc-admin-token') || "";
@@ -63,6 +64,14 @@ export default function IntegrationsHealthPage() {
       return "";
     }
   });
+  // An old session's credential is disabled during render, before effects or queries run.
+  const adminToken = tokenEpoch === sessionEpoch ? storedAdminToken : '';
+  useEffect(() => {
+    if (tokenEpoch !== sessionEpoch) {
+      setAdminToken('');
+      try { localStorage.removeItem('ecc-admin-token'); } catch { /* Storage may be unavailable. */ }
+    }
+  }, [sessionEpoch, tokenEpoch]);
   const [activeTab, setActiveTab] = useState<"monitoring" | "logs" | "dlq">("monitoring");
   const { showToast } = useShowToast();
 
@@ -70,13 +79,14 @@ export default function IntegrationsHealthPage() {
   // Admin status is session-scoped. The revision isolates credential changes;
   // the token itself is never part of the query key. Late responses from a
   // previous scope cannot land in the new key.
-  const [adminStatusRevision, setAdminStatusRevision] = useState(1);
+  const [adminStatusRevision, setAdminStatusRevision] = useState(nextHistoryRevision);
   const adminStatusKey = ['/api/admin/sync/status', adminStatusRevision, sessionEpoch] as const;
   const adminStatusQuery = useQuery({
     queryKey: adminStatusKey,
     queryFn: async ({ signal }) => {
+      if (sessionEpoch !== getSessionEpoch()) throw new StaleSessionError();
       if (!adminToken) return null;
-      return apiRequest('/api/admin/sync/status', {
+      return sessionFetchJSON<any>('/api/admin/sync/status', {
         signal,
         headers: { 'X-Admin-Token': adminToken },
       });
@@ -89,7 +99,7 @@ export default function IntegrationsHealthPage() {
 
   // Fetch sync health status
   const { data: healthData, error: healthError, isPending: healthPending, isFetching: healthQueryIsFetching, refetch: refetchHealth } = useQuery<SyncHealthResponse>({
-    queryKey: ['/api/health/sync'],
+    queryKey: ['/api/health/sync', sessionEpoch],
     queryFn: ({ signal }) => sessionFetchJSON<SyncHealthResponse>('/api/health/sync', { signal }),
     refetchInterval: 15000, // Refresh every 15 seconds
   });
@@ -105,6 +115,7 @@ export default function IntegrationsHealthPage() {
   const runsQuery = useQuery({
     queryKey: historyKey,
     queryFn: async ({ signal }) => {
+      if (sessionEpoch !== getSessionEpoch()) throw new StaleSessionError();
       if (!adminToken) throw new Error('Completion history is unavailable.');
       return parseSyncHistory(await sessionFetchJSON('/api/admin/sync/runs?limit=20', {
         signal, headers: { 'X-Admin-Token': adminToken },
@@ -122,9 +133,10 @@ export default function IntegrationsHealthPage() {
     void historyClient.cancelQueries({ queryKey: adminStatusKey });
     historyClient.removeQueries({ queryKey: adminStatusKey });
     setHistoryRevision(nextHistoryRevision());
-    setAdminStatusRevision((n) => n + 1);
+    setAdminStatusRevision(nextHistoryRevision());
     setSelectedRun(null); setSelectedHistorySource(null); setIsErrorPaneOpen(false);
     setAdminToken(value);
+    setTokenEpoch(sessionEpoch);
   }
 
   // Enhanced ping with comprehensive response
@@ -300,17 +312,6 @@ export default function IntegrationsHealthPage() {
 
   const getCurrentProgress = () => {
     return syncStatusData?.currentRun?.progress;
-  };
-
-  const formatNextRun = () => {
-    if (!healthData?.status?.next_run_at) return "Not scheduled";
-    const nextRun = new Date(healthData.status.next_run_at);
-    const now = new Date();
-    const minutes = Math.floor((nextRun.getTime() - now.getTime()) / 60000);
-    
-    if (minutes < 0) return "Overdue";
-    if (minutes < 60) return `${minutes}m`;
-    return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
   };
 
   const readError = healthError || configError;

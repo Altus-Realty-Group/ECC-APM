@@ -25,10 +25,10 @@ export type QueryReadFlags = {
   denied?: boolean;
 };
 
-/** True when a read is not a settled success. Cached data must not be shown. */
+/** A successful current-scope observation survives background refresh, never failure. */
 export function readIsUnsettled(flags: QueryReadFlags | null | undefined): boolean {
   if (!flags) return true;
-  return !!(flags.isPending || flags.isFetching || flags.isError || flags.denied);
+  return !!(flags.isPending || flags.isError || flags.denied);
 }
 
 /** Positive finite number. Rejects 0, negative, NaN, Infinity, non-numbers. */
@@ -61,7 +61,13 @@ export function validTimestamp(value: unknown): Date | null {
   if (typeof value !== "string") return null;
   const s = value.trim();
   if (!s) return null;
-  if (!/(Z|[+-]\d{2}:\d{2})$/.test(s)) return null;
+  const parts = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/.exec(s);
+  if (!parts) return null;
+  const [, year, month, day, hour, minute, second, zone] = parts;
+  const y = Number(year), m = Number(month), dom = Number(day);
+  const days = [31, y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (m < 1 || m > 12 || dom < 1 || dom > days[m - 1] || Number(hour) > 23 || Number(minute) > 59 || Number(second) > 59) return null;
+  if (zone !== 'Z' && (Number(zone.slice(1, 3)) > 23 || Number(zone.slice(4)) > 59)) return null;
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return null;
   return d;
@@ -133,7 +139,8 @@ export function schedulerDisplay(input: {
 
 /**
  * Adapter from mounted query state to display input.
- * Suppresses cached data whenever a read is pending, fetching, errored, or denied.
+ * Suppresses cached data whenever a read is pending, errored, or denied.
+ * Background fetching keeps the current scope's last successful observation.
  * Never forwards admin nextRun as an observed schedule.
  * Credentials are not part of this adapter; the caller owns scope isolation.
  */
@@ -155,7 +162,8 @@ export function schedulerFromQueries(input: {
     : {
         enabled: input.adminData.scheduler.enabled,
         intervalMinutes: input.adminData.scheduler.intervalMinutes,
-        nightlyHour: input.adminData.scheduler.fullSyncHourUTC ?? input.adminData.scheduler.nightlyFullHourUtc,
+        nightlyHour: Object.prototype.hasOwnProperty.call(input.adminData.scheduler, 'fullSyncHourUTC')
+          ? input.adminData.scheduler.fullSyncHourUTC : input.adminData.scheduler.nightlyFullHourUtc,
         // nextRun intentionally omitted — it is a calculated estimate.
         lastRunAt: input.adminData.scheduler.lastRun,
       };

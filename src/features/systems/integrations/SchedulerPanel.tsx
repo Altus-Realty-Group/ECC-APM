@@ -1,11 +1,12 @@
 import React from "react";
 import { Clock } from "lucide-react";
 import type { SchedulerDisplay } from "./schedulerDisplay";
+import './scheduler.css';
 
 /** Presentational Scheduler panel. Receives already-resolved display labels. */
 export default function SchedulerPanel({ display }: { display: SchedulerDisplay }) {
   return (
-    <div className="ecc-card" data-testid="scheduler-panel">
+    <div className="ecc-card ecc-scheduler" data-testid="scheduler-panel">
       <div className="ecc-card__header">
         <h3 className="ecc-card__title flex items-center space-x-2">
           <Clock className="w-5 h-5" />
@@ -54,7 +55,7 @@ export default function SchedulerPanel({ display }: { display: SchedulerDisplay 
         )}
       </div>
       <div className="ecc-card__footer">
-        <p className="text-sm text-gray-500">Configuration is environment-driven</p>
+        <p className="text-sm text-gray-500">Reported settings do not confirm that synchronization is running.</p>
       </div>
     </div>
   );

@@ -2,13 +2,17 @@ import React from 'react';
 import { FieldGroup } from "@/components/cardkit/FieldGroup";
 // ECC Guardrail compliance
 export default function Overview({ unit, property }:{ unit?: any|null; property?: any|null }) {
-  const propName = property?.name || property?.address_street1 || property?.street1 || "Unlinked property";
+  const measurement = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : "Not specified";
+  const text = (value: unknown) => typeof value === "string" && value.trim() ? value.trim() : null;
+  const propertyId = property?.id;
+  const propName = text(property?.name) ?? text(property?.address_street1) ?? text(property?.street1)
+    ?? (typeof propertyId === "number" && Number.isSafeInteger(propertyId) && propertyId > 0 ? `Property #${propertyId}` : "Property not reported");
   const rows = [
-    { label:'Property', value: propName, href: property?`/card/property/${property.id}`:undefined },
-    { label:'Unit Number', value: unit?.unit_number || 'Not specified' },
-    { label:'Beds', value: unit?.beds || 'Not specified' },
-    { label:'Baths', value: unit?.baths || 'Not specified' },
-    { label:'Sqft', value: unit?.sqft || 'Not specified' },
+    { label:'Property', value: propName },
+    { label:'Unit Number', value: text(unit?.unit_label) ?? text(unit?.unit_number) ?? 'Not specified' },
+    { label:'Beds', value: measurement(unit?.beds) },
+    { label:'Baths', value: measurement(unit?.baths) },
+    { label:'Sqft', value: measurement(unit?.sqft) },
     { label:'Market Rent', value: unit?.rent_cents!=null? `$${Math.round(unit.rent_cents/100)}`:'Not set' },
     { label:'Status', value: unit?.status || 'Unknown' },
   ];

@@ -15,14 +15,11 @@ export default function RightRail({ property }:{ property?: any|null }) {
       </CardPanel>
 
       <CardPanel title="Maintenance">
-        <div className="text-sm opacity-70">Filter changes, inspections (placeholder).</div>
+        <div className="text-sm opacity-70">Maintenance information is not available on this card yet.</div>
       </CardPanel>
 
       <CardPanel title="Pinned Files">
-        <ul className="text-sm list-disc pl-5">
-          <li>Floor plan.pdf</li>
-          <li>Photos.zip</li>
-        </ul>
+        <div className="text-sm opacity-70">File listing is not available on this card yet.</div>
       </CardPanel>
     </div>
   );

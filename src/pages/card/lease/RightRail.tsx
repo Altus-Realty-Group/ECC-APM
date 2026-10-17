@@ -15,14 +15,11 @@ export default function RightRail({ tenant }:{ tenant?: any|null }) {
       </Section>
 
       <Section title="Key Dates">
-        <div className="text-sm opacity-70">Move-in, renewals (placeholder).</div>
+        <div className="text-sm opacity-70">Key dates are not available on this card yet.</div>
       </Section>
 
       <Section title="Pinned Files">
-        <ul className="text-sm list-disc pl-5">
-          <li>Lease agreement.pdf</li>
-          <li>Security deposit.pdf</li>
-        </ul>
+        <div className="text-sm opacity-70">File listing is not available on this card yet.</div>
       </Section>
     </div>
   );

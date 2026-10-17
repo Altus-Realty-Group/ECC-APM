@@ -119,11 +119,19 @@ export default function LeasesPage() {
           <div className="ecc-kpi-l">{mrrLabel}</div>
         </div>
       </div>
-      {summary.partial && summary.total !== null ? (
+      {summary.partial ? (
         <StateNotice
           kind="partial"
-          title="Some loaded active lease rents were not reported."
-          detail="The loaded MRR includes only leases with a reported non-negative rent. Missing or invalid rents are not treated as zero. These are loaded-result statistics, not proven full-portfolio totals."
+          title={
+            summary.unclassifiedCount > 0
+              ? "Loaded rent summary is uncertain."
+              : "Some loaded active lease rents were not reported."
+          }
+          detail={
+            summary.unclassifiedCount > 0
+              ? `${summary.unclassifiedCount} loaded lease(s) have missing or unclassified status. They are not assumed active or inactive. The loaded MRR includes only explicitly active leases with a reported non-negative rent. Missing or invalid rents are not treated as zero. These are loaded-result statistics, not proven full-portfolio totals.`
+              : "The loaded MRR includes only leases with a reported non-negative rent. Missing or invalid rents are not treated as zero. These are loaded-result statistics, not proven full-portfolio totals."
+          }
         />
       ) : null}
       <DataTable

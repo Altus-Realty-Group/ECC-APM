@@ -55,8 +55,8 @@ export function PropertiesSurface({ query }: { query: PropertiesQuery }) {
         primary: prop.name ?? prop.label ?? `Property ${prop.id}`,
         secondary: address || BLANK,
         metricA: prop.units !== null && prop.units !== undefined ? String(prop.units) : BLANK,
-        metricB: prop.occupancy_pct !== null && prop.occupancy_pct !== undefined
-          ? formatPercent(prop.occupancy_pct, 0, "percent")
+        metricB: typeof prop.occPct === "number" && Number.isFinite(prop.occPct) && prop.occPct >= 0 && prop.occPct <= 100
+          ? formatPercent(prop.occPct, 0, "percent")
           : BLANK,
         segment: prop.city ?? prop.state ?? BLANK,
       };

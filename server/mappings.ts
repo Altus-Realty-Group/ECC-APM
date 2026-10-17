@@ -1,15 +1,16 @@
 // Backend type definitions for Portfolio API responses
 export interface PropertyOut {
   id: number;
-  name: string;
-  type: string;
-  class: string;
+  name: string | null;
+  type: string | null;
+  class: string | null;
+  street_1: string | null;
   state: string | null;
   city: string | null;
   zip: string | null;
   units: number;
-  occPct: number;
-  active: boolean;
+  occPct: number | null;
+  active: boolean | null;
   lat: number | null;
   lng: number | null;
 }

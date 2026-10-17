@@ -3,6 +3,7 @@ import { Link, Redirect, Route, Switch, useLocation } from "wouter";
 import Sidebar from "./components/Sidebar";
 import { NAV_SECTIONS, navLeafPaths } from "./config/navigation";
 import { ToastContainer } from "./components/ui/ToastContainer";
+import AccessSessionBar from "./features/access/AccessSessionBar";
 import { DevErrorBanner } from "./components/DevErrorBanner";
 
 /**
@@ -103,6 +104,7 @@ export default function App() {
 
         {/* Main content area */}
         <main className="ecc-main" role="main" id="main">
+          <AccessSessionBar />
           <Switch>
             {/* Home redirect */}
             <Route path="/"><HomeRedirect /></Route>

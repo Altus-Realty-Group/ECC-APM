@@ -7,6 +7,7 @@
     "dev": "npm run guardrail && concurrently -k -n WEB,API -c blue,magenta \"npm:dev:web\" \"npm:dev:api\"",
     "build": "npm run guardrail && vite build",
     "preview": "vite preview --host 0.0.0.0 --port 5173",
+    "start:production": "node scripts/serve-production.mjs",
     "dev:web": "vite",
     "dev:api": "tsx server/index.ts",
     "guardrail": "node scripts/guardrail-check.mjs",

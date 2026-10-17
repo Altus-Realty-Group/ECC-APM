@@ -11,7 +11,7 @@ If Replit retains an import-generated placeholder workflow, open **Tools -> Shel
 
 4. Record the new workspace URL/ID before binding or publishing it. `.altus-project.json` intentionally has no active runtime binding.
 
-The fresh workspace is a frontend foundation. `/api` and `/bff` return explicit JSON `503 BACKEND_NOT_CONNECTED`; they do not contact the old staging service or manufacture business data. Dashboard/data features will remain unavailable until backend ownership, authentication and contracts are verified and connected in a reviewed GitHub change. Historical transfer/accounting/admin placeholders remain quarantined. A successful import is not operational or production acceptance.
+The fresh workspace is a frontend foundation. Without a complete reviewed server configuration, `/api` and `/bff` return explicit JSON `503 BACKEND_NOT_CONNECTED`; they do not contact the old staging service or manufacture business data. The protected connection candidate uses central Altus sign-in and checks access on every permitted read. It is not activated. Backend ownership, deployed identity, record authorization and Control Plane registration remain acceptance blockers. See [protected connection readiness](docs/recovery/ECC_PROTECTED_CONNECTION_20261017.md). Historical transfer/accounting/admin placeholders remain quarantined. A successful import is not operational or production acceptance.
 
 Do not import old secrets, restore caches, run legacy repair/snapshot scripts, extract recovery archives or attach old databases. The Run command does not start `server/index.ts`, vendor sync jobs or database clients.
 
@@ -28,7 +28,9 @@ npm run test:dependencies
 npm run build
 ```
 
-`npm run start:replit` exercises the import startup. It uses a lockfile/Node fingerprint under ignored `node_modules` and fails if installation fails; there is no unlocked-install fallback. `npm run dev` is a legacy explicit full-stack developer command, requiring separately approved backend configuration. It is not the Replit startup. `npm run preview` serves the built frontend with the same unavailable API boundary; publishing requires separate release approval.
+`npm run start:replit` exercises the import startup. It uses a lockfile/Node fingerprint under ignored `node_modules` and fails if installation fails; there is no unlocked-install fallback. `npm run dev` is a legacy explicit full-stack developer command, requiring separately approved backend configuration. It is not the Replit startup. `npm run preview` serves the built frontend with the same guarded API boundary; publishing requires separate release approval.
+
+For a production web process independent of Replit/Vite, run `npm ci`, `npm run build`, then `npm run start:production` behind the approved HTTPS ingress. This Node process serves only the build and protected API boundary; it does not start the legacy API or synchronization jobs. `PORT` defaults to5000; `ECC_WEB_HOST` defaults to0.0.0.0. `/health/live` reports the built repository/commit, dirty-build flag and whether explicit connection configuration is present. Configuration presence is not backend readiness. Unknown/dirty builds are not accepted release identity. No host, secret or live connection is configured by adding this command.
 
 ## Standards and preservation
 

@@ -27,6 +27,7 @@ export default function StateNotice({ kind, title, detail, onRetry, retrying, te
         <p className="ecc-state__title">{title}</p>
         {detail ? <p className="ecc-state__detail">{detail}</p> : null}
       </div>
+      {kind === "denied" ? <a className="ecc-btn ecc-touch" href="/api/access/sign-in">Sign in with Altus</a> : null}
       {onRetry && kind !== "loading" ? (
         <button type="button" className="ecc-btn ecc-touch" onClick={onRetry} disabled={retrying}>
           {retrying ? "Retrying…" : "Retry"}

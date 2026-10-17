@@ -160,3 +160,33 @@ Canonical address columns take precedence over legacy aliases in read mapping. S
 
 ## R7-G activity decision (2026-10-16)
 Property activity is canonical-first via mapPropertyActive. Present active (including false) wins. Exact booleans only. String "false" is unavailable. Legacy is_active only when active is absent and exact boolean. Wire false for unavailable does not mean known inactive. See docs/recovery/R7_GROK_PROPERTY_ACTIVITY.md.
+
+
+## Data Hub audit repairs - 2026-10-17
+
+Data Hub entity reads retain the existing /api/entities/<entity> URL family and
+request fields, including order=id.desc and historical lease selections. PR146
+still needs caller compatibility review; this UI repair does not declare its
+field allow-list or paging contract accepted. No backend binding is enabled.
+The Data Hub hooks now use the existing sessionFetchJSON and session epoch in
+query keys. A late previous-session result is rejected; HTTP denials retain
+status for the existing global cache purge. Raw arrays and the existing data /
+results array envelopes are accepted; malformed successes fail as contract
+errors instead of empty records. No total cardinality is inferred.
+
+The mounted Data Hub transfer initiation/approval/authorization/execution and
+transfer-context controls are removed, matching the existing transfer-route
+containment. Their workflow remains incomplete and must be restored with
+verified actor scope, contract, confirmation and audit/idempotency proof.
+No backend endpoint, database object, role, grant or data is changed. The
+original UI remains in Git history. Owner search remains a read-only request;
+its legacy source handler returns 410 and this is surfaced as failure.
+
+Integration health now explicitly fetches its existing health/config endpoints
+instead of relying on a missing default query function. Pending/error reads
+show a notice before health badges or sync controls can render. Browser build
+configuration uses import.meta.env rather than Node process.env. The legacy
+success-path token/sync interface is NOT accepted as Control Plane integration;
+that remains separate unfinished work. These changes prove source behavior,
+not live backend authorization or production readiness. Roll back the PR to
+restore the prior consumer implementation; no database rollback applies.

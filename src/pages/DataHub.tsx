@@ -1,6 +1,8 @@
 // src/pages/DataHub.tsx
 import { useMemo, useState } from "react";
-import { useDataHubEntities, useDataHubOwnersSearch, useDataHubOwnerTransferContext, useDataHubOwnerTransferMutations } from "../lib/ecc-collection-hooks";
+import StateNotice from "../components/ui/StateNotice";
+import { errorKind } from "../lib/dataState";
+import { useDataHubEntities, useDataHubOwnersSearch } from "../lib/ecc-collection-hooks";
 
 type EntityKey = "owners" | "tenants" | "leases" | "units" | "properties";
 
@@ -36,68 +38,31 @@ function Table({ rows }: { rows: any[] }) {
   );
 }
 
-/** Reads transferId from an untyped mutation response; returns "" when absent. */
-function readTransferId(res: unknown): string {
-  if (typeof res !== "object" || res === null) return "";
-  const id = (res as { transferId?: unknown }).transferId;
-  return id ? String(id) : "";
-}
-
 export default function DataHub() {
   const [entity, setEntity] = useState<EntityKey>("owners");
   const [limit, setLimit]   = useState<number>(25);
 
-  const params = entity === "leases" 
+  const params = entity === "leases"
     ? { order: "id.desc", limit, select: "doorloop_id,property_id,unit_id,primary_tenant_id,rent_cents,status,start_date,end_date" }
     : { order: "id.desc", limit };
-  
+
   const entitiesQuery = useDataHubEntities(entity, params);
   const { data: rows, error: err, isLoading: loading } = entitiesQuery;
 
-  // Search + Transfer context + Admin flow
   const [searchQ, setSearchQ] = useState("");
-  const [shouldSearch, setShouldSearch] = useState(false);
-  const [sourceOwnerId, setSourceOwnerId] = useState("");
-  const [shouldLoadContext, setShouldLoadContext] = useState(false);
-  const [transferId, setTransferId] = useState<string>("");
-
-  const searchQuery = useDataHubOwnersSearch(shouldSearch ? searchQ : "");
-  const contextQuery = useDataHubOwnerTransferContext(shouldLoadContext ? sourceOwnerId : "");
-  const mutations = useDataHubOwnerTransferMutations();
-
-  const doSearch = () => setShouldSearch(true);
-  const doContext = () => setShouldLoadContext(true);
-  const doInitiate = () => {
-    mutations.initiate.mutate(undefined, {
-      onSuccess: (res) => setTransferId(readTransferId(res))
-    });
-  };
-  const doApprove = () => {
-    mutations.approve.mutate(transferId, {
-      onSuccess: (res) => setTransferId(readTransferId(res) || transferId)
-    });
-  };
-  const doAuthorize = () => {
-    mutations.authorize.mutate(transferId, {
-      onSuccess: (res) => setTransferId(readTransferId(res) || transferId)
-    });
-  };
-  const doExecute = () => {
-    mutations.execute.mutate(transferId, {
-      onSuccess: (res) => setTransferId(readTransferId(res) || transferId)
-    });
-  };
+  const [submittedSearch, setSubmittedSearch] = useState("");
+  const searchQuery = useDataHubOwnersSearch(submittedSearch);
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-8">
       <h1 className="text-2xl font-semibold">ECC Data Hub</h1>
-      <p className="text-gray-600">Live Azure Functions integration. Explore entities, search owners, view transfer context, and run the owner transfer workflow.</p>
+      <p className="text-gray-600">Explore available records and search owners. Connection failures and access restrictions are shown separately from empty results.</p>
 
       {/* Entities explorer */}
       <div className="space-y-3">
-        <div className="flex items-center gap-3">
-          <label className="text-sm">Entity:</label>
-          <select className="border rounded-md px-2 py-1"
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="text-sm" htmlFor="datahub-entity">Entity:</label>
+          <select id="datahub-entity" className="ecc-touch border rounded-md px-2 py-1"
                   value={entity} onChange={(e)=>setEntity(e.target.value as EntityKey)}>
             <option value="owners">owners</option>
             <option value="tenants">tenants</option>
@@ -105,48 +70,31 @@ export default function DataHub() {
             <option value="units">units</option>
             <option value="properties">properties</option>
           </select>
-          <label className="text-sm ml-4">Limit:</label>
-          <input className="border rounded-md px-2 py-1 w-24" type="number" min={1} max={200}
+          <label className="text-sm" htmlFor="datahub-limit">Limit:</label>
+          <input id="datahub-limit" className="ecc-touch border rounded-md px-2 py-1 w-24" type="number" min={1} max={200}
                  value={limit} onChange={(e)=>setLimit(parseInt(e.target.value||"25"))}/>
-          {loading && <span className="text-sm text-gray-500">loading…</span>}
-          {err && <span className="text-sm text-red-600">{String(err)}</span>}
+
         </div>
-        <Table rows={rows || []} />
+        {err ? <StateNotice kind={errorKind(err)} title="Records could not be loaded" detail="Check your connection and access, then try again." onRetry={() => { void entitiesQuery.refetch(); }} />
+          : loading ? <StateNotice kind="loading" title="Loading records" />
+          : <Table rows={rows || []} />}
       </div>
 
       {/* Owner Search */}
       <div className="space-y-2">
         <h2 className="text-lg font-semibold">Owners Search</h2>
-        <div className="flex gap-2">
-          <input className="border rounded-md px-2 py-1 flex-1" placeholder="search owners (e.g., Jane)"
+        <div className="flex flex-wrap gap-2">
+          <input aria-label="Search owners" className="ecc-touch border rounded-md px-2 py-1 flex-1 min-w-0" placeholder="Search owners"
                  value={searchQ} onChange={(e)=>setSearchQ(e.target.value)} />
-          <button className="rounded-lg px-3 py-1 bg-black text-white" onClick={doSearch}>Search</button>
+          <button className="ecc-touch rounded-lg px-3 py-1 bg-black text-white" onClick={()=>setSubmittedSearch(searchQ.trim())}>Search</button>
         </div>
-        {searchQuery.data && <Table rows={Array.isArray(searchQuery.data?.results) ? searchQuery.data.results : [searchQuery.data]} />}
+        {submittedSearch && (searchQuery.error
+          ? <StateNotice kind={errorKind(searchQuery.error)} title="Owner search could not be loaded" onRetry={() => { void searchQuery.refetch(); }} />
+          : searchQuery.isLoading ? <StateNotice kind="loading" title="Searching owners" />
+          : <Table rows={searchQuery.data || []} />)}
       </div>
 
-      {/* Transfer Context */}
-      <div className="space-y-2">
-        <h2 className="text-lg font-semibold">Transfer Context</h2>
-        <div className="flex gap-2">
-          <input className="border rounded-md px-2 py-1" placeholder="sourceOwnerId"
-                 value={sourceOwnerId} onChange={(e)=>setSourceOwnerId(e.target.value)} />
-          <button className="rounded-lg px-3 py-1 bg-black text-white" onClick={doContext}>Load</button>
-        </div>
-        {contextQuery.data && <Table rows={[contextQuery.data]} />}
-      </div>
-
-      {/* Transfer Flow */}
-      <div className="space-y-2">
-        <h2 className="text-lg font-semibold">Owner Transfer Flow</h2>
-        <div className="flex flex-wrap items-center gap-2">
-          <button className="rounded-lg px-3 py-1 bg-gray-800 text-white" onClick={doInitiate}>1) initiate</button>
-          <button className="rounded-lg px-3 py-1 bg-gray-800 text-white disabled:opacity-50" disabled={!transferId} onClick={doApprove}>2) approve</button>
-          <button className="rounded-lg px-3 py-1 bg-gray-800 text-white disabled:opacity-50" disabled={!transferId} onClick={doAuthorize}>3) authorize</button>
-          <button className="rounded-lg px-3 py-1 bg-gray-800 text-white disabled:opacity-50" disabled={!transferId} onClick={doExecute}>4) execute</button>
-          <span className="text-sm text-gray-600">transferId: <code>{transferId || "(not started)"}</code></span>
-        </div>
-      </div>
+      <StateNotice kind="partial" title="Owner transfers are unavailable" detail="Transfer access, confirmation and audit controls must be verified before transfers can be restored." />
     </div>
   );
 }

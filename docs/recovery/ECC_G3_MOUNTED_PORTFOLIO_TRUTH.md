@@ -1,25 +1,20 @@
-# ECC-G3 / G4 Mounted Portfolio Truthfulness (correction)
+# ECC-G3 / G4 / G5 Mounted Portfolio Truthfulness
 
 **Repository:** Altus-Realty-Group/ECC-APM (ID 1058195656)  
 **Branch:** grok/ecc-mounted-portfolio-truth-20261017  
 **Base:** main bfe9540b7c0058e7368838117679b17ccc04e54a  
 **Scope:** Mounted Owners.tsx, Leases.tsx, Tenants.tsx + portfolioTruth helpers.  
-**Correction (G4):** Field mapping aligned to server/mappings.ts LeaseOut / TenantOut / OwnerOut. Metrics labeled as loaded-result statistics. Invalid IDs unlinked. Search reset on access loss.
 
-## Source shapes used (not invented)
-- LeaseOut: id, propertyName, unitLabel, tenants[], status, start, end, rent (dollars)
-- TenantOut: id, name, email, phone, propertyName, unitLabel, type, balance
-- OwnerOut: id, company, name, email, phone, active
+## G5 correction (2026-10-17)
+- safeCardHref follows the existing positive-safe-integer policy (`Number.isSafeInteger(n) && n > 0`), matching RelatedRecord.relatedRecordPath. 0, -1, 1.5, "abc" and blank IDs produce no link; rows stay readable.
+- summarizeActiveRent treats missing/unclassified status as making the loaded result explicitly uncertain/partial. Does not assume those leases active or inactive.
+- Leases page notice surfaces the uncertainty when unclassifiedCount > 0.
 
-## Changes
-- Render propertyName, tenants joined, start/end, propertyName/unitLabel, company/name.
-- Rent: non-negative finite only; zero preserved; missing/invalid flagged not coerced.
-- Counts/MRR labeled "LOADED ..." / "Loaded MRR"; unknown status not counted as active.
-- safeCardHref: blank/invalid IDs produce no link (row remains readable).
-- useResetOnAccessLoss clears page search.
+## Prior (G4)
+Field mapping aligned to server/mappings.ts LeaseOut / TenantOut / OwnerOut. Metrics labeled as loaded-result statistics.
 
 ## Evidence
-Unit tests cover source-shaped fields, zero/negative/missing rent, partial loaded MRR, safe links. Typecheck/unit/dependency/build re-run after correction.
+Unit tests cover positive-safe-integer links, unclassified partial, zero/negative/missing rent. Typecheck/unit/dependency/build re-run after G5.
 
 ## Remaining
 Backend connection still required for live data. Shared DataTable unchanged. Codex owns acceptance and shared adapter. No second PR.

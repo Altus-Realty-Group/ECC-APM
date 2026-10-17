@@ -18,17 +18,26 @@ test("knownRentDollars preserves zero, rejects negative/non-finite, prefers docu
   assert.equal(knownRentDollars({}), null);
 });
 
-test("summarizeActiveRent is loaded-result only; unknown status is not active; missing not zero", () => {
+test("summarizeActiveRent is loaded-result only; unclassified status makes result partial/uncertain", () => {
   const allKnown = summarizeActiveRent([
     { status: "active", rent: 1000 },
     { status: "active", rent: 0 },
     { status: "ended", rent: 500 },
-    { status: null, rent: 200 },
   ]);
   assert.equal(allKnown.total, 1000);
   assert.equal(allKnown.partial, false);
   assert.equal(allKnown.activeCount, 2);
+  assert.equal(allKnown.unclassifiedCount, 0);
   assert.equal(allKnown.loadedOnly, true);
+
+  const withUnclassified = summarizeActiveRent([
+    { status: "active", rent: 1000 },
+    { status: null, rent: 500 },
+  ]);
+  assert.equal(withUnclassified.total, 1000);
+  assert.equal(withUnclassified.partial, true);
+  assert.equal(withUnclassified.activeCount, 1);
+  assert.equal(withUnclassified.unclassifiedCount, 1);
 
   const partial = summarizeActiveRent([
     { status: "active", rent: 800 },
@@ -38,14 +47,26 @@ test("summarizeActiveRent is loaded-result only; unknown status is not active; m
   assert.equal(partial.total, 800);
   assert.equal(partial.partial, true);
   assert.equal(partial.activeCount, 2);
+  assert.equal(partial.unclassifiedCount, 1);
 });
 
-test("source-shaped LeaseOut/TenantOut fields and safe links", () => {
-  assert.equal(joinTenants(["Jane Doe", "John Smith"]), "Jane Doe, John Smith");
-  assert.equal(joinTenants([]), "");
-  assert.equal(reportedStatus(null), null);
+test("safeCardHref only links positive safe integers; invalid IDs unlinked", () => {
   assert.equal(safeCardHref("lease", 42), "/card/lease/42");
+  assert.equal(safeCardHref("tenant", "7"), "/card/tenant/7");
+  assert.equal(safeCardHref("owner", 1), "/card/owner/1");
+
+  assert.equal(safeCardHref("lease", 0), undefined);
+  assert.equal(safeCardHref("lease", -1), undefined);
+  assert.equal(safeCardHref("lease", 1.5), undefined);
+  assert.equal(safeCardHref("lease", "abc"), undefined);
   assert.equal(safeCardHref("tenant", ""), undefined);
   assert.equal(safeCardHref("owner", null), undefined);
   assert.equal(safeCardHref("lease", "—"), undefined);
+  assert.equal(safeCardHref("lease", Number.MAX_SAFE_INTEGER + 1), undefined);
+});
+
+test("source-shaped helpers", () => {
+  assert.equal(joinTenants(["Jane Doe", "John Smith"]), "Jane Doe, John Smith");
+  assert.equal(joinTenants([]), "");
+  assert.equal(reportedStatus(null), null);
 });

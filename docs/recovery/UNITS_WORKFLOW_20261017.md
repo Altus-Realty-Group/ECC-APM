@@ -30,3 +30,9 @@ No chart is added: source completeness and occupancy semantics are unverified. B
 - Actual routed source in Chromium 153 at 1280x844 and 390x844 passed source fields, links/invalid IDs, intersecting filters/no-match/clear, select/stage/remove, source replacement with reused ID, refresh loading/clear, session reset, failed/denied/malformed/empty reads, keyboard focus, 44px targets and no horizontal overflow/page errors. API requests were only GET /api/portfolio/units with isolated response fixtures. No operating-data claim. Proof and inspected screenshots: /tmp/ecc-unit-workflow-proof.
 
 No shared helper/shell, App/navigation, backend, authentication, Control Plane, Azure, environment, schema, vendor, dependency or workflow changes. No deployment or live writes. Rollback: revert this frontend/test/documentation commit; no database rollback.
+
+## Raw rent correction - 2026-10-17
+
+The initial Units presentation formatted marketRent as USD. That assertion is removed because the producer carries raw market_rent and its currency and dollar/cents lineage remain unresolved. Each record now labels the field "Reported market rent (units unverified)" and shows the raw numeric value without currency symbols, conversion or rounding. A visible notice explains that currency and whether amounts represent dollars or cents have not been confirmed. Zero remains 0; null remains Not reported. This supersedes any earlier dollar-format proof in this document.
+
+A focused regression covers 0, 150000, 1234.56789 and null, ensuring no currency symbol/unit assertion, division or precision loss. Existing source-field render assertions now require raw 1500. No helper projection, query, backend, access or shared component changes.

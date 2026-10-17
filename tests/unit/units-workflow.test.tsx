@@ -38,11 +38,13 @@ function render(patch: Partial<Query> = {}) {
     </Router>,
   );
 }
-test('Units mounts source-declared unit/property/dollar fields, preserves zero and half baths', () => {
+test('Units mounts source-declared unit/property fields and raw rent, preserves zero and half baths', () => {
   const html = render({ isSuccess: true, data: [row] });
   assert.match(html, /Apt 4B/);
   assert.match(html, /Elm Court/);
-  assert.match(html, /\$1,500\.00/);
+  assert.match(html, /Reported market rent \(units unverified\)<\/dt><dd>1500<\/dd>/);
+  assert.doesNotMatch(html, /\$|USD/);
+  assert.match(html, /whether they represent dollars or cents have not been confirmed/);
   assert.match(html, /href="\/card\/unit\/31"/);
   assert.match(html, /1 loaded unit/);
   assert.match(html, /Beds<\/dt><dd>0/);
@@ -127,4 +129,18 @@ test('Unit property/status options use only reported source values and filters i
   );
   assert.equal(filterUnitRows(rows, { search: '31', property: 'Oak House', status: '' }).length, 0);
   assert.equal(filterUnitRows(rows, { search: '', property: '', status: '' }).length, 3);
+});
+
+test('Units raw rent values never imply currency, divide cents, round precision or replace null with zero', () => {
+  for (const value of [0, 150000, 1234.56789, null]) {
+    const html = render({ isSuccess: true, data: [{ ...row, marketRent: value }] });
+    assert.ok(
+      html.includes(
+        '<dt>Reported market rent (units unverified)</dt><dd>' +
+          (value === null ? 'Not reported' : String(value)) +
+          '</dd>',
+      ),
+    );
+    assert.doesNotMatch(html, /\$|USD|€|£/);
+  }
 });

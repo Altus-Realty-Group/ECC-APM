@@ -11,10 +11,7 @@ type UnitsQuery = Pick<
   ReturnType<typeof useAllUnits>,
   'data' | 'isLoading' | 'isFetching' | 'isSuccess' | 'isError' | 'error' | 'refetch'
 >;
-const money = (v: number | null) =>
-  v === null
-    ? 'Not reported'
-    : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
+const reportedRent = (v: number | null) => (v === null ? 'Not reported' : String(v));
 const number = (v: number | null) => (v === null ? 'Not reported' : v.toLocaleString('en-US'));
 type ReviewStage = 'review' | 'follow-up';
 function UnitReadyView({ data, refresh }: { data: unknown[]; refresh: () => void }) {
@@ -117,6 +114,10 @@ function UnitReadyView({ data, refresh }: { data: unknown[]; refresh: () => void
           Clear filters
         </button>
       </div>
+      <p className="ecc-units-result">
+        Rent values are shown as received. Their currency and whether they represent dollars or
+        cents have not been confirmed.
+      </p>
       <p className="ecc-units-result" role="status">
         {visible.length} of {rows.length} loaded units shown
       </p>
@@ -163,8 +164,8 @@ function UnitReadyView({ data, refresh }: { data: unknown[]; refresh: () => void
                 <dd>{number(row.sqft)}</dd>
               </div>
               <div>
-                <dt>Reported market rent</dt>
-                <dd>{money(row.marketRent)}</dd>
+                <dt>Reported market rent (units unverified)</dt>
+                <dd>{reportedRent(row.marketRent)}</dd>
               </div>
             </dl>
             <label className="ecc-unit-select">

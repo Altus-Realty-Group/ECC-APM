@@ -8,18 +8,16 @@ router.get("/api/files/test", async (_req, res) => {
   return res.json({ ok: true, message: "Files routes working!" });
 });
 
-// ---- DoorLoop Files (graceful placeholder)
+// No successful empty result until a real DoorLoop file reader is implemented.
 router.get("/api/files/doorloop/list", async (_req, res) => {
-  // If you later expose DoorLoop files API, map and return here.
-  // For now, return empty with 200 (so UI works without errors).
-  return res.json({ ok: true, items: [] });
+  return res.status(503).json({ ok: false, message: "Files are not available." });
 });
 
 // ---- SharePoint Files (graceful placeholder — future Graph integration)
 router.get("/api/files/sharepoint/list", async (_req, res) => {
   try{
     const siteId = process.env.M365_SHAREPOINT_SITE_ID || "";
-    if (!siteId) return res.json({ ok: true, items: [] });
+    if (!siteId) return res.status(503).json({ ok: false, message: "Files are not available." });
     const items = await listSharePointRoot(siteId);
     return res.json({ ok: true, items: items.map(i=>({ id:i.id, name:i.name, href:i.webUrl, source: "SP" })) });
   }catch(e:any){

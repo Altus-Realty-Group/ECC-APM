@@ -45,13 +45,15 @@ export const PortfolioAPI = {
 export type BadgeCounts = { workOrdersOpen?: number; collectionsOpen?: number; inventoryLow?: number; };
 
 export async function fetchBadgeCounts(): Promise<BadgeCounts> {
-  // Try specific endpoints; fall back to zeros if any are missing
-  const [wo, col, inv] = await Promise.all([
-    tryJSON<number>("/ops/work/work-orders/count", 0),
-    tryJSON<number>("/ops/accounting/collections/open-count", 0),
-    tryJSON<number>("/ops/work/inventory/low-count", 0),
-  ]);
-  return { workOrdersOpen: wo ?? 0, collectionsOpen: col ?? 0, inventoryLow: inv ?? 0 };
+  // A missing/failed reader is unknown, not a confirmed zero.
+  const paths = ["/ops/work/work-orders/count", "/ops/accounting/collections/open-count", "/ops/work/inventory/low-count"];
+  const counts = await Promise.all(paths.map(async (path) => {
+    try {
+      const count: unknown = await getJSON<unknown>(path);
+      return typeof count === "number" && Number.isSafeInteger(count) && count >= 0 ? count : undefined;
+    } catch { return undefined; }
+  }));
+  return { workOrdersOpen: counts[0], collectionsOpen: counts[1], inventoryLow: counts[2] };
 }
 
 /** Entity fetcher with fallback for both path param and query param patterns */

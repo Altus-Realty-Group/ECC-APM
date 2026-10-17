@@ -54,6 +54,15 @@ const BUILT_NAV_SECTIONS: NavSection[] = [
     ],
   },
   { title: "Operations", icon: "FileSpreadsheet", path: "/ops/operations" },
+  { title: "Legal Tracker", icon: "FileText", children: [
+    { title: "Case Manager", path: "/ops/legal/case-manager", icon: "FileText" },
+  ] },
+  { title: "Construction & Repair", icon: "Package", children: [
+    { title: "Work Orders", path: "/ops/maintenance/work-orders", icon: "Package" },
+  ] },
+  { title: "Accounting", icon: "FileSpreadsheet", children: [
+    { title: "Tenant Ledgers", path: "/ops/accounting/tenant-ledgers", icon: "FileSpreadsheet" },
+  ] },
   { title: "Data Hub", icon: "Database", path: "/data" },
   {
     title: "Systems",
@@ -95,7 +104,7 @@ const STUB = "Page is a stub; no workflow or verified backend contract yet.";
 export const PLANNED_DESTINATIONS: PlannedDestination[] = [
   ...[
     ["Overview", "overview"], ["Rent Collection", "rent-collection"], ["Expenses", "expenses"],
-    ["Financial Reports", "financial-reports"], ["Tenant Ledgers", "tenant-ledgers"],
+    ["Financial Reports", "financial-reports"],
     ["Collections Dashboard", "collections-dashboard"], ["Collections Log", "collections-log"],
     ["Payment Plans", "payment-plans"], ["Deposits", "deposits"], ["Transfers", "transfers"],
     ["Subsidized Housing", "subsidized-housing"], ["Assistance Programs", "assistance-programs"],
@@ -111,7 +120,7 @@ export const PLANNED_DESTINATIONS: PlannedDestination[] = [
     dependency: "Needs an approved analytics source. " + STUB,
   })),
   ...[
-    ["Case Manager", "case-manager"], ["Advanced Legal Ops", "advanced"],
+    ["Advanced Legal Ops", "advanced"],
     ["Legal Docs", "docs"], ["Attorney Reports", "attorney-reports"],
   ].map(([title, slug]) => ({
     title, path: `/ops/legal/${slug}`, group: "Legal Tracker",
@@ -124,7 +133,7 @@ export const PLANNED_DESTINATIONS: PlannedDestination[] = [
     dependency: "Needs an approved communications provider and send policy. " + STUB,
   })),
   ...[
-    ["Work Orders", "work-orders"], ["Vendors", "vendors"],
+    ["Vendors", "vendors"],
     ["Materials & Inventory", "materials-inventory"], ["Smart Routing", "smart-routing"],
     ["AI Intelligence", "ai-intelligence"], ["Build/Repair Projects", "build-repair-projects"],
     ["Capital Projects", "capital-projects"],

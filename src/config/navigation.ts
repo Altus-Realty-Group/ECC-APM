@@ -67,7 +67,10 @@ const BUILT_NAV_SECTIONS: NavSection[] = [
   {
     title: "Systems",
     icon: "Settings",
-    children: [{ title: "Integrations", path: "/systems/integrations", icon: "Link2" }],
+    children: [
+      { title: "Connections", path: "/systems/connections", icon: "Link2" },
+      { title: "Integrations", path: "/systems/integrations", icon: "Link2" },
+    ],
   },
 ];
 

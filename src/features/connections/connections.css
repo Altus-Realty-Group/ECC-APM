@@ -1,0 +1,31 @@
+.ecc-connections { width: 100%; max-width: 1440px; min-width: 0; margin: 0 auto; padding: clamp(16px, 2.4vw, 32px); display: grid; gap: 20px; color: #fff; }
+.ecc-connections h1, .ecc-connections h2, .ecc-connections h3, .ecc-connections p { margin: 0; }
+.ecc-connections h1 { font-size: clamp(25px, 3vw, 32px); line-height: 1.2; color: #fff; margin-block: 7px 10px; }
+.ecc-connections h2 { font-size: 18px; color: #fff; }
+.ecc-connections h3 { font-size: 13px; color: #fff; margin-bottom: 5px; }
+.ecc-connections p { font-size: 14px; line-height: 1.55; color: #deded7; overflow-wrap: anywhere; }
+.ecc-connections a, .ecc-connections button { min-height: 44px; min-width: 44px; font-size: 14px; }
+.ecc-connections a { display: inline-flex; align-items: center; justify-content: space-between; gap: 16px; color: #fff; text-decoration: none; border: 1px solid #68685c; padding: 11px 13px; border-radius: 6px; }
+.ecc-connections a:hover, .ecc-connections button:hover { background: #24241d; }
+.ecc-connections a:focus-visible, .ecc-connections button:focus-visible { outline: 2px solid #d4af37; outline-offset: 3px; }
+.ecc-connections .ecc-connections-primary { background: #d4af37; border-color: #d4af37; color: #111; font-weight: 650; }
+.ecc-connections .ecc-connections-primary:hover { background: #e4c550; }
+.ecc-connections-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.ecc-connections-heading > div { flex: 1 1 440px; }
+.ecc-connections .ecc-connections-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; }
+.ecc-connections-scope { border-left: 3px solid #d4af37; background: #181814; padding: 12px 16px; display: grid; gap: 5px; }
+.ecc-connections-scope strong { font-size: 14px; font-weight: 600; }
+.ecc-connections-tools { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.ecc-connections-tools p { flex: 1 1 300px; }
+.ecc-connections-tools button { border: 1px solid #68685c; border-radius: 6px; color: #fff; padding: 10px 12px; background: transparent; cursor: pointer; }
+.ecc-connections-apps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.ecc-connections-apps article { display: flex; flex-direction: column; gap: 14px; min-width: 0; padding: 20px; background: #151511; border: 1px solid #363630; border-radius: 8px; }
+.ecc-connections-app-heading { display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.ecc-connections-app-heading > span { font-size: 12px; line-height: 1.5; color: #d2d2c9; }
+.ecc-connections-next { border-top: 1px solid #363630; padding-top: 12px; }
+.ecc-connections .ecc-connections-owner { font-size: 13px; color: #c8c8bf; }
+.ecc-connections-apps article > a, .ecc-connections-apps article > .ecc-connections-unavailable { margin-top: auto; }
+.ecc-connections .ecc-connections-unavailable { font-size: 13px; padding-top: 8px; }
+.ecc-connections .ecc-connections-footnote { font-size: 13px; color: #c8c8bf; }
+@media (max-width: 900px) { .ecc-connections-apps { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 580px) { .ecc-connections-heading .ecc-connections-primary { width: 100%; } .ecc-connections-apps article { padding: 16px; } }

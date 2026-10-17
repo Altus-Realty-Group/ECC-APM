@@ -70,6 +70,7 @@ export default function RunPanel({
   };
 
   const handleRun = async () => {
+    if (dryRun !== true) return;
     if (selectedEntities.length === 0) return;
     
     setRunning(true);
@@ -102,10 +103,11 @@ export default function RunPanel({
   return (
     <div className="ecc-card">
       <div className="ecc-card__header">
-        <h3 className="ecc-card__title">Sync Control</h3>
+        <h3 className="ecc-card__title">Read-only provider preview</h3>
       </div>
       
       <div className="ecc-card__body space-y-4">
+        <p>Live sync is unavailable. Select the read-only preview option to inspect provider records without writing operating records.</p>
         {/* Entity Selection */}
         <div>
           <label className="ecc-field-label mb-2 block">Entities:</label>
@@ -188,12 +190,12 @@ export default function RunPanel({
             />
             <span className="ecc-field-label flex items-center space-x-1">
               <TestTube className="w-4 h-4" />
-              <span>Dry Run (Preview only, no changes)</span>
+              <span>Read-only provider preview (explicit opt-in)</span>
             </span>
           </label>
           {dryRun && (
             <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-              ℹ️ This will simulate the sync without making any actual changes
+              This reads actual provider records. It does not write operating records.
             </p>
           )}
         </div>
@@ -297,7 +299,7 @@ export default function RunPanel({
           <button
             className="ecc-button ecc-button--primary"
             onClick={handleRun}
-            disabled={running || selectedEntities.length === 0}
+            disabled={running || selectedEntities.length === 0 || dryRun !== true}
             data-testid="button-run-sync"
           >
             {running ? (
@@ -308,7 +310,7 @@ export default function RunPanel({
             ) : (
               <>
                 {mode === "delta" ? <Play className="w-4 h-4" /> : <Database className="w-4 h-4" />}
-                Run {mode === "delta" ? "Now" : "Backfill"}
+                Run read-only preview
               </>
             )}
           </button>
@@ -317,7 +319,8 @@ export default function RunPanel({
             <button
               className="ecc-button ecc-button--error"
               onClick={handleStop}
-              disabled={running}
+              disabled
+              title="Stopping a preview from this screen is unavailable."
               data-testid="button-stop-sync"
             >
               <Square className="w-4 h-4" />

@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import StateNotice from "@/components/ui/StateNotice";
 import { errorKind } from "@/lib/dataState";
-import { sessionFetchJSON } from "@/lib/sessionScope";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { sessionFetchJSON, useSessionEpoch } from "@/lib/sessionScope";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import StatusCard from "./components/StatusCard";
 import RunPanel from "./components/RunPanel";
-import LastRunTable from "./components/LastRunTable";
+import RunHistoryBoundary from "./components/RunHistoryBoundary";
+import { nextHistoryRevision, parseSyncHistory, readyHistoryRows, syncHistoryKey } from "./syncHistory";
 import ErrorPane from "./components/ErrorPane";
 import LiveLogs from "./components/LiveLogs";
 import DLQPanel from "./components/DLQPanel";
@@ -19,6 +20,7 @@ interface SyncRun {
   timestamp: string;
   entity: string;
   mode: "delta" | "backfill";
+  dryRun?: boolean;
   rows: number;
   duration: number;
   result: "success" | "error" | "warning";
@@ -43,6 +45,10 @@ interface IntegrationsConfigResponse {
 }
 
 export default function IntegrationsHealthPage() {
+  const historyClient = useQueryClient();
+  const sessionEpoch = useSessionEpoch();
+  const [historyRevision, setHistoryRevision] = useState(nextHistoryRevision);
+  const [selectedHistorySource, setSelectedHistorySource] = useState<unknown>(null);
   const [selectedEntities, setSelectedEntities] = useState(["owners", "properties"]);
   const [selectedRun, setSelectedRun] = useState<SyncRun | null>(null);
   const [isErrorPaneOpen, setIsErrorPaneOpen] = useState(false);
@@ -88,21 +94,28 @@ export default function IntegrationsHealthPage() {
     queryFn: ({ signal }) => sessionFetchJSON<IntegrationsConfigResponse>('/api/config/integrations', { signal }),
   });
 
-  // Fetch sync run history 
-  const { data: syncRunsData, refetch: refetchRuns } = useQuery({
-    queryKey: ['/api/admin/sync/runs'],
-    queryFn: async () => {
-      if (!adminToken) return { ok: true, runs: [] };
-      
-      return apiRequest(`/api/admin/sync/runs?limit=20`, {
-        method: 'GET',
-        headers: {
-          'X-Admin-Token': adminToken,
-        },
-      });
+  // History is a session-scoped read; token contents are never part of its cache identity.
+  const historyKey = syncHistoryKey(historyRevision, sessionEpoch);
+  const runsQuery = useQuery({
+    queryKey: historyKey,
+    queryFn: async ({ signal }) => {
+      if (!adminToken) throw new Error('Completion history is unavailable.');
+      return parseSyncHistory(await sessionFetchJSON('/api/admin/sync/runs?limit=20', {
+        signal, headers: { 'X-Admin-Token': adminToken },
+      }));
     },
     enabled: !!adminToken,
   });
+  const refetchRuns = runsQuery.refetch;
+  const currentHistory = readyHistoryRows(runsQuery, !!adminToken);
+  function changeAdminToken(value: string) {
+    // Cancel/remove the old scope before replacing it; a late response cannot become the new token's history.
+    void historyClient.cancelQueries({ queryKey: historyKey });
+    historyClient.removeQueries({ queryKey: historyKey });
+    setHistoryRevision(nextHistoryRevision());
+    setSelectedRun(null); setSelectedHistorySource(null); setIsErrorPaneOpen(false);
+    setAdminToken(value);
+  }
 
   // Enhanced ping with comprehensive response
   const handlePing = async () => {
@@ -247,6 +260,7 @@ export default function IntegrationsHealthPage() {
 
   const handleRowClick = (run: SyncRun) => {
     setSelectedRun(run);
+    setSelectedHistorySource(runsQuery.data);
     setIsErrorPaneOpen(true);
   };
 
@@ -346,7 +360,7 @@ export default function IntegrationsHealthPage() {
             <div className="space-y-6">
               
               {/* Admin Token Input (always visible if not set) */}
-              {!adminToken && (
+              {(
                 <div className="ecc-card">
                   <div className="ecc-card__header">
                     <h3 className="ecc-card__title">Admin Authentication</h3>
@@ -362,7 +376,7 @@ export default function IntegrationsHealthPage() {
                         value={adminToken}
                         onChange={(e) => {
                           const newToken = e.target.value;
-                          setAdminToken(newToken);
+                          changeAdminToken(newToken);
                           // Persist to localStorage
                           try {
                             if (newToken) {
@@ -415,10 +429,7 @@ export default function IntegrationsHealthPage() {
                   />
 
                   {/* Last Run Table */}
-                  <LastRunTable
-                    runs={syncRunsData?.runs || []}
-                    onRowClick={handleRowClick}
-                  />
+                  <RunHistoryBoundary enabled={!!adminToken} query={runsQuery} onRowClick={handleRowClick} />
                 </div>
               )}
 
@@ -664,9 +675,9 @@ export default function IntegrationsHealthPage() {
 
       {/* Error Pane */}
       <ErrorPane
-        isOpen={isErrorPaneOpen}
+        isOpen={isErrorPaneOpen && currentHistory !== null && selectedHistorySource === runsQuery.data}
         onClose={() => setIsErrorPaneOpen(false)}
-        runDetails={selectedRun}
+        runDetails={currentHistory !== null && selectedHistorySource === runsQuery.data ? selectedRun : null}
       />
     </div>
   );

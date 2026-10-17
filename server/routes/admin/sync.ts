@@ -21,13 +21,14 @@ let syncState = {
     entity: '',
     page: 0,
     rows: 0,
-    totalPages: 0,
+    totalPages: null as number | null,
     startedAt: 0,
-    eta: 0,
+    eta: null as number | null,
     rps: 0,
   },
   lastRun: {
     timestamp: 0,
+    dryRun: true,
     success: false,
     error: null as string | null,
   },
@@ -139,6 +140,12 @@ sync.post("/run", async (req, res) => {
     return res.status(401).json({ error: 'unauthorized' });
   }
 
+  // A provider preview is implemented; persisted sync is not. Reject before
+  // state, audit, provider reads or notification calls, including truthy flags.
+  if (req.body?.dryRun !== true) {
+    return res.status(503).json({ ok: false, error: "Live sync is unavailable. Use an explicit read-only dry run." });
+  }
+
   if (syncState.isRunning) {
     return res.status(409).json({ error: 'sync already running' });
   }
@@ -169,14 +176,14 @@ sync.post("/run", async (req, res) => {
     entity: '',
     page: 0,
     rows: 0,
-    totalPages: 0,
+    totalPages: null,
     startedAt: Date.now(),
-    eta: 0,
+    eta: null,
     rps: 0,
   };
 
   // Log sync start
-  await logAdminAction(req, 'SYNC_START', { runId, entities, mode, dryRun });
+  await logAdminAction(req, 'SYNC_DRY_RUN_START', { runId, entities, mode, dryRun });
   emitLogEvent({
     type: 'info',
     message: `Starting ${mode} sync for entities: ${entities.join(', ')}${dryRun ? ' (DRY RUN)' : ''}`,
@@ -252,44 +259,44 @@ sync.get("/logs/stream", (req, res) => {
   });
 });
 
-// Get sync run history
+// Only completed observations/errors belong in run history; start/stop audit is not completion.
+const COMPLETION_EVENTS = ['SYNC_COMPLETE', 'SYNC_ERROR', 'SYNC_DRY_RUN_COMPLETE', 'SYNC_DRY_RUN_ERROR'];
+export function mapSyncCompletions(value: unknown) {
+  if (!Array.isArray(value)) throw new Error('Invalid run history');
+  const seen = new Set<string>();
+  return value.map(raw => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Invalid run history');
+    const event = raw as Record<string, any>, payload = event.payload;
+    const id = typeof event.id === 'string' && event.id.trim() ? event.id.trim()
+      : typeof event.id === 'number' && Number.isSafeInteger(event.id) && event.id > 0 ? String(event.id) : null;
+    if (!id || seen.has(id) || !COMPLETION_EVENTS.includes(event.event_type)
+      || typeof event.created_at !== 'string' || !Number.isFinite(Date.parse(event.created_at))
+      || !payload || typeof payload !== 'object' || Array.isArray(payload)
+      || !['delta', 'backfill'].includes(payload.mode)
+      || !Number.isSafeInteger(payload.rows) || payload.rows < 0
+      || typeof payload.duration !== 'number' || !Number.isFinite(payload.duration) || payload.duration < 0) throw new Error('Invalid run history');
+    seen.add(id);
+    const dryRun = event.event_type.startsWith('SYNC_DRY_RUN_') || payload.dryRun === true;
+    const failed = event.event_type.endsWith('_ERROR') || typeof payload.error === 'string';
+    return { id, timestamp: event.created_at,
+      entity: typeof payload.entity === 'string' ? payload.entity : Array.isArray(payload.entities) && payload.entities.every((v: unknown) => typeof v === 'string') ? payload.entities.join(',') : 'Not reported',
+      mode: payload.mode as 'delta' | 'backfill', rows: payload.rows, duration: payload.duration,
+      result: failed ? 'error' as const : 'success' as const,
+      error: typeof payload.error === 'string' ? payload.error : undefined,
+      fullDetails: payload, dryRun };
+  });
+}
 sync.get("/runs", async (req, res) => {
-  if (!isAuthorized(req)) {
-    return res.status(401).json({ error: 'unauthorized' });
-  }
-
-  const limit = Math.min(50, Number(req.query.limit) || 20);
-  
+  if (!isAuthorized(req)) return res.status(401).json({ error: 'unauthorized' });
+  const limit = req.query.limit === undefined ? 20 : typeof req.query.limit === 'string' && /^\d+$/.test(req.query.limit) ? Number(req.query.limit) : NaN;
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 50) return res.status(400).json({ ok: false, error: 'Invalid history limit' });
   try {
-    const { data: auditEvents } = await sbAdmin
-      .from('audit_events')
-      .select('*')
-      .in('event_type', ['AUTO_SYNC', 'MANUAL_SYNC', 'SYNC_START', 'SYNC_STOP'])
-      .order('created_at', { ascending: false })
-      .limit(limit);
-
-    if (!auditEvents) {
-      return res.json({ ok: true, runs: [] });
-    }
-
-    const runs = auditEvents.map(event => ({
-      id: event.id?.toString() || Math.random().toString(),
-      timestamp: event.created_at,
-      entity: event.payload?.entity || event.payload?.entities?.join(',') || 'unknown',
-      mode: event.payload?.mode === 'backfill' ? 'backfill' as const : 'delta' as const,
-      rows: event.payload?.rows || 0,
-      duration: event.payload?.duration || 0,
-      result: event.payload?.error ? 'error' as const : 'success' as const,
-      error: event.payload?.error || undefined,
-      fullMessage: event.payload?.fullError || undefined,
-      fullDetails: event.payload || undefined,
-      dryRun: event.payload?.dryRun || false,
-    }));
-
-    res.json({ ok: true, runs });
-  } catch (error) {
-    console.error('[sync] Error fetching runs:', error);
-    res.status(500).json({ ok: false, error: 'Failed to fetch runs' });
+    const { data, error } = await sbAdmin.from('audit_events').select('id,created_at,event_type,payload')
+      .in('event_type', COMPLETION_EVENTS).order('created_at', { ascending: false }).limit(limit);
+    if (error) throw new Error('Run history unavailable');
+    return res.json({ ok: true, runs: mapSyncCompletions(data) });
+  } catch {
+    return res.status(503).json({ ok: false, error: 'Run history could not be loaded.' });
   }
 });
 
@@ -340,17 +347,17 @@ async function runSyncInBackground(
       syncState.progress.entity = entity;
       syncState.progress.page = 0;
       syncState.progress.rows = 0;
-      syncState.progress.totalPages = 0; // Will be estimated during pagination
+      syncState.progress.totalPages = null; // Provider total is not reported.
 
       emitLogEvent({
         type: 'info',
-        message: `Starting ${entity} sync`,
+        message: `Starting ${entity} read-only dry run`,
         entity,
         runId,
       });
 
       try {
-        // Simulate sync for the entity
+        // Fetch provider observations for this explicit read-only preview.
         const entityData = await dlPaginate(
           `/${entity}`,
           since ? { updated_after: since } : {},
@@ -360,55 +367,32 @@ async function runSyncInBackground(
             syncState.progress.rows += items;
             totalRows += items;
 
-            // Calculate ETA and RPS
+            // Calculate observed records per second only.
             const elapsed = Date.now() - startTime;
             const rps = totalRows / (elapsed / 1000);
             syncState.progress.rps = Math.round(rps * 100) / 100;
             
-            // Dynamic ETA estimation based on page rate and batch size
-            // Estimate remaining pages based on the pattern: if we got full pages, there's likely more
-            if (items === 200 && page <= 3) {
-              // Early stage: estimate conservatively based on typical entity sizes
-              syncState.progress.totalPages = Math.max(page * 2, 10);
-            } else if (items < 200) {
-              // Last page detected (partial batch)
-              syncState.progress.totalPages = page;
-            } else if (page > 3) {
-              // Mid-stage: extrapolate based on current rate
-              syncState.progress.totalPages = Math.max(syncState.progress.totalPages, page + 5);
-            }
-            
-            const remainingPages = Math.max(0, syncState.progress.totalPages - page);
-            const avgTimePerPage = elapsed / page;
-            syncState.progress.eta = remainingPages > 0 ? Math.round(remainingPages * avgTimePerPage) : 0;
+            // The provider callback does not establish remaining pages or a completion time.
+            syncState.progress.totalPages = null;
+            syncState.progress.eta = null;
 
             emitLogEvent({
               type: 'progress',
               entity,
               page,
               rows: items,
-              message: `Page ${page}: ${items} items${rateLimit ? ` (rate limit: ${rateLimit.remaining}/${rateLimit.limit})` : ''} | RPS: ${syncState.progress.rps} | ETA: ${Math.round(syncState.progress.eta/1000)}s`,
+              message: `Page ${page}: ${items} items${rateLimit ? ` (rate limit: ${rateLimit.remaining}/${rateLimit.limit})` : ''} | observed RPS: ${syncState.progress.rps}; completion estimate unavailable`,
               runId,
             });
           }
         );
 
-        if (!dryRun) {
-          // TODO: Implement actual database writes here
-          emitLogEvent({
-            type: 'info',
-            message: `Would insert ${entityData.length} ${entity} records`,
-            entity,
-            runId,
-          });
-        } else {
-          emitLogEvent({
-            type: 'info',
-            message: `DRY RUN: Found ${entityData.length} ${entity} records`,
-            entity,
-            runId,
-          });
-        }
+        emitLogEvent({
+          type: 'info',
+          message: `READ-ONLY DRY RUN: Found ${entityData.length} ${entity} records; no operating records were written`,
+          entity,
+          runId,
+        });
 
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
@@ -428,12 +412,12 @@ async function runSyncInBackground(
         emitLogEvent({
           type: 'error',
           entity,
-          message: `Error syncing ${entity}: ${errorMsg}`,
+          message: `Read-only dry run error for ${entity}: ${errorMsg}`,
           runId,
         });
 
         // Send Teams alert for errors
-        await sendTeamsAlert(`🚨 DoorLoop sync failed for ${entity}: ${errorMsg.slice(0, 200)}`);
+        await sendTeamsAlert(`DoorLoop READ-ONLY DRY RUN failed for ${entity}: ${errorMsg.slice(0, 200)}`);
       }
     }
 
@@ -445,12 +429,13 @@ async function runSyncInBackground(
     syncState.lock = null;
     syncState.lastRun = {
       timestamp: Date.now(),
+      dryRun: true,
       success: !hasError,
       error: hasError ? errorMessage : null,
     };
 
     // Log completion
-    const eventType = hasError ? 'SYNC_ERROR' : 'SYNC_COMPLETE';
+    const eventType = hasError ? 'SYNC_DRY_RUN_ERROR' : 'SYNC_DRY_RUN_COMPLETE';
     await sbAdmin.from('audit_events').insert({
       event_type: eventType,
       payload: {
@@ -459,20 +444,21 @@ async function runSyncInBackground(
         mode,
         rows: totalRows,
         duration,
-        dryRun,
+        dryRun: true,
+        operatingRecordsWritten: 0,
         error: hasError ? errorMessage : null,
       },
     });
 
     emitLogEvent({
       type: hasError ? 'error' : 'info',
-      message: `Sync completed in ${duration}ms. ${totalRows} total rows processed${hasError ? ` with errors` : ''}`,
+      message: `Read-only dry run finished in ${duration}ms. ${totalRows} provider records observed; no operating records were written${hasError ? `; preview had errors` : ''}`,
       runId,
     });
 
     // Send Teams completion alert
-    const status = hasError ? '❌ Failed' : '✅ Completed';
-    await sendTeamsAlert(`${status} DoorLoop sync: ${totalRows} rows in ${Math.round(duration/1000)}s`);
+    const status = hasError ? 'Preview failed' : 'Preview finished';
+    await sendTeamsAlert(`${status} DoorLoop READ-ONLY DRY RUN: ${totalRows} provider records observed in ${Math.round(duration/1000)}s; no operating records were written`);
 
   } catch (error) {
     // Fatal error
@@ -483,17 +469,18 @@ async function runSyncInBackground(
     syncState.lock = null;
     syncState.lastRun = {
       timestamp: Date.now(),
+      dryRun: true,
       success: false,
       error: errorMsg,
     };
 
     emitLogEvent({
       type: 'error',
-      message: `Fatal sync error: ${errorMsg}`,
+      message: `Read-only dry run failed: ${errorMsg}`,
       runId,
     });
 
-    await sendTeamsAlert(`🚨 DoorLoop sync fatal error: ${errorMsg.slice(0, 200)}`);
+    await sendTeamsAlert(`DoorLoop READ-ONLY DRY RUN failed: ${errorMsg.slice(0, 200)}; no operating records were written`);
   }
 }
 

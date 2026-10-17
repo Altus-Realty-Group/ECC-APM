@@ -92,32 +92,76 @@ export function DomainPanel<T>({ domain, label, state, onRetry, note, children }
   );
 }
 
-/** A <section>, not <main>: App.tsx already provides the page's single <main> landmark. */
-export function OperationsRecoveryView({ contracts = OPERATIONS_CONTRACTS, fetcher }: { contracts?: Contracts; fetcher?: Fetcher }) {
-  const legal = useDomain<LegalCase>("legalCases", parseLegal, contracts, fetcher);
-  const work = useDomain<WorkOrder>("workOrders", parseWork, contracts, fetcher);
-  const ledger = useDomain<LedgerEntry>("ledgerEntries", parseLedger, contracts, fetcher);
-  return (
-    <section className="ops-page" data-testid="operations-recovery">
-      <h1>Operations</h1>
-      <p className="ops-lede">Legal cases, work orders and tenant ledgers. Nothing is shown until its source is confirmed.</p>
-      <DomainPanel domain="legalCases" label={contracts.legalCases.label} state={legal.state} onRetry={legal.retry}
-        note="This view is read-only.">
-        {(rows) => <LegalCasesTable rows={rows} />}
-      </DomainPanel>
-      <DomainPanel domain="workOrders" label={contracts.workOrders.label} state={work.state} onRetry={work.retry}
-        note="This view is read-only.">
-        {(rows) => <WorkOrdersTable rows={rows} />}
-      </DomainPanel>
-      <DomainPanel domain="ledgerEntries" label={contracts.ledgerEntries.label} state={ledger.state} onRetry={ledger.retry}
-        note="This view is read-only. Payments are never inferred from leases.">
-        {(rows) => <LedgerView entries={rows} />}
-      </DomainPanel>
-    </section>
-  );
+type OperationRow = LegalCase | WorkOrder | LedgerEntry;
+const DOMAIN_PARSERS = { legalCases: parseLegal, workOrders: parseWork, ledgerEntries: parseLedger };
+export const ALL_OPERATIONS_DOMAINS: readonly OperationsDomain[] = ["legalCases", "workOrders", "ledgerEntries"];
+
+/** Ledger searches select whole leases, preserving every entry used in the displayed balance. */
+export function filterOperationRows(domain: OperationsDomain, rows: OperationRow[], search: string, status = ""): OperationRow[] {
+  const needle = search.trim().toLocaleLowerCase();
+  const matches = (values: unknown[]) => values.some((value) => String(value ?? "").toLocaleLowerCase().includes(needle));
+  if (domain === "ledgerEntries") {
+    const entries = rows as LedgerEntry[];
+    const leases = new Set(entries.filter((entry) => matches([entry.leaseId, entry.memo])).map((entry) => entry.leaseId));
+    return entries.filter((entry) => leases.has(entry.leaseId));
+  }
+  return rows.filter((row) => {
+    const record = row as LegalCase | WorkOrder;
+    const values = "description" in record
+      ? [record.id, record.description, record.propertyName, record.unitLabel, record.priority]
+      : [record.id, record.type, record.tenantName, record.propertyName, record.unitLabel];
+    return (!status || record.status === status) && matches(values);
+  });
 }
 
-/** Route entry (App.tsx mounts this): production contracts and the session-scoped fetcher, no injection. */
+export function OperationRecords({ domain, rows }: { domain: OperationsDomain; rows: OperationRow[] }) {
+  const [search, setSearch] = React.useState("");
+  const [status, setStatus] = React.useState("");
+  const filtered = filterOperationRows(domain, rows, search, status);
+  const statuses = domain === "ledgerEntries" ? [] : [...new Set((rows as (LegalCase | WorkOrder)[]).map((row) => row.status))].sort();
+  const searchLabel = domain === "ledgerEntries" ? "Find a lease or ledger memo" : domain === "legalCases" ? "Find a case, tenant or property" : "Find work by description or property";
+  return <>
+    {rows.length > 0 ? <div className="ops-filters" role="search" aria-label={`Search ${domain === "ledgerEntries" ? "tenant ledgers" : domain === "legalCases" ? "legal cases" : "work orders"}`}>
+      <label htmlFor={`ops-search-${domain}`}>{searchLabel}
+        <input id={`ops-search-${domain}`} type="search" value={search} onChange={(event) => setSearch(event.target.value)} />
+      </label>
+      {statuses.length ? <label htmlFor={`ops-status-${domain}`}>Status
+        <select id={`ops-status-${domain}`} aria-label="Status" value={status} onChange={(event) => setStatus(event.target.value)}>
+          <option value="">All recorded statuses</option>
+          {statuses.map((value) => <option key={value} value={value}>{value === "unknown" ? "Unknown" : value.replace(/_/g, " ")}</option>)}
+        </select>
+      </label> : null}
+      {(search || status) ? <button className="ecc-btn" type="button" onClick={() => { setSearch(""); setStatus(""); }}>Clear filters</button> : null}
+    </div> : null}
+    {rows.length > 0 ? <p className="ops-disabled" role="status">{domain === "ledgerEntries"
+      ? "Matching leases include all their loaded entries; balances cover those entries only."
+      : `${filtered.length} of ${rows.length} loaded records shown.`}</p> : null}
+    {rows.length > 0 && filtered.length === 0 ? <StateNotice kind="empty" title="No loaded records match these filters" detail="Clear the filters to see all loaded records." testId={`ops-filter-empty-${domain}`} />
+      : domain === "legalCases" ? <LegalCasesTable rows={filtered as LegalCase[]} />
+        : domain === "workOrders" ? <WorkOrdersTable rows={filtered as WorkOrder[]} />
+          : <LedgerView entries={filtered as LedgerEntry[]} />}
+  </>;
+}
+
+function OperationDomain({ domain, contracts, fetcher }: { domain: OperationsDomain; contracts: Contracts; fetcher?: Fetcher }) {
+  const { state, retry } = useDomain<OperationRow>(domain, DOMAIN_PARSERS[domain], contracts, fetcher);
+  return <DomainPanel domain={domain} label={contracts[domain].label} state={state} onRetry={retry}
+    note={domain === "ledgerEntries" ? "Read-only. Payments are never inferred from lease terms." : "Read-only. Review recorded information; changes are not available here."}>
+    {(rows) => <OperationRecords domain={domain} rows={rows} />}
+  </DomainPanel>;
+}
+
+/** Only mounted domains participate in queries; individual routes never fetch their siblings. */
+export function OperationsRecoveryView({ contracts = OPERATIONS_CONTRACTS, fetcher, domains = ALL_OPERATIONS_DOMAINS,
+  title = "Operations", description = "Legal cases, work orders and tenant ledgers. Nothing is shown until its source is confirmed.",
+}: { contracts?: Contracts; fetcher?: Fetcher; domains?: readonly OperationsDomain[]; title?: string; description?: string }) {
+  return <section className="ops-page" data-testid="operations-recovery">
+    <h1>{title}</h1>
+    <p className="ops-lede">{description}</p>
+    {[...new Set(domains)].map((domain) => <OperationDomain key={domain} domain={domain} contracts={contracts} fetcher={fetcher} />)}
+  </section>;
+}
+
 export default function OperationsRecoveryPage() {
   return <OperationsRecoveryView />;
 }

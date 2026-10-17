@@ -85,7 +85,7 @@ function Flyout({
 }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const menuItems = () =>
-    Array.from(rootRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+    Array.from(rootRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([aria-disabled="true"])') ?? []);
 
   useEffect(() => {
     if (focusFirst) menuItems()[0]?.focus();
@@ -137,7 +137,13 @@ function Flyout({
       <div className="ecc-flyout-list">
         {items.map((c) => {
           const CIcon = iconOf(c.icon);
-          const active = isPathActive(location, c.path);
+          const active = !c.unavailable && isPathActive(location, c.path);
+          if (c.unavailable) return (
+            <div key={c.path} className="ecc-flyout-item ecc-nav-unavailable" role="menuitem" aria-disabled="true">
+              <CIcon className="ecc-flyout-icon" size={16} aria-hidden="true" />
+              <span>{c.title}<span className="ecc-nav-status">Not available</span></span>
+            </div>
+          );
           return (
             <Link
               key={c.path}
@@ -171,7 +177,7 @@ function NavGroupRow({
 }) {
   const Icon = iconOf(section.icon);
   const children = section.children ?? [];
-  const groupActive = children.some((c) => isPathActive(location, c.path));
+  const groupActive = children.some((c) => !c.unavailable && isPathActive(location, c.path));
   const panelId = useId();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const openTimer = useRef<number | null>(null);
@@ -266,7 +272,15 @@ function NavGroupRow({
         <ul id={panelId} className="ecc-children">
           {children.map((c) => {
             const CIcon = iconOf(c.icon);
-            const active = isPathActive(location, c.path);
+            const active = !c.unavailable && isPathActive(location, c.path);
+            if (c.unavailable) return (
+              <li key={c.path}>
+                <span className="ecc-child ecc-nav-unavailable" aria-disabled="true">
+                  <CIcon className="ecc-child-icon" size={16} aria-hidden="true" />
+                  <span>{c.title}<span className="ecc-nav-status">Not available</span></span>
+                </span>
+              </li>
+            );
             return (
               <li key={c.path}>
                 <Link

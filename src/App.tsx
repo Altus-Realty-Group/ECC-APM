@@ -54,6 +54,10 @@ import DashboardPage from "./features/dashboard/pages/DashboardPage";
 // DataHub Page
 import DataHub from "./pages/DataHub";
 import OperationsRecoveryPage from "./features/recovery/operations/OperationsRecoveryPage";
+import LegalCaseManagerPage from "./features/recovery/operations/LegalCaseManagerPage";
+import WorkOrdersPage from "./features/recovery/operations/WorkOrdersPage";
+import TenantLedgersPage from "./features/recovery/operations/TenantLedgersPage";
+
 
 
 function HomeRedirect() {
@@ -66,7 +70,7 @@ function NotFound() {
   const titleByPath = new Map<string, string>();
   for (const s of NAV_SECTIONS) {
     if (s.path) titleByPath.set(s.path, s.title);
-    for (const c of s.children ?? []) titleByPath.set(c.path, c.title);
+    for (const c of s.children ?? []) if (!c.unavailable) titleByPath.set(c.path, c.title);
   }
   const suggestions = navLeafPaths().slice(0, 6);
   return (
@@ -105,6 +109,10 @@ export default function App() {
             <Route path="/dashboard" component={DashboardPage} />
             <Route path="/data" component={DataHub} />
             <Route path="/ops/operations" component={OperationsRecoveryPage} />
+            <Route path="/ops/legal/case-manager" component={LegalCaseManagerPage} />
+            <Route path="/ops/maintenance/work-orders" component={WorkOrdersPage} />
+            <Route path="/ops/accounting/tenant-ledgers" component={TenantLedgersPage} />
+
 
 
             {/* -------- Portfolio V3 (ACTIVE) -------- */}

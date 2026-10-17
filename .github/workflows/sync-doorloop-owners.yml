@@ -1,46 +1,18 @@
-name: Owners Sync
+name: Legacy owners sync quarantined
 
-concurrency:
-  group: owners-sync
-  cancel-in-progress: false
-
-on:
+# Retirement only. No automatic trigger or credentialed operation may be restored here.
+"on":
   workflow_dispatch:
-  schedule:
-    - cron: "15 */6 * * *"   # every 6 hours at :15
+
+permissions: {}
 
 jobs:
-  sync:
+  quarantine-refusal:
     runs-on: ubuntu-latest
+    timeout-minutes: 1
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-
-      - name: Use Node 20
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "20"
-          package-manager-cache: false
-
-      - name: Install deps
-        run: npm ci
-
-      - name: Build (if TypeScript)
+      - name: Refuse retired operation
+        shell: bash
         run: |
-          if [ -f tsconfig.json ]; then npm run build || true; fi
-
-      - name: Run owners sync
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          DOORLOOP_API_KEY: ${{ secrets.DOORLOOP_API_KEY }}
-          DOORLOOP_BASE_URL: ${{ vars.DOORLOOP_BASE_URL || 'https://api.doorloop.com/v1' }}
-          OWNERS_ENDPOINT: "/owners"
-          SINCE_DAYS: "30"
-          NODE_FETCH_POLYFILL: "0"
-        run: |
-          # If you compile to dist/, run node on the compiled file; otherwise tsx/ts-node.
-          if [ -f dist/scripts/sync_owners.js ]; then
-            node dist/scripts/sync_owners.js
-          else
-            npx tsx scripts/sync_owners.ts
-          fi
+          printf '%s\n' 'Owners sync is quarantined. No operation was attempted. See docs/recovery/LEGACY_AUTOMATION_QUARANTINE_20261017.md.' >&2
+          exit 1

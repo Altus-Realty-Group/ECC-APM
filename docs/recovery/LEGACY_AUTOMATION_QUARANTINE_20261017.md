@@ -1,0 +1,36 @@
+# Legacy ECC automation quarantine - 2026-10-17
+
+Source baseline: `a15d13ef450ad343524d5995d9bcf95b20ab48bc`, repository `Altus-Realty-Group/ECC-APM`, ID `1058195656`, default branch `main`. Repository identity and the run summaries below were independently read through GitHub API. This is source preparation only: no merge, workflow dispatch, deployment, cloud/configuration/RBAC/credential access or mutation, provider/database call, Control Plane action or other repository change.
+
+## Why retire these entrypoints
+
+- [Historical deployment source](https://github.com/Altus-Realty-Group/ECC-APM/blob/a15d13ef450ad343524d5995d9bcf95b20ab48bc/.github/workflows/deploy.yml) automatically targets `empirecommandcenter-altus-staging` on main changes under `ecc-functions/**`, and permits manual deployment. It consumes a publish-profile reference and sets app settings. Its sole returned run [17980612131](https://github.com/Altus-Realty-Group/ECC-APM/actions/runs/17980612131), 2025-09-24 14:52:49Z, failed. Failure is not proof that no partial historical deployment occurred.
+- [Historical generator](https://github.com/Altus-Realty-Group/ECC-APM/blob/a15d13ef450ad343524d5995d9bcf95b20ab48bc/azure-deploy-script.sh) targets the same host, generates anonymous entity reads and an anonymous transfer-initiation route that returns generated success, then changes app settings/deploys/restarts. It also prints a newly generated administrator token. The retired runnable implementation is retained only in git history, not copied into another executable file or this proof.
+- [Historical owners workflow](https://github.com/Altus-Realty-Group/ECC-APM/blob/a15d13ef450ad343524d5995d9bcf95b20ab48bc/.github/workflows/sync-doorloop-owners.yml) runs at `15 */6 * * *` with DoorLoop and service-role credential references. It chooses `dist/scripts/sync_owners.js` else `scripts/sync_owners.ts`; neither is tracked at this baseline. The actual `scripts/sync-doorloop-owners.ts` is a provider/database writer. This change deliberately does not repair the filename or activate that writer.
+- Latest five returned owners runs #1146-1150 all failed. Latest [39045375608](https://github.com/Altus-Realty-Group/ECC-APM/actions/runs/39045375608) ran 2026-10-17 15:30:50Z-15:31:14Z at `bfe9540b7c0058e7368838117679b17ccc04e54a`; job `117432926857` failed at `Run owners sync`. Earlier run IDs: `39025730245`, `39002272867`, `38966761589`, `38933210753`. This sample does not prove all ingestion elsewhere inactive or establish database freshness.
+
+The coordinator's Azure packet reports that this target's deployed Python artifact is not attributable to this repository. This source review does not independently certify live Azure state. The coordinator subsequently verified that build marker `0f152893e49da7dc5184ee2f434cb17cf45c4cf2` is a DoorLoopNode workflow-only commit targeting `ecc-triage-node-staging`; it is not the identity of the deployed Python artifact. That distinction is retained; no backend binding is inferred.
+
+The quarantine rests on the unmanaged target, anonymous generator and broken owners entrypoint. It does not rest on the packet's stale raw-array-only claim: current `src/lib/ecc-resolvers.ts` accepts both raw arrays and `{data: [...]}`. A health-shape mismatch alone does not prove that portfolio pages cannot load. The packet and private request logs are not committed here.
+
+## Replacement behavior and authority
+
+Both workflows are manual-only, have empty token permissions, one job, a one-minute timeout, no checkout/actions/environment/secrets/provider requests, and a single shell refusal that exits 1. Manual dispatch therefore explicitly fails rather than producing a green deployment/sync claim. The legacy shell script uses only shell builtins and exits 1 before any environment expansion, external tool or filesystem/network work.
+
+`AGENTS.md` lists `Deploy workflows, Azure configuration, runtime ownership, or backend target wiring` under `What Codex Must Not Touch`. It also prohibits `Push-triggered or scheduled write workflows` and says `No production/vendor sync cadence change without documenting data freshness and recovery consequences.` The campaign's explicit user-authorized source quarantine work order supersedes the local restriction only for these two workflows, this retired script, offline guards and documentation. It authorizes draft preparation, not merge/deployment, fixing ingestion, runtime ownership, secrets, Azure/RBAC or changes outside ECC. No additional approval was inferred or requested.
+
+## Cadence, cost and recovery
+
+Before: deployment has a path-filtered main push plus manual dispatch; owners has four nominal scheduled jobs/day plus manual dispatch. Both had one job and no explicit timeout. There are no new triggers or fan-out. After merge: zero automatic deploy/sync jobs and zero new artifacts; each optional manual refusal has at most one runner-minute. Existing verification/check workflow source is untouched. Branch-protection settings were not independently inspected, so required-check configuration is not claimed verified.
+
+The owners schedule nominally creates 120 jobs per 30 days. The observed latest five elapsed times were 24-33 seconds each; with one-minute job rounding that would be roughly 120 runner-minutes/month for this failing cadence. This is an estimate, not verified billing. Deployment frequency and actual charged amounts are unknown. Existing mandatory PR CI remains applicable; neither legacy workflow is dispatched as validation.
+
+After merge, this ECC workflow will not update owner records. No replacement ingestion is supplied, no external ingestion workflow is modified, and no claim is made about the last successful data update. Recovery requires the backend owner to identify the authorized ingestion source, validate identity/scope/cursor/write behavior and freshness, then separately review a narrow reactivation change. Quarantine does not revoke existing credentials or undo cloud deployments/OIDC trusts. Do not blindly revert to restore automatic credentialed behavior; any reactivation needs explicit owner review.
+
+## Offline validation
+
+Three executable unit guards cover both workflow refusal blocks and the shell script. They require manual-only triggers, empty permissions, one job/step, bounded timeout and no credential/action/provider expressions. A shell-command whitelist rejects everything except the exact refusal builtins. Each refusal is then run in a fresh temporary directory with an empty environment apart from an unusable PATH, asserts exit 1 and no stdout/files. No cloud CLI, credentials, provider or database is involved. YAML was independently parsed and its trigger/job/step shape checked. `bash -n` passes for the replacement script.
+
+Local validation results are recorded in the final change packet; source/local checks do not establish live runtime acceptance.
+
+Final local checks: focused guards 3/3, full unit suite 294/294, dependency checks 16/16, typecheck, YAML parsing/shape checks, shell syntax and diff whitespace checks all passed. Product build/browser were not rerun for this workflow/script/documentation-only change; no deployment, ingestion or workflow dispatch test was performed.

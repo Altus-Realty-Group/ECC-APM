@@ -1,7 +1,6 @@
 // server/routes/rpc.ts
 import { Router } from 'express';
 import { getServerClient } from '../db.js';
-import { setContract } from '../lib/contractHeaders.js';
 import { mapAddress } from '../lib/mapping.js';
 
 export const rpc = Router();
@@ -35,43 +34,6 @@ function addrFrom(p: any) {
     zip: m.zip ?? '',
   };
 }
-
-// ---------- DIAGNOSTIC: find one id of each entity ----------
-rpc.get('/diag/ids', async (_req, res) => {
-  try {
-    const supabase = getServerClient();
-    const grab = async (t: string) => (await supabase.from(t).select('id').limit(1)).data?.[0]?.id ?? null;
-    ok(res, {
-      property: await grab('properties'),
-      unit: await grab('units'),
-      lease: await grab('leases'),
-      owner: await grab('owners'),
-      tenant: await grab('tenants'),
-    });
-  } catch (e: any) { fail(res, 500, e?.message || 'diag error'); }
-});
-
-// ---------- DEBUG: check leases table columns ----------
-rpc.get('/debug_leases', async (_req, res) => {
-  try {
-    const supabase = getServerClient();
-    const l1 = await supabase.from('leases').select('*').limit(1);
-    ok(res, { sample: l1.data?.[0] ?? null, error: l1.error });
-  } catch (e: any) { fail(res, 500, e?.message || 'debug error'); }
-});
-
-// ---------- SIMPLE TEST: try basic leases queries ----------  
-rpc.get('/simple_lease_test', async (_req, res) => {
-  try {
-    const supabase = getServerClient();
-    const l1 = await supabase.from('leases').select('id,status').limit(1);
-    const l2 = await supabase.from('leases').select('id,status,rent').limit(1);
-    ok(res, {
-      withoutRent: { data: l1.data, error: l1.error },
-      withRent: { data: l2.data, error: l2.error }
-    });
-  } catch (e: any) { fail(res, 500, e?.message || 'simple test error'); }
-});
 
 // ---------- PROPERTY ----------
 rpc.get('/get_property_card', async (req, res) => {
@@ -244,31 +206,10 @@ rpc.get('/get_tenant_card', async (req, res) => {
   } catch (e: any) { fail(res, 500, e?.message || 'server error'); }
 });
 
-// ---------- GENERIC POST RPC ----------
-rpc.post('/:functionName', async (req, res) => {
-  try {
-    const { functionName } = req.params;
-    const payload = req.body || {};
-
-    if (!process.env.SUPABASE_URL && !process.env.SUPABASE_REST_URL) {
-      if (!res.locals.ecc) res.locals.ecc = {};
-      res.locals.ecc.handler = 'rpc_guard';
-      res.locals.ecc.contract = 'SYSTEM';
-      res.locals.ecc.canonical = true;
-      return res.status(501).json({ ok: false, error: "supabaseUrl is required" });
-    }
-
-    const supabase = getServerClient();
-
-    const { data, error } = await supabase.rpc(functionName, payload);
-
-    setContract(req, res, '/api/rpc/:functionName');
-
-    if (error) return res.status(400).json({ error: error.message });
-    return res.status(200).json(data || {});
-  } catch (e: any) {
-    return res.status(500).json({ error: e?.message || 'rpc error' });
-  }
-});
+// ---------- CONTAINMENT (ECC-C4) ----------
+// The generic POST /:functionName dispatcher (service-role supabase.rpc() with a caller-chosen function name and body) and
+// the diag/ids, debug_leases and simple_lease_test diagnostics were removed: they had no first-party caller and could be
+// reached by anyone. This router now registers only the five card reads above; every other path or method falls through
+// to the app's generic /api 404. The card reads still need actor and scope handling before activation.
 
 export default rpc;

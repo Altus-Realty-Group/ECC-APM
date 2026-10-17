@@ -40,6 +40,7 @@ import AdminGeocodeManagementPage from "./features/admin/pages/AdminGeocodeManag
 import AdminTransferManagementPage from "./features/admin/pages/AdminTransferManagementPage";
 
 // Systems Pages
+import OperationalConnectionsPage from "./features/connections/OperationalConnectionsPage";
 import IntegrationsHealthPage from "./features/systems/integrations/IntegrationsHealthPage";
 
 // Owner Transfer
@@ -147,6 +148,7 @@ export default function App() {
 
             {/* -------- Systems Pages -------- */}
             <Route path="/systems/integrations" component={IntegrationsHealthPage} />
+            <Route path="/systems/connections" component={OperationalConnectionsPage} />
             {/* ----------------------------- */}
 
             {/* -------- Owner Transfer -------- */}

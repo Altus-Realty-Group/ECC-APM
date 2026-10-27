@@ -16,7 +16,7 @@ src/pages/portfolio/** and page-local styles only. No shared CardShell, navigati
 - Black/white/gold; no orange.
 
 ## Dependency
-PR172 must land or be rebased before this implementation starts, so list pages are not edited concurrently with the card-return slice.
+Independent list work may start now. PR176 does not depend on merging PR172; the list-only implementation does not touch card pages.
 
 ## Out of scope
 Breadcrumb links, shared infrastructure, backend contracts, live data.

@@ -5,6 +5,7 @@ import { accessGuard, useResetOnAccessLoss } from "@/lib/useAccessGuard";
 import { useAllLeases } from "../../lib/ecc-resolvers";
 import { BLANK } from "@/lib/format";
 import { knownRentDollars, summarizeActiveRent, safeCardHref, joinTenants, reportedStatus } from "./portfolioTruth";
+import "./leases/leases-list.css";
 
 type LeaseRow = {
   id: string;
@@ -105,6 +106,17 @@ export default function LeasesPage() {
 
   return (
     <div className="ecc-page">
+      <div className="ecc-leases-search">
+        <label htmlFor="leases-search">Search leases</label>
+        <input
+          id="leases-search"
+          className="ecc-search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Tenant, property, status or id"
+          aria-label="Search leases"
+        />
+      </div>
       <div className="ecc-kpis" data-testid="leases-kpis">
         <div className="ecc-kpi">
           <div className="ecc-kpi-n">{rows.length.toLocaleString()}</div>

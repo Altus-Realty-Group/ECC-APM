@@ -16,11 +16,11 @@ const sweep=process.env.ECC_BROWSER_ROUTE_SWEEP==='0'?[]:routes;
 const browser = await chromium.launch({executablePath:process.env.ECC_BROWSER_EXECUTABLE,headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
 const receipts=[];
 const collections={properties:[{id:1,name:'Fixture Property',type:'residential'}],units:[{id:1,unitLabel:'Fixture Unit',propertyName:'Fixture Property',status:'Vacant'}],leases:[{id:1,tenants:['Fixture Alpha'],propertyName:'Fixture Property',status:'active',rent:1000},{id:2,tenants:['Fixture Beta'],propertyName:'Fixture Other',status:'active',rent:2000}],tenants:[{id:1,name:'Fixture Alpha'},{id:2,name:'Fixture Beta'}],owners:[{id:1,name:'Fixture Alpha'},{id:2,name:'Fixture Beta'}]};
-const cards={property:{property:{id:1,name:'Fixture Property',type:'residential',address:{}},kpis:{}},unit:{unit:{id:1,unit_label:'Fixture Unit',rent_cents:12345}},lease:{lease:{id:1,rent_cents:12345}},tenant:{tenant:{id:1,display_name:'Fixture Tenant',balance_cents:12345}},owner:{owner:{id:1,display_name:'Fixture Owner'}}};
+const cards={property:{property:{id:1,name:'Fixture Property',type:'residential',address:{}},kpis:{}},unit:{unit:{id:1,unit_label:'Fixture Unit',rent_cents:12345}},lease:{lease:{id:1,rent_cents:12345},unit:{id:3},property:{id:2},tenant:{id:4}},tenant:{tenant:{id:1,display_name:'Fixture Tenant',balance_cents:12345},activeLease:{id:9,status:'ACTIVE'}},owner:{owner:{id:1,display_name:'Fixture Owner'}}};
 try {
  for(const width of [1440,390]){
   const ctx=await browser.newContext({viewport:{width,height:900},reducedMotion:'reduce'});
-  const page=await ctx.newPage();const errors=[],writes=[];
+  const page=await ctx.newPage();const errors=[],writes=[],reads=[];
   page.on('pageerror',e=>errors.push(e.message));
   let summaryMode='unavailable', portfolioReady=false;
   await page.route('**/*',async route=>{
@@ -28,6 +28,9 @@ try {
    if(url.origin!==new URL(base).origin)return route.abort();
    if(/^\/(api|bff)(\/|$)/.test(url.pathname)){
     if(req.method()!=='GET'){writes.push(req.method()+' '+url.pathname);return route.abort()}
+    reads.push(url.pathname+url.search);
+    if(portfolioReady&&url.pathname.startsWith('/api/entities/'))return route.fulfill({json:[{id:1,name:'Fixture entity'}]});
+    if(portfolioReady&&url.pathname==='/api/owners/search')return route.fulfill({json:[{id:1,name:'Fixture owner search'}]});
     const collection=/^\/api\/portfolio\/(\w+)$/.exec(url.pathname)?.[1];
     const card=/^\/api\/rpc\/get_(\w+)_card$/.exec(url.pathname)?.[1];
     if(portfolioReady&&collection&&collections[collection])return route.fulfill({json:collections[collection]});
@@ -48,7 +51,7 @@ try {
    console.log('ROUTE',width,path);
    if(Object.values(dimensions).some(n=>n>1))console.log('OVERFLOW',JSON.stringify(receipts.at(-1)));
    if(headings.length!==1)console.log('HEADING',JSON.stringify(receipts.at(-1)));
-   if(['/dashboard','/portfolio/properties','/data','/reports/saved','/ops/operations','/systems/integrations'].includes(path))await page.screenshot({path:`${out}/${path.slice(1).replaceAll('/','-')}-${width}.png`,fullPage:true});
+   if(['/dashboard','/portfolio/properties','/data','/reports/saved','/ops/operations','/systems/integrations','/ops/reports','/system/settings'].includes(path))await page.screenshot({path:`${out}/${path.slice(1).replaceAll('/','-')}-${width}.png`,fullPage:true});
   }
   summaryMode='ready';await page.goto(base+'/dashboard');
   await expect(page.getByTestId('kpi.revenue')).toContainText('$1,234.56');
@@ -94,6 +97,34 @@ try {
    const overflow=await page.evaluate(()=>document.querySelector('.ecc-main').scrollWidth-document.querySelector('.ecc-main').clientWidth);assert.ok(overflow<=1);
    await page.screenshot({path:`${out}/loaded-${entity}-${width}.png`,fullPage:true});
   }
+  // Keyboard sorting uses native buttons and does not change the underlying records.
+  await page.getByRole('button',{name:/^Name/}).focus();await page.keyboard.press('Enter');
+  await expect(page.locator('th[aria-sort=ascending]')).toContainText('Name');
+  await page.keyboard.press('Enter');await expect(page.locator('th[aria-sort=descending]')).toContainText('Name');
+  const switchTo=async path=>page.getByRole('combobox',{name:'Open page',exact:true}).selectOption(path);
+  await switchTo('/data');await expect(page.getByRole('heading',{name:'ECC Data Hub',exact:true})).toBeVisible();
+  const limit=page.getByLabel('Limit:',{exact:true});const before=reads.length;
+  await limit.fill('200');await expect.poll(()=>reads.length).toBe(before);
+  await page.getByRole('button',{name:'Load records',exact:true}).click();await expect.poll(()=>reads.some(path=>path.includes('/api/entities/owners?')&&path.includes('limit=200'))).toBe(true);
+  const submitted=reads.filter(path=>path.startsWith('/api/entities/')).length;await limit.fill('201');await page.getByRole('button',{name:'Load records',exact:true}).click();assert.equal(reads.filter(path=>path.startsWith('/api/entities/')).length,submitted);
+  const ownerSearch=page.getByRole('textbox',{name:'Search owners',exact:true});await ownerSearch.fill('PRIOR_SESSION_TEXT');await ownerSearch.press('Enter');await expect.poll(()=>reads.some(path=>path.includes('q=PRIOR_SESSION_TEXT'))).toBe(true);
+  const searches=reads.filter(path=>path.includes('q=PRIOR_SESSION_TEXT')).length;
+  await page.evaluate(()=>window.dispatchEvent(new Event('ecc:session-boundary')));await expect(page.getByRole('textbox',{name:'Search owners',exact:true})).toHaveValue('');assert.equal(reads.filter(path=>path.includes('q=PRIOR_SESSION_TEXT')).length,searches);
+  await switchTo('/ops/reports');await expect(page.getByRole('button',{name:'Download CSV',exact:true})).toBeVisible();
+  await page.screenshot({path:`${out}/closure-report-home-${width}.png`,fullPage:true});
+  const downloadEvent=page.waitForEvent('download');await page.getByRole('button',{name:'Download CSV',exact:true}).click();const download=await downloadEvent;
+  const csv=readFileSync(await download.path(),'utf8');assert.match(csv,/Forward-looking information/);assert.match(csv,/All rights reserved/);assert.match(csv,/Fixture Property/);
+  await switchTo('/system/settings');await page.getByRole('radio',{name:/Compact/}).check();await expect(page.locator('#ecc-app')).toHaveAttribute('data-density','compact');
+  await page.screenshot({path:`${out}/closure-preferences-${width}.png`,fullPage:true});
+  await page.reload();await expect(page.getByRole('radio',{name:/Compact/})).toBeChecked();await page.getByRole('button',{name:'Restore default spacing',exact:true}).click();await expect(page.locator('#ecc-app')).toHaveAttribute('data-density','comfortable');
+  await page.goto(base+'/card/tenant/1');await expect(page.getByTestId('kpi-active-leases')).toContainText('1');
+  await page.getByRole('link',{name:'Lease #9',exact:true}).click();await expect(page).toHaveURL(base+'/card/lease/9');
+  await page.getByRole('link',{name:'Property #2',exact:true}).click();await expect(page).toHaveURL(base+'/card/property/2');
+  await switchTo('/ops/comms/templates');await page.getByLabel('Template name',{exact:true}).fill('Unsaved fixture draft');
+  await switchTo('/dashboard');await page.goBack();await expect(page.getByLabel('Template name',{exact:true})).toHaveValue('Unsaved fixture draft');
+  const dialog=page.waitForEvent('dialog');const reload=page.reload().catch(()=>null);const warning=await dialog;assert.equal(warning.type(),'beforeunload');await warning.dismiss();await reload;await expect(page.getByLabel('Template name',{exact:true})).toHaveValue('Unsaved fixture draft');
+  await page.evaluate(()=>window.dispatchEvent(new Event('ecc:session-boundary')));await expect(page.getByLabel('Template name',{exact:true})).toHaveValue('');
+  await page.screenshot({path:`${out}/closure-email-${width}.png`,fullPage:true});
   assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
   console.log(`PASS width=${width}: ${sweep.length} route states, dashboard figures/history/denial, page switching, 5 loaded cards with keyboard tabs and 3 searchable lists; no page errors or API writes`);
   await ctx.close();

@@ -15,7 +15,7 @@ export default function HeroBlock({ data }: { data: any; isLoading?: boolean }) 
   return (
     <KPIRow>
       {/* REQUIRED literal test-ids for guardrail */}
-      <KPI data-testid="kpi-lease-status" label="Lease Status" value={safe(unit?.status, BLANK)} />
+      <KPI data-testid="kpi-lease-status" label="Unit Status" value={safe(unit?.status, BLANK)} />
       <KPI data-testid="kpi-rent" label="Rent" value={formatCurrencyFromCents(unit?.rent_cents)} />
       <KPI data-testid="kpi-bedbath" label="Beds/Baths" value={bedsBaths} />
       <KPI data-testid="kpi-sqft" label="Sq Ft" value={formatNumber(unit?.sq_ft ?? unit?.sqft)} />

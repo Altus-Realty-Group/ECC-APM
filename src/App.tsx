@@ -1,6 +1,10 @@
 import React from "react";
 import { Link, Redirect, Route, Switch, useLocation } from "wouter";
 import Sidebar from "./components/Sidebar";
+import { EmailDraftProvider } from "./features/communications/EmailDraftState";
+import { useSessionEpoch } from "./lib/sessionScope";
+import ReportsHome from "./pages/reports/Home";
+import WorkspacePreferences, { useWorkspaceDensity } from "./features/settings/WorkspacePreferences";
 import WorkspaceBar from "./components/layout/WorkspaceBar";
 import "./styles/workspace.css";
 import { NAV_SECTIONS, navLeafPaths } from "./config/navigation";
@@ -99,9 +103,10 @@ function NotFound() {
 }
 
 export default function App() {
-
+  const density = useWorkspaceDensity();
+  const epoch = useSessionEpoch();
   return (
-    <div id="ecc-app">
+    <EmailDraftProvider epoch={epoch}><div id="ecc-app" data-density={density}>
       <DevErrorBanner />
       <div className="ecc-shell">
         <Sidebar />
@@ -113,6 +118,8 @@ export default function App() {
           <Switch>
             {/* Home redirect */}
             <Route path="/"><HomeRedirect /></Route>
+            <Route path="/ops/reports" component={ReportsHome} />
+            <Route path="/system/settings" component={WorkspacePreferences} />
             <Route path="/dashboard" component={DashboardPage} />
             <Route path="/data" component={DataHub} />
             <Route path="/ops/operations" component={OperationsRecoveryPage} />
@@ -174,6 +181,6 @@ export default function App() {
         </main>
         <ToastContainer />
       </div>
-    </div>
+    </div></EmailDraftProvider>
   );
 }

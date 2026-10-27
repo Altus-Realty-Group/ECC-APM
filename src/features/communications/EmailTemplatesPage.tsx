@@ -2,11 +2,10 @@ import React, { useEffect, useRef, useState } from "react";
 import { getSessionEpoch, useSessionEpoch } from "@/lib/sessionScope";
 import { MERGE_FIELDS, MAX_TEMPLATE_BYTES, blankTemplate, blankValues, parseTemplate, previewTemplate, templateJson, emailDraft, templateFilename, downloadDraftFile, type EmailTemplate, type MergeKey } from "./emailDraft";
 import "./emailTemplates.css";
+import { useEmailDraft } from "./EmailDraftState";
 
 export function EmailTemplateWorkspace({ epoch }: { epoch: number }) {
-  const [template, setTemplate] = useState(blankTemplate);
-  const [values, setValues] = useState(blankValues);
-  const [recipient, setRecipient] = useState("");
+  const { template, setTemplate, values, setValues, recipient, setRecipient } = useEmailDraft();
   const [pending, setPending] = useState<EmailTemplate | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -59,7 +58,7 @@ export function EmailTemplateWorkspace({ epoch }: { epoch: number }) {
   function insertField(key: MergeKey) { change("body", template.body + `{{${key}}}`); }
   return <section className="ecc-email" aria-labelledby="email-title">
     <header><p className="ecc-email-eyebrow">Communication</p><h1 id="email-title">Email templates</h1><p>Write reusable wording, complete the message fields and download an email draft for review.</p></header>
-    <aside className="ecc-email-scope"><strong>Your work stays in this tab.</strong><p>Download the template before leaving. Templates are not saved to your account. ECC does not send email from this page.</p></aside>
+    <aside className="ecc-email-scope"><strong>Your work stays in this tab.</strong><p>Your draft remains while you move between ECC pages in this tab. Download it before closing or reloading. It is cleared when your session changes and is not saved to your account. ECC does not send email from this page.</p></aside>
     <div className="ecc-email-toolbar"><label className="ecc-email-import">Open template file<input type="file" accept=".json,application/json" disabled={reading} onChange={event => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ""; void importFile(file, event.currentTarget); }} /></label>
       <button type="button" disabled={reading} onClick={event => { if (edited) confirmReplacement(blankTemplate(), event.currentTarget); else replace(blankTemplate()); }}>New blank template</button>
       <button type="button" onClick={() => download("template")}>Download template</button></div>

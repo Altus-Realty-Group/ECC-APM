@@ -1,3 +1,4 @@
+import RelatedRecord from "@/components/recovery/RelatedRecord";
 import { formatCurrencyFromCents } from "@/lib/format";
 import React from 'react';
 import { FieldGroup } from "@/components/cardkit/FieldGroup";
@@ -8,7 +9,7 @@ export default function Overview({ tenant, activeLease }:{ tenant?: any|null; ac
     { label:'Email', value: tenant?.email || 'Not provided' },
     { label:'Phone', value: tenant?.phone || 'Not provided' },
     { label:'Current Balance', value: formatCurrencyFromCents(tenant?.balance_cents) },
-    { label:'Active Lease', value: activeLease?.id ? `Lease ${activeLease.doorloop_id || activeLease.id}` : 'No active lease', href: activeLease?`/card/lease/${activeLease.id}`:undefined },
+    { label:'Active Lease', value: activeLease?.id ? <RelatedRecord kind="lease" id={activeLease.id} title={`Lease #${activeLease.id}`} /> : 'Current lease not reported' },
     { label:'Move-in Date', value: activeLease?.start_date || 'Not available' },
     { label:'Status', value: tenant?.status || 'Unknown' },
   ];

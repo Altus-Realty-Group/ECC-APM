@@ -48,6 +48,7 @@ const BUILT_NAV_SECTIONS: NavSection[] = [
     title: "Reports",
     icon: "BarChart3",
     children: [
+      { title: "Overview", path: "/ops/reports", icon: "BarChart3" },
       { title: "Create", path: "/reports/create", icon: "FileText" },
       { title: "Saved", path: "/reports/saved", icon: "FileText" },
       { title: "Templates", path: "/reports/templates", icon: "FileText" },
@@ -74,7 +75,7 @@ const BUILT_NAV_SECTIONS: NavSection[] = [
   {
     title: "Systems",
     icon: "Settings",
-    children: [{ title: "Integrations", path: "/systems/integrations", icon: "Link2" }],
+    children: [{ title: "Integrations", path: "/systems/integrations", icon: "Link2" }, { title: "Workspace preferences", path: "/system/settings", icon: "Settings" }],
   },
 ];
 
@@ -148,10 +149,8 @@ export const PLANNED_DESTINATIONS: PlannedDestination[] = [
     title, path: `/ops/maintenance/${slug}`, group: "Construction & Repair",
     dependency: "Needs a real work-order contract; current server handlers return unavailable (503). " + STUB,
   })),
-  { title: "Reports Home", path: "/ops/reports", group: "Reports", dependency: STUB },
   { title: "Marketing", path: "/growth/marketing", group: "Growth", dependency: STUB },
   { title: "Automation", path: "/system/automation", group: "System", dependency: STUB },
-  { title: "Settings", path: "/system/settings", group: "System", dependency: STUB },
   ...[
     ["Sync Audit", "sync-audit"], ["Sync Management", "sync-management"], ["Raw Data", "raw"],
     ["Sync Logs", "sync-logs"], ["System Settings", "system-settings"],

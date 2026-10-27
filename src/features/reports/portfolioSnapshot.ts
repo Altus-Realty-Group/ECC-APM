@@ -1,3 +1,4 @@
+import { safeCsvCell } from "@/lib/csv";
 import { ContractError } from "@/lib/dataState";
 
 export type ReportSource = "properties" | "leases" | "owners";
@@ -77,19 +78,17 @@ export function snapshotAtClick(layout: ReportLayout,
   return prepareSnapshot(layout, current.data);
 }
 
-/** Quote every cell and neutralize formula/control prefixes before spreadsheet import. */
-export function safeCsvCell(value: Cell): string {
-  let text = value === null ? "" : String(value);
-  if (typeof value === "string" && (/^[\s\u0000-\u001f]*[=+\-@]/u.test(text) || /^[\t\r\n]/.test(text))) text = `'${text}`;
-  return `"${text.replace(/"/g, '""')}"`;
-}
+export { safeCsvCell } from "@/lib/csv";
 export function snapshotCsv(snapshot: PortfolioSnapshot): string {
   const lines: Cell[][] = [
     ["Report", snapshot.layout.title], ["Scope", SNAPSHOT_SCOPE],
     ["Loaded records", snapshot.rows.length],
     ["Records last updated", "Not reported; row dates, when supplied, are retained as reported."],
     ["Missing values", "Blank cells mean not reported; they do not mean zero."], [],
-    snapshot.columns.map(column => column.label), ...snapshot.rows,
+    snapshot.columns.map(column => column.label), ...snapshot.rows, [],
+    ["Disclosures", "Prepared for operational review of the loaded records. This is not an audited financial statement, appraisal or legal/tax opinion. Confirm material amounts and decisions against the underlying records."],
+    ["Forward-looking information", "Future outcomes, forecasts or plans, if discussed, depend on assumptions and uncertainties. Actual results may differ; no future result is guaranteed."],
+    ["Rights", `© ${new Date().getFullYear()} Altus Property Management. All rights reserved in original report content. Source facts and third-party materials retain their applicable rights.`],
   ];
   return "\ufeff" + lines.map(line => line.map(safeCsvCell).join(",")).join("\r\n");
 }

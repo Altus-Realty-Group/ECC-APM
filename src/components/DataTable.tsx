@@ -16,6 +16,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import "../styles/table.css";
+import { tableCsv } from "./tableCsv";
 
 type Align = "left" | "right";
 type SortDir = "asc" | "desc";
@@ -81,32 +82,7 @@ function compare(a: any, b: any, type: ColType): number {
 }
 
 function downloadCSV(filename: string, rows: any[], columns: DataColumn[]) {
-  const headers = columns.map((c) => c.header);
-  const lines = [headers.join(",")];
-
-  for (const r of rows) {
-    const line = columns
-      .map((c) => {
-        const v = (r as any)[c.key];
-        const text =
-          v == null
-            ? ""
-            : typeof v === "string"
-              ? v
-              : typeof v === "number"
-                ? String(v)
-                : typeof v === "boolean"
-                  ? (v ? "true" : "false")
-                  : String(v);
-        // simple CSV escape
-        const needsQuote = /[",\n]/.test(text);
-        return needsQuote ? `"${text.replace(/"/g, '""')}"` : text;
-      })
-      .join(",");
-    lines.push(line);
-  }
-
-  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const blob = new Blob([tableCsv(rows, columns)], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = filename;
@@ -259,12 +235,12 @@ export default function DataTable<Row = any>(props: DataTableProps<Row>) {
     // Prefer SPA navigation; fall back to hard nav
     if (rowHref) {
       const href = rowHref(row);
-      console.debug("[DT/DBL]", { href, row });
+
       if (typeof href === "string" && href.length > 0) {
         try { setLocation(href); }
         catch { window.location.assign(href); }
       } else {
-        console.error("[DT/DBL] empty href for row", row);
+        console.error("This record has no usable link.");
       }
       return;
     }
@@ -326,10 +302,9 @@ export default function DataTable<Row = any>(props: DataTableProps<Row>) {
                 <th
                   key={c.key}
                   className={cls}
-                  onClick={(e) => toggleSort(c.key, e.shiftKey)}
-                  title="Click to sort, Shift+Click to multi-sort"
+                  aria-sort={active ? active.dir === "asc" ? "ascending" : "descending" : "none"}
                 >
-                  {c.header}
+                  <button type="button" className="ecc-table-sort" onClick={e => toggleSort(c.key, e.shiftKey)} title="Sort; hold Shift to sort by more than one column">{c.header}<span aria-hidden="true">{active ? active.dir === "asc" ? " ↑" : " ↓" : " ↕"}</span></button>
                 </th>
               );
             })}
@@ -465,11 +440,8 @@ export default function DataTable<Row = any>(props: DataTableProps<Row>) {
               <tr
                 key={rowId(row, idx)}
                 data-testid="datatable-row"
-                onDoubleClick={() => handleDbl(row)}
+                onDoubleClick={event => { if (!(event.target as HTMLElement).closest("a,button,input,select,textarea")) handleDbl(row); }}
                 className="ecc-row cursor-pointer hover:bg-white/5"
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => { if (e.key === "Enter") handleDbl(row); }}
               >
                 {colMeta.map((c, cellIdx) => {
                   const v = (row as any)[c.key];
@@ -486,13 +458,14 @@ export default function DataTable<Row = any>(props: DataTableProps<Row>) {
                             <a
                               data-testid="row-link"
                               href={rowHref(row)}
-                              onClick={(e) => { e.preventDefault(); handleDbl(row); }}
+                              onClick={(e) => { if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) { e.preventDefault(); handleDbl(row); } }}
                               className="underline decoration-dotted underline-offset-4 opacity-70 hover:opacity-100"
                               title="Open card"
                             >
                               Open
                             </a>
                           )}
+                          {!rowHref ? <button type="button" className="ecc-btn" onClick={() => handleDbl(row)} aria-label={`Open record ${rowId(row, idx)}`}>Details</button> : null}
                           {content}
                         </div>
                       </td>

@@ -42,8 +42,10 @@ export default function ErrorPane({ isOpen, onClose, runDetails }: ErrorPaneProp
           </p>
         </div>
         <button
+          type="button"
+          aria-label="Close sync run details"
           onClick={onClose}
-          className="ecc-object"
+          className="ecc-btn"
           style={{ padding: "8px 12px" }}
           data-testid="button-close-error-pane"
         >

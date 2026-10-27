@@ -341,7 +341,9 @@ test("unavailable destinations remain visible without clickable routes", () => {
       assert.ok(!anchor(html, child.path), child.path);
       assert.ok(html.includes(child.title), child.title);
     }
-    assert.match(html, /aria-disabled="true"/);
-    assert.match(html, /Not available/);
+    if (section.children!.some(c => c.unavailable)) {
+      assert.match(html, /aria-disabled="true"/);
+      assert.match(html, /Not available/);
+    }
   }
 });

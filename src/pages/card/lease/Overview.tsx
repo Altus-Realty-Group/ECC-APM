@@ -1,3 +1,4 @@
+import RelatedRecord from "@/components/recovery/RelatedRecord";
 import { BLANK, formatCurrencyFromCents } from "@/lib/format";
 export default function Overview({ data }: { data: any }) {
   if (!data) return null; // shell shows skeleton
@@ -12,9 +13,9 @@ export default function Overview({ data }: { data: any }) {
   const tenantName = tenant?.display_name || tenant?.name || null;
 
   const rows = [
-    { label:'Property', value: propName, href: property?`/card/property/${property.id}`:undefined },
-    { label:'Unit', value: unitName, href: unit?`/card/unit/${unit.id}`:undefined },
-    { label:'Primary Tenant', value: tenantName, href: tenant?`/card/tenant/${tenant.id}`:undefined },
+    { label:'Property', value: propName ?? (property ? `Property #${property.id}` : null), kind: 'property' as const, id: property?.id },
+    { label:'Unit', value: unitName ?? (unit ? `Unit #${unit.id}` : null), kind: 'unit' as const, id: unit?.id },
+    { label:'Primary Tenant', value: tenantName ?? (tenant ? `Tenant #${tenant.id}` : null), kind: 'tenant' as const, id: tenant?.id },
     { label:'Status', value: lease?.status || null },
     { label:'Start Date', value: lease?.start_date || null },
     { label:'End Date', value: lease?.end_date || null },
@@ -26,8 +27,8 @@ export default function Overview({ data }: { data: any }) {
       {rows.map(row => (
         <div key={row.label} className="ecc-record-field">
           <span className="font-medium">{row.label}</span>
-          {row.href ? (
-            <a href={row.href} className="text-blue-400 hover:underline">{row.value}</a>
+          {row.kind && typeof row.id === "number" ? (
+            <RelatedRecord kind={row.kind} id={row.id} title={String(row.value)} />
           ) : (
             <span>{row.value ?? BLANK}</span>
           )}

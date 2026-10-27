@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Entities, Owners } from "./ecc-api";
-import { sessionFetchJSON, useSessionEpoch } from "./sessionScope";
+import { sessionFetchJSON, useSessionEpoch, getSessionEpoch, StaleSessionError } from "./sessionScope";
 import { ContractError } from "./dataState";
 
 /** Existing entity envelopes and owner-search results; malformed success is never empty. */
@@ -47,6 +47,12 @@ export function useAllOwners() {
 }
 
 /* --------- DataHub hooks --------- */
+/** A cache refetch can run before React remounts at an identity boundary. */
+export async function fetchDataHubRows(path: string, capturedEpoch: number, signal?: AbortSignal) {
+  if (capturedEpoch !== getSessionEpoch()) throw new StaleSessionError();
+  return dataHubRows(await sessionFetchJSON(path, { signal }));
+}
+
 export function useDataHubEntities(entity: "owners" | "tenants" | "leases" | "units" | "properties", params: { order?: string, limit?: number, select?: string }) {
   const epoch = useSessionEpoch();
   return useQuery({
@@ -54,7 +60,7 @@ export function useDataHubEntities(entity: "owners" | "tenants" | "leases" | "un
     queryFn: async ({ signal }) => {
       const query = new URLSearchParams();
       for (const [key, value] of Object.entries(params)) if (value != null) query.set(key, String(value));
-      return dataHubRows(await sessionFetchJSON(`/api/entities/${entity}?${query}`, { signal }));
+      return fetchDataHubRows(`/api/entities/${entity}?${query}`, epoch, signal);
     }
   });
 }
@@ -63,7 +69,7 @@ export function useDataHubOwnersSearch(searchQ: string) {
   const epoch = useSessionEpoch();
   return useQuery({
     queryKey: ["datahub", epoch, "owners-search", searchQ],
-    queryFn: async ({ signal }) => dataHubRows(await sessionFetchJSON(`/api/owners/search?q=${encodeURIComponent(searchQ)}`, { signal })),
+    queryFn: ({ signal }) => fetchDataHubRows(`/api/owners/search?q=${encodeURIComponent(searchQ)}`, epoch, signal),
     enabled: !!searchQ
   });
 }

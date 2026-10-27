@@ -48,7 +48,7 @@ try {
         return send(healthFailure || 200, healthFailure ? { error: 'Unavailable' } : health);
       }
       if (url.pathname === '/api/config/integrations') return send(200, { integrations: {} });
-      if (url.pathname === '/api/admin/sync/runs') return send(200, { ok: true, runs: [] });
+      if (url.pathname === '/api/admin/sync/runs') return send(200, { ok: true, runs: [{id:'fixture-run',timestamp:'2026-10-17T00:00:00Z',entity:'units',mode:'delta',rows:0,duration:12,result:'success',dryRun:true}] });
       return send(200, {});
     });
     const invalidate = async path => page.evaluate(async path => {
@@ -62,6 +62,11 @@ try {
     await expect(page.getByTestId('scheduler-next').locator('time')).toHaveAttribute('datetime', '2026-10-18T05:00:00.000Z');
     await page.getByTestId('scheduler-panel').screenshot({ path: `/tmp/ecc-scheduler-${width}.png` });
 
+    const detailButton=page.getByRole('button',{name:'View sync run fixture-run',exact:true});
+    await detailButton.focus();await page.keyboard.press('Enter');
+    await expect(page.getByRole('region',{name:'Integration Error Details'})).toBeVisible();
+    await page.getByRole('button',{name:'Close sync run details',exact:true}).focus();await page.keyboard.press('Enter');
+    await expect(page.getByRole('region',{name:'Integration Error Details'})).toHaveCount(0);
     holdAdmin = true; holdHealth = true;
     await invalidate('/api/admin/sync/status'); await invalidate('/api/health/sync');
     await expect.poll(() => heldAdmin.length > 0 && heldHealth.length > 0).toBe(true);

@@ -32,7 +32,8 @@ test("snapshot projection preserves confirmed zero and null, excludes unrequeste
   const csv = snapshotCsv(snapshot);
   assert.match(csv, /"Reported units"/);
   assert.match(csv, /"42","Fixture Property","","IN","46408","Residential","0"/);
-  assert.doesNotMatch(csv, /must not export|secret_note|\$|2026/);
+  assert.doesNotMatch(csv, /must not export|secret_note|\$/);
+  assert.doesNotMatch(csv.split('"Disclosures"')[0], /2026/); // Rights year is not a record timestamp.
   assert.match(csv, /may not include your entire portfolio/);
   assert.match(csv, /Records last updated/);
   assert.match(csv, /Not reported; row dates/);

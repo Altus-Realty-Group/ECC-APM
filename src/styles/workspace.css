@@ -121,3 +121,16 @@
   #ecc-app .ecc-kpis { grid-template-columns: 1fr; }
   #ecc-app .ecc-kpi { padding: 16px; }
 }
+#ecc-app .ecc-table-sort { min-height: 44px; width: 100%; text-align: inherit; font: inherit; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ecc-record-panel-title { margin-bottom: 14px; }
+.ecc-preferences { display: grid; gap: 20px; max-width: 900px; }
+.ecc-preferences fieldset { border: 1px solid #393932; border-radius: 10px; padding: 24px; display: grid; gap: 16px; background: #151514; }
+.ecc-preferences legend { color: #fff; padding: 0 8px; font-weight: 600; }
+.ecc-preferences fieldset > label { display: flex; align-items: center; gap: 14px; min-height: 72px; padding: 12px 16px; border: 1px solid #535349; border-radius: 7px; cursor: pointer; }
+.ecc-preferences label:has(input:checked) { border-color: #d4af37; background: #242217; }
+.ecc-preferences label span { display: grid; gap: 4px; }
+.ecc-preferences small, .ecc-preferences p { color: #c6c6bc; }
+.ecc-preferences input { accent-color: #d4af37; width: 22px; height: 22px; }
+#ecc-app[data-density="compact"] .ecc-workspace-content td { padding-block: 8px; }
+#ecc-app[data-density="compact"] .ecc-workspace-content td :is(a,button) { min-height: 44px; }
+#ecc-app .ecc-workspace-content .ecc-table thead tr:first-child th { padding-block: 0; }

@@ -65,15 +65,14 @@ export default function LastRunTable({ runs, onRowClick }: LastRunTableProps) {
                   <th className="ecc-table__header">Reported rows</th>
                   <th className="ecc-table__header">Duration</th>
                   <th className="ecc-table__header">Reported outcome</th>
-                  <th className="ecc-table__header">Error</th>
+                  <th className="ecc-table__header">Error</th><th className="ecc-table__header">Details</th>
                 </tr>
               </thead>
               <tbody>
                 {runs.map((run) => (
                   <tr
                     key={run.id}
-                    className="ecc-table__row cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
-                    onClick={() => onRowClick(run)}
+                    className="ecc-table__row hover:bg-gray-50 dark:hover:bg-gray-800"
                     data-testid={`row-sync-run-${run.id}`}
                   >
                     <td className="ecc-table__cell">
@@ -120,6 +119,7 @@ export default function LastRunTable({ runs, onRowClick }: LastRunTableProps) {
                         <span className="text-gray-400">—</span>
                       )}
                     </td>
+                    <td><button type="button" className="ecc-btn" onClick={() => onRowClick(run)} aria-label={`View sync run ${run.id}`}>View details</button></td>
                   </tr>
                 ))}
               </tbody>

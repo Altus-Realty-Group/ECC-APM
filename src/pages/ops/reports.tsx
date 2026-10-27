@@ -1,1 +1,1 @@
-export default function Reports(){ return <div className="panel" style={{padding:16}}><h1>Reports</h1><p className="badge">Stub • /ops/reports</p></div>; }
+export { default } from "@/pages/reports/Home";

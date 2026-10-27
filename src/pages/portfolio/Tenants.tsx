@@ -1,5 +1,5 @@
+import "./styles/list-search.css";
 import React, { useMemo, useState } from "react";
-import FilterBar from "../../components/FilterBar";
 import DataTable, { type DataColumn } from "../../components/DataTable";
 import StateNotice from "@/components/ui/StateNotice";
 import { accessGuard, useResetOnAccessLoss } from "@/lib/useAccessGuard";
@@ -83,12 +83,18 @@ export default function Tenants() {
 
   return (
     <section className="ecc-page">
-      <FilterBar
-        title="Tenants"
-        value={q}
-        onChange={setQ}
-        placeholder="Search name / property / type"
-      />
+      <div className="ecc-list-search">
+        <h1 className="ecc-page-title">Tenants</h1>
+        <label htmlFor="tenants-search">Search tenants</label>
+        <input
+          id="tenants-search"
+          className="ecc-search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Name, property, type or email"
+          aria-label="Search tenants"
+        />
+      </div>
       <DataTable
         columns={columns}
         rows={rows}

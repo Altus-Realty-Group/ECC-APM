@@ -75,6 +75,7 @@ export default function PropertyCardPage() {
       {q.isError && errorKind(q.error) !== "denied" ? (
         <StateNotice kind="error" title="Showing the last loaded details; the latest refresh failed." onRetry={retry} retrying={q.isFetching} />
       ) : null}
+      <div className="px-6 pt-4">{backLink}</div>
       {/* No Export/Edit actions (no workflow) and no Contacts/Key Dates panels: the property card
           contract and its server handler return neither owner nor created/updated dates. */}
       <CardShell

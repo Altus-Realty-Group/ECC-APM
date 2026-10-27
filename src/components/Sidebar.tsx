@@ -333,12 +333,13 @@ export default function Sidebar() {
   return (
     <aside className={`ecc-sidebar ${collapsed ? "is-collapsed" : "is-expanded"}`}>
       <div className="ecc-sidebar__inner">
+        <a className="ecc-skip-link" href="#main">Skip to content</a>
         <div className="ecc-header">
-          <Link href="/" className="ecc-logo-link" aria-label="Altus home">
+          <Link href="/dashboard" className="ecc-logo-link" aria-label="Altus command center">
             <SafeImg
               src={collapsed ? LOGO_SQUARE : LOGO_WIDE}
               alt="Altus"
-              style={{ filter: "brightness(1.75)", height: collapsed ? 52 : 60, width: "auto", objectFit: "contain" }}
+              style={{ filter: "brightness(1.75)", height: collapsed ? 38 : 48, width: "auto", objectFit: "contain" }}
             />
           </Link>
         </div>

@@ -12,7 +12,8 @@ export default function CardLoadNotice({ entity, loading, denied, error, retry, 
   backPath: string;
 }) {
   return (
-    <div className="p-6 space-y-3">
+    <div className="ecc-record-unavailable">
+      <h1>{entity.charAt(0).toUpperCase() + entity.slice(1)} record</h1>
       <StateNotice
         kind={denied ? "denied" : loading ? "loading" : "error"}
         title={denied ? `You don't have access to this ${entity}.` : loading ? `Loading ${entity}...` : `This ${entity} could not be loaded.`}

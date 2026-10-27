@@ -16,7 +16,7 @@ export default function UnitCardPage() {
   const params: { id?: string } | null = routeParams;
   const idNum = Number(params?.id);
   const q = useUnitCard(idNum);
-  if (!Number.isFinite(idNum)) return <div className="p-6 space-y-3" data-testid="unit-invalid"><StateNotice kind="error" title="That unit link is not valid." /><Link href="/portfolio/units" className="ecc-btn ecc-touch">Back to units</Link></div>;
+  if (!Number.isFinite(idNum)) return <div className="p-6 space-y-3" data-testid="unit-invalid"><h1>Unit record</h1><StateNotice kind="error" title="That unit link is not valid." /><Link href="/portfolio/units" className="ecc-btn ecc-touch">Back to units</Link></div>;
 
   const { data, denied } = accessGuard(q);
   const retry = () => { void q.refetch(); };

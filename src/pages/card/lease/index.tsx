@@ -16,7 +16,7 @@ export default function LeaseCardPage() {
   const params: { id?: string } | null = routeParams;
   const idNum = Number(params?.id);
   const q = useLeaseCard(idNum);
-  if (!Number.isFinite(idNum)) return <div className="p-6 space-y-3" data-testid="lease-invalid"><StateNotice kind="error" title="That lease link is not valid." /><Link href="/portfolio/leases" className="ecc-btn ecc-touch">Back to leases</Link></div>;
+  if (!Number.isFinite(idNum)) return <div className="p-6 space-y-3" data-testid="lease-invalid"><h1>Lease record</h1><StateNotice kind="error" title="That lease link is not valid." /><Link href="/portfolio/leases" className="ecc-btn ecc-touch">Back to leases</Link></div>;
 
   const { data, denied } = accessGuard(q);
   const retry = () => { void q.refetch(); };

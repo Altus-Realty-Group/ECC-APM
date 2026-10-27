@@ -38,7 +38,7 @@ export function CardShell({
   }, [activeTab?.lazy]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4">
+    <div className="ecc-record">
       {/* Breadcrumbs */}
       {breadcrumbs && breadcrumbs.length > 0 && (
         <nav aria-label="Breadcrumb" className="text-sm mb-2">
@@ -54,7 +54,7 @@ export function CardShell({
       )}
 
       {/* Title + actions */}
-      <div className="flex items-start justify-between mb-4">
+      <div className="ecc-record-heading">
         <h1 className="text-2xl font-semibold">{title}</h1>
         {actions && actions.length > 0 && (
           <div className="flex gap-2">
@@ -76,7 +76,7 @@ export function CardShell({
       {hero && <div className="mb-6">{hero}</div>}
 
       {/* Tabs */}
-      <div className="border-b border-neutral-800 mb-4 flex gap-4">
+      <div className="ecc-record-tabs" aria-label="Record sections">
         {tabs.map(t => (
           <button
             key={t.id}
@@ -91,7 +91,7 @@ export function CardShell({
       </div>
 
       {/* Body + Right rail layout */}
-      <div className={`grid gap-6 ${rightRail ? "md:grid-cols-[1fr_320px]" : "grid-cols-1"}`}>
+      <div className={`ecc-record-body ${rightRail ? "ecc-record-body--with-rail" : ""}`}>
         <div data-testid="tab-panel">
           {activeTab?.element && !activeTab?.lazy && activeTab.element}
           {activeTab?.lazy && (
@@ -100,7 +100,7 @@ export function CardShell({
             </Suspense>
           )}
         </div>
-        {rightRail && <aside className="w-80">{rightRail}</aside>}
+        {rightRail && <aside className="ecc-record-rail">{rightRail}</aside>}
       </div>
     </div>
   );

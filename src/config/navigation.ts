@@ -32,7 +32,7 @@ export type NavSection = {
 };
 
 const BUILT_NAV_SECTIONS: NavSection[] = [
-  { title: "Dashboard", icon: "LayoutDashboard", path: "/dashboard" },
+  { title: "Command center", icon: "LayoutDashboard", path: "/dashboard" },
   {
     title: "Portfolio",
     icon: "Boxes",

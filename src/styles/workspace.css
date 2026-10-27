@@ -1,0 +1,123 @@
+/* ECC workspace system. Scoped to the mounted shell; no data or availability changes. */
+#ecc-app {
+  --bg: #0a0a0a; --surface: #131313; --surface-2: #1b1b1b;
+  --text: #f5f5f2; --text-muted: #bcbcb5; --text-subtle: #a6a69f;
+  --border: #343430; --line: #343430; --gold: #d4af37;
+  --ecc-bg: #0a0a0a; --ecc-surface: #161616; --ecc-fg: #f5f5f2;
+  --ecc-muted: #bcbcb5; --ecc-text: #f5f5f2; --ecc-text-dim: #bcbcb5;
+  --ecc-gold: #d4af37; --panel-bg: #161616; --panel-elev: #202020;
+  --rail-expanded: 248px;
+  font-family: Inter, "Segoe UI", system-ui, sans-serif;
+  font-size: 14px; line-height: 1.5; color-scheme: dark;
+}
+#ecc-app .ecc-main { padding: 0; background: #0a0a0a; }
+.ecc-workspace-content { max-width: 1640px; margin-inline: auto; padding: 28px clamp(16px, 2.5vw, 36px) 48px; min-width: 0; }
+.ecc-workspace-bar { min-height: 76px; padding: 12px clamp(16px, 2.5vw, 36px); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; background: #101010; border-bottom: 1px solid #343430; }
+.ecc-workspace-brand { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.ecc-workspace-brand > a { font-size: 19px; font-weight: 700; letter-spacing: -.04em; display: inline-flex; align-items: center; gap: 9px; min-height: 44px; color: #fff; }
+.ecc-workspace-brand a span { font-size: 11px; font-weight: 600; border: 1px solid #676045; border-radius: 4px; color: #d4af37; padding: 2px 6px; letter-spacing: .04em; }
+.ecc-workspace-location { font-size: 12px; color: #bcbcb5; }
+.ecc-workspace-switcher { white-space: nowrap; display: flex; align-items: center; gap: 10px; font-size: 12px; color: #bcbcb5; }
+.ecc-workspace-switcher select { max-width: 280px; min-height: 44px; padding: 8px 30px 8px 12px; background: #191919; border: 1px solid #494943; border-radius: 7px; color: #fff; font: inherit; font-size: 13px; }
+#ecc-app .ecc-sidebar { background: #111; border-color: #343430; flex-shrink: 0; }
+#ecc-app .ecc-sidebar .ecc-header { height: 76px; background: #111; }
+#ecc-app .ecc-nav-row { border-radius: 6px; font-size: 13px; font-weight: 500; }
+#ecc-app .ecc-nav-row.is-active { background: #27251a; color: #f3d77e; box-shadow: inset 3px 0 #d4af37; }
+#ecc-app .ecc-child { font-size: 13px; min-height: 44px; border-radius: 5px; }
+#ecc-app .ecc-child.is-active { background: #242219; color: #f3d77e; }
+#ecc-app .ecc-nav-status { color: #abab9e; font-size: 11px; }
+.ecc-skip-link { position: fixed; top: 8px; left: 8px; transform: translateY(-200%); background: #d4af37; color: #111; z-index: 20000; padding: 12px 18px; border-radius: 6px; }
+.ecc-skip-link:focus { transform: none; }
+#ecc-app .ecc-workspace-content > :is(.ecc-dashboard,.ecc-reports,.ops-page,.ecc-geocode,.ecc-units-workflow,.ecc-renewal-planning,.ecc-renewals,.ecc-email,.ecc-units-page) { padding: 0; max-width: none; }
+#ecc-app .ecc-workspace-content h1 { font-size: clamp(25px, 2.6vw, 32px); font-weight: 650; letter-spacing: -.035em; line-height: 1.2; color: #fafaf7; }
+#ecc-app .ecc-workspace-content h2 { font-weight: 600; font-size: 18px; letter-spacing: -.015em; color: #fafaf7; }
+#ecc-app .ecc-workspace-content :is(.panel,.ecc-object,.ecc-panel,.ops-section,.ecc-report-layouts article) { background: #161616; border: 1px solid #343430; border-radius: 10px; box-shadow: none; }
+#ecc-app .ecc-state { border: 1px solid #48483f; border-left: 3px solid #9d9167; border-radius: 8px; background: #191916; padding: 20px; gap: 16px; }
+#ecc-app .ecc-state__title { color: #f5f5f2; font-size: 15px; font-weight: 600; }
+#ecc-app .ecc-state__detail { color: #c6c6bc; max-width: 74ch; }
+#ecc-app :is(.ecc-btn,.ecc-card-action) { min-height: 44px; padding: 10px 14px; border: 1px solid #53534a; border-radius: 6px; color: #f5f5f2; background: #20201b; font-size: 13px; font-weight: 500; }
+#ecc-app .ecc-btn-gold { background: #d4af37; color: #111; border-color: #d4af37; }
+#ecc-app :is(button,input,select,textarea):focus-visible, #ecc-app a:focus-visible { outline: 2px solid #d4af37; outline-offset: 3px; }
+#ecc-app button:disabled { cursor: not-allowed; opacity: .55; }
+#ecc-app .ecc-workspace-content :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { min-height: 44px; max-width: 100%; background: #111; color: #f5f5f2; border: 1px solid #5b5b50; border-radius: 6px; padding: 10px 12px; font-size: 14px; }
+#ecc-app input::placeholder { color: #abab9f; }
+.ecc-search-label { display: grid; gap: 6px; font-size: 12px; color: #c6c6bc; }
+#ecc-app .ecc-page-head { align-items: end; flex-wrap: wrap; gap: 18px; margin-bottom: 24px; }
+#ecc-app .ecc-page-tools { flex-wrap: wrap; gap: 12px; }
+#ecc-app .ecc-workspace-content :is(.ecc-table-wrap,.ecc-table-scroll,.overflow-auto,.overflow-x-auto) { max-width: 100%; overflow-x: auto; }
+#ecc-app .ecc-workspace-content table { color: #f5f5f2; border-collapse: collapse; font-size: 13px; width: 100%; }
+#ecc-app .ecc-workspace-content th { background: #20201c; color: #c6c6b9; font-weight: 600; text-align: left; font-size: 11px; letter-spacing: .055em; }
+#ecc-app .ecc-workspace-content :is(th,td) { border-bottom: 1px solid #343430; padding: 14px 12px; }
+#ecc-app .ecc-workspace-content tbody tr { background: #141414; }
+#ecc-app .ecc-workspace-content tbody tr:nth-child(even) { background: #181818; }
+#ecc-app .ecc-workspace-content tbody tr:hover { background: #23221b; }
+#ecc-app .ecc-table-footer { padding: 14px; gap: 14px; flex-wrap: wrap; border-top: 1px solid #343430; color: #bcbcb5; }
+#ecc-app .ecc-command-surface { background: #131313; border-color: #343430; box-shadow: none; }
+#ecc-app .ecc-command-surface__context { border-color: #343430; }
+.ecc-record { min-width: 0; display: grid; gap: 20px; }
+.ecc-record-heading { display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 16px; }
+.ecc-record-tabs { display: flex; gap: 6px; overflow-x: auto; border-bottom: 1px solid #343430; }
+#ecc-app .ecc-card-tab { min-height: 48px; padding: 12px 18px; flex-shrink: 0; border-bottom: 2px solid transparent; color: #bcbcb5; font-size: 14px; }
+#ecc-app .ecc-card-tab.is-active { border-color: #d4af37; color: #fff; background: #1e1d17; }
+.ecc-record-body { min-width: 0; display: grid; gap: 24px; }
+.ecc-record-body--with-rail { grid-template-columns: minmax(0, 1fr) 300px; }
+.ecc-record-body > *, .ecc-record-rail { min-width: 0; }
+.ecc-record nav ol { flex-wrap: wrap; }
+@media (max-width: 900px) { .ecc-record-body--with-rail { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) {
+  .ecc-workspace-content { padding: 20px 12px 32px; }
+  .ecc-workspace-bar { gap: 4px; padding: 8px 12px; }
+  .ecc-workspace-brand { gap: 8px; width: 100%; }
+  .ecc-workspace-location { font-size: 11px; }
+  .ecc-workspace-switcher { width: 100%; justify-content: space-between; }
+  .ecc-workspace-switcher select { min-width: 0; width: 77%; }
+  #ecc-app .ecc-page-tools, .ecc-search-label { width: 100%; }
+  #ecc-app .ecc-state { padding: 16px; flex-wrap: wrap; }
+  #ecc-app .ecc-sidebar.is-expanded { width: min(248px, 74vw); }
+}
+@media (prefers-reduced-motion: reduce) { #ecc-app *, #ecc-app *::before, #ecc-app *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+.ecc-collection-heading { margin-bottom: 24px; display: grid; gap: 8px; }
+.ecc-collection-heading p, .ecc-page-description { color: #bcbcb5; max-width: 76ch; font-size: 14px; }
+.ecc-data-workspace { display: grid; gap: 24px; min-width: 0; }
+.ecc-data-section { display: grid; gap: 18px; padding: 24px; background: #161616; border: 1px solid #343430; border-radius: 10px; min-width: 0; }
+.ecc-data-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.ecc-data-controls #datahub-limit { width: 90px; }
+.ecc-saved-report-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.ecc-saved-report-steps article { padding: 24px; border: 1px solid #343430; border-radius: 10px; background: #161616; display: grid; gap: 12px; }
+.ecc-saved-report-steps strong { color: #d4af37; font-size: 12px; }
+#ecc-app .ecc-saved-report-steps a { color: #fff; text-decoration: underline; text-underline-offset: 5px; }
+@media (max-width: 800px) { .ecc-saved-report-steps { grid-template-columns: 1fr; } .ecc-data-section { padding: 16px; } }
+
+.ecc-record-unavailable { display: grid; gap: 20px; }
+#ecc-app .ecc-nav-row, #ecc-app .ecc-child { color: #c2c2b7; }
+/* Record atoms need explicit rules: historical utility classes were not generated. */
+.ecc-record .kpi-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+#ecc-app .ecc-record .kpi { padding: 20px; background: #181817; border: 1px solid #393932; border-radius: 9px; min-width: 0; }
+.ecc-record .kpi-label { color: #bcbcb5; font-size: 12px; margin-bottom: 10px; }
+.ecc-record .kpi-value { color: #fff; font-size: clamp(22px, 2vw, 30px); font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+#ecc-app .ecc-record .card-panel, #ecc-app .ecc-record .right-rail { border: 1px solid #393932; border-radius: 9px; padding: 22px; background: #151514; }
+.ecc-record .card-panel h3 { font-size: 16px; margin-bottom: 16px; }
+.ecc-record .field-group { display: grid; grid-template-columns: minmax(100px, .8fr) minmax(0, 1.5fr); gap: 14px; align-items: start; padding: 13px 0; margin: 0; border-bottom: 1px solid #30302a; }
+.ecc-record .field-group > :first-child { color: #bcbcb5; font-size: 13px; opacity: 1; }
+.ecc-record .field-group > :last-child { color: #fff; font-size: 14px; overflow-wrap: anywhere; }
+.ecc-record-fields { background: #151514; border: 1px solid #393932; border-radius: 9px; padding: 8px 22px; }
+.ecc-record-field { display: grid; grid-template-columns: minmax(100px, .8fr) minmax(0, 1.5fr); gap: 14px; padding: 14px 0; border-bottom: 1px solid #30302a; }
+.ecc-record-field:last-child { border-bottom: 0; }
+.ecc-record-field > :first-child { color: #bcbcb5; font-weight: 400; font-size: 13px; }
+.ecc-record-field > :last-child { color: #fff; overflow-wrap: anywhere; }
+.ecc-record nav ol, .ecc-record nav li { display: flex; align-items: center; gap: 8px; }
+.ecc-record nav { color: #bcbcb5; font-size: 12px; padding-block: 8px; }
+#ecc-app .ecc-workspace-content > .ecc-page { background: transparent; padding: 0; }
+#ecc-app .ecc-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 0; margin: 20px 0 24px; }
+#ecc-app .ecc-kpi { background: #181817; border: 1px solid #393932; border-radius: 9px; text-align: left; box-shadow: none; }
+#ecc-app .ecc-kpi-n { color: #fff; font-size: 28px; font-weight: 600; line-height: 1.25; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+#ecc-app .ecc-kpi-l { color: #bcbcb5; margin-top: 8px; font-size: 11px; }
+@media (max-width: 1000px) { .ecc-record .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) {
+  #ecc-app .ecc-record .kpi { padding: 14px; }
+  .ecc-record .kpi-value { font-size: 22px; }
+  .ecc-record-field, .ecc-record .field-group { grid-template-columns: minmax(80px, .8fr) minmax(0, 1.2fr); gap: 10px; }
+  .ecc-record-fields { padding: 6px 14px; }
+  #ecc-app .ecc-kpis { grid-template-columns: 1fr; }
+  #ecc-app .ecc-kpi { padding: 16px; }
+}

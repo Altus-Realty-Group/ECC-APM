@@ -7,6 +7,7 @@ import OccupancyHistory from "@/components/recovery/OccupancyHistory";
 import { DASHBOARD_KPI_TEST_IDS } from "@/features/dashboard/constants/testIds";
 import { deriveDashboardStatus } from "@/features/dashboard/dashboardStatus";
 import StateNotice from "@/components/ui/StateNotice";
+import { CommandCenterPanels, OccupancyPosition } from "../components/CommandCenterPanels";
 
 type DashboardQuery = Pick<ReturnType<typeof useDashboardKpis>,
   "data" | "isLoading" | "isError" | "error" | "refetch" | "isFetching">;
@@ -46,7 +47,7 @@ export function DashboardView({ query }: { query: DashboardQuery }) {
         : "The portfolio summary could not be loaded."}
       detail={denied ? "No figures are shown. Ask an administrator to confirm your access, then try again."
         : status.contractViolation ? "No figures are shown because they could not be trusted. Try again; if it keeps happening, report it to the data owner."
-        : "Check your connection and try again. You can still open your portfolio pages below."}
+        : "The summary service is unavailable. Your KPI and chart areas remain visible below, but no figures are confirmed. Retry after the data connection is restored."}
       onRetry={retry} retrying={isFetching}
     />;
   } else if (status.mode === "empty" || !data) {
@@ -58,8 +59,8 @@ export function DashboardView({ query }: { query: DashboardQuery }) {
       <header className="ecc-dashboard-header">
         <div>
           <p className="ecc-dashboard-eyebrow">Portfolio overview</p>
-          <h1 id="dashboard-title">Dashboard</h1>
-          <p>Review portfolio performance, then open the records that need your attention.</p>
+          <h1 id="dashboard-title">Command center</h1>
+          <p>Portfolio performance, financial position and the work that needs attention.</p>
         </div>
         <Link className="ecc-dashboard-primary" href="/portfolio/properties">Review properties <span aria-hidden="true">→</span></Link>
       </header>
@@ -74,8 +75,7 @@ export function DashboardView({ query }: { query: DashboardQuery }) {
 
       {unavailable}
 
-      {showFigures ? <>
-        <div className="ecc-dashboard-notices">
+      {showFigures ? <div className="ecc-dashboard-notices">
           {status.refreshFailed ? <StateNotice kind={status.refreshFailed}
             title="Showing the last loaded figures; the latest refresh failed."
             onRetry={retry} retrying={isFetching} /> : null}
@@ -90,27 +90,29 @@ export function DashboardView({ query }: { query: DashboardQuery }) {
             onRetry={retry} retrying={isFetching} /> : null}
           {status.freshness === "future" || status.freshness === "invalid" ? <StateNotice kind="partial"
             title="The data source's update time can't be trusted." detail={updatedText} testId="state-timestamp" /> : null}
-        </div>
+        </div> : null}
 
         <section className="ecc-dashboard-snapshot" aria-labelledby="dashboard-snapshot-title">
           <div className="ecc-dashboard-section-heading">
             <h2 id="dashboard-snapshot-title">Portfolio snapshot</h2>
-            <p>Reported figures · missing values stay unreported</p>
+            <p>Reported figures · unavailable values stay unreported</p>
           </div>
           <div className="ecc-kpi-grid ecc-dashboard-metrics">
-            <KpiCard label="Properties" value={data.propertiesTotal} testId={DASHBOARD_KPI_TEST_IDS.PROPERTIES} />
-            <KpiCard label="Units" value={data.unitsTotal} testId={DASHBOARD_KPI_TEST_IDS.UNITS} />
-            <KpiCard label="Occupancy" value={data.occupancyRate} format="percent" decimals={1} testId={DASHBOARD_KPI_TEST_IDS.OCCUPANCY} />
-            <KpiCard label="Revenue (30d)" value={data.revenue30dCents} format="currencyCents" testId={DASHBOARD_KPI_TEST_IDS.REVENUE} />
+            <KpiCard label="Properties" value={showFigures ? data.propertiesTotal : null} testId={DASHBOARD_KPI_TEST_IDS.PROPERTIES} />
+            <KpiCard label="Units" value={showFigures ? data.unitsTotal : null} testId={DASHBOARD_KPI_TEST_IDS.UNITS} />
+            <KpiCard label="Occupancy" value={showFigures ? data.occupancyRate : null} format="percent" decimals={1} testId={DASHBOARD_KPI_TEST_IDS.OCCUPANCY} />
+            <KpiCard label="Revenue (30d)" value={showFigures ? data.revenue30dCents : null} format="currencyCents" testId={DASHBOARD_KPI_TEST_IDS.REVENUE} />
           </div>
         </section>
-      </> : null}
 
-      <div className={`ecc-dashboard-workspace${showFigures ? " ecc-dashboard-workspace--with-history" : ""}`}>
-        {showFigures ? <div className="ecc-dashboard-history">
-          <p className="ecc-dashboard-section-note">Use the reported history to review changes in occupancy.</p>
-          <OccupancyHistory series={data.series} />
-        </div> : null}
+      <div className="ecc-dashboard-charts">
+        <OccupancyPosition rate={showFigures ? data.occupancyRate : null} />
+        <section className="ecc-overview-panel ecc-dashboard-history" aria-label="Occupancy history">
+          {showFigures ? <OccupancyHistory series={data.series} /> : <><h2>Reported occupancy history</h2><div className="ecc-panel-unavailable"><p>Occupancy history is unavailable.</p><small>No historical observations have been confirmed.</small></div></>}
+        </section>
+      </div>
+      <CommandCenterPanels summary={showFigures ? data : null} />
+      <div className="ecc-dashboard-workspace">
         <section className="ecc-dashboard-workflows" aria-labelledby="dashboard-workflows-title">
           <h2 id="dashboard-workflows-title">Continue your work</h2>
           <p>Open the records behind your next decision.</p>

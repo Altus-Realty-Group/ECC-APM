@@ -54,6 +54,7 @@ export default function Tenants() {
   if (isLoading || (isFetching && !data)) {
     return (
       <section className="ecc-page">
+        <header className="ecc-collection-heading"><h1>Tenants</h1><p>Find tenants, review their reported lease context and open a tenant record.</p></header>
         <StateNotice kind="loading" title="Loading tenants…" />
       </section>
     );
@@ -62,6 +63,7 @@ export default function Tenants() {
   if (denied || error) {
     return (
       <section className="ecc-page">
+        <header className="ecc-collection-heading"><h1>Tenants</h1><p>Find tenants, review their reported lease context and open a tenant record.</p></header>
         <StateNotice
           kind={denied ? "denied" : "error"}
           title={denied ? "You don't have access to tenants." : "Tenants could not be loaded."}
@@ -76,6 +78,7 @@ export default function Tenants() {
   if (!data || data.length === 0) {
     return (
       <section className="ecc-page">
+        <header className="ecc-collection-heading"><h1>Tenants</h1><p>Find tenants, review their reported lease context and open a tenant record.</p></header>
         <StateNotice kind="empty" title="No tenants are available yet." onRetry={() => { void refetch(); }} retrying={isFetching} />
       </section>
     );
@@ -83,8 +86,8 @@ export default function Tenants() {
 
   return (
     <section className="ecc-page">
+      <header className="ecc-collection-heading"><h1>Tenants</h1><p>Find tenants, review their reported lease context and open a tenant record.</p></header>
       <div className="ecc-list-search">
-        <h1 className="ecc-page-title">Tenants</h1>
         <label htmlFor="tenants-search">Search tenants</label>
         <input
           id="tenants-search"

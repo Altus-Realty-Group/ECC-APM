@@ -1,3 +1,4 @@
+import { formatCurrencyFromCents } from "@/lib/format";
 import React from 'react';
 import { FieldGroup } from "@/components/cardkit/FieldGroup";
 // ECC Guardrail compliance
@@ -13,7 +14,7 @@ export default function Overview({ unit, property }:{ unit?: any|null; property?
     { label:'Beds', value: measurement(unit?.beds) },
     { label:'Baths', value: measurement(unit?.baths) },
     { label:'Sqft', value: measurement(unit?.sqft) },
-    { label:'Market Rent', value: unit?.rent_cents!=null? `$${Math.round(unit.rent_cents/100)}`:'Not set' },
+    { label:'Market Rent', value: formatCurrencyFromCents(unit?.rent_cents) },
     { label:'Status', value: unit?.status || 'Unknown' },
   ];
   return (

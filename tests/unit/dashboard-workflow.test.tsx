@@ -20,7 +20,7 @@ function render(overrides: Partial<Query> = {}) {
 }
 function context(html: string) {
   assert.equal((html.match(/<h1\b/g) ?? []).length, 1);
-  assert.match(html, /id="dashboard-title">Dashboard</);
+  assert.match(html, /id="dashboard-title">Command center</);
   assert.match(html, /href="\/portfolio\/properties"[^>]*>Review properties/);
   assert.match(html, /href="\/portfolio\/leases"/);
   assert.match(html, /href="\/portfolio\/owners"/);
@@ -31,7 +31,9 @@ function context(html: string) {
   assert.doesNotMatch(html, /\/reports|\/admin|sync|overdue tasks|urgent repairs/i);
 }
 function noFigures(html: string) {
-  assert.doesNotMatch(html, /data-testid="kpi\.|occupancy-trend|ecc-kpi-card__value|Reported occupancy history/);
+  assert.equal((html.match(/data-testid="kpi\.[^"]+" data-missing="true"/g) ?? []).length, 4);
+  assert.doesNotMatch(html, /data-testid="occupancy-trend"|<svg[^>]*role="img"/);
+  assert.match(html, /Occupancy history is unavailable/);
   assert.match(html, /Figures are not confirmed/);
 }
 
@@ -78,14 +80,14 @@ test("dashboard confirmed zero is distinct from missing values", () => {
   context(html);
   assert.match(html, /\$0\.00/);
   assert.match(html, /0\.0%/);
-  assert.doesNotMatch(html, /Not reported/);
+  assert.equal((html.match(/data-testid="kpi\.[^"]+" data-missing="true"/g) ?? []).length, 0);
   assert.match(html, /No trend data reported/);
 });
 
 test("dashboard missing values and empty history remain visibly unreported", () => {
   const html = render({ data: normalizeDashboardKpis({}) });
   context(html);
-  assert.equal((html.match(/>Not reported</g) ?? []).length, 4);
+  assert.equal((html.match(/>Not reported</g) ?? []).length, 8);
   assert.match(html, /state-empty/);
   assert.match(html, /No trend data reported/);
   assert.doesNotMatch(html, /\$0\.00|View reported observations/);

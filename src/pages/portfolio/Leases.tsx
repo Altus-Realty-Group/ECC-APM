@@ -68,30 +68,30 @@ export default function LeasesPage() {
   ];
 
   if (isLoading || (isFetching && !data)) {
-    return <StateNotice kind="loading" title="Loading leases…" />;
+    return <section className="ecc-page"><header className="ecc-collection-heading"><h1>Leases</h1><p>Review lease terms, reported rent and tenant records.</p></header><StateNotice kind="loading" title="Loading leases…" /></section>;
   }
 
   if (denied || error) {
     return (
-      <StateNotice
+      <section className="ecc-page"><header className="ecc-collection-heading"><h1>Leases</h1><p>Review lease terms, reported rent and tenant records.</p></header><StateNotice
         kind={denied ? "denied" : "error"}
         title={denied ? "You don't have access to leases." : "Leases could not be loaded."}
         detail={denied ? "No lease records or revenue figures are shown." : "No figures are shown because the read failed. Try again."}
         onRetry={() => { void refetch(); }}
         retrying={isFetching}
-      />
+      /></section>
     );
   }
 
   if (!data || data.length === 0) {
     return (
-      <StateNotice
+      <section className="ecc-page"><header className="ecc-collection-heading"><h1>Leases</h1><p>Review lease terms, reported rent and tenant records.</p></header><StateNotice
         kind="empty"
         title="No leases are available yet."
         detail="No revenue figures are shown. Counts and rent below would be loaded-result statistics only."
         onRetry={() => { void refetch(); }}
         retrying={isFetching}
-      />
+      /></section>
     );
   }
 
@@ -105,6 +105,7 @@ export default function LeasesPage() {
 
   return (
     <div className="ecc-page">
+      <header className="ecc-collection-heading"><h1>Leases</h1><p>Review lease terms, reported rent and tenant records.</p></header>
       <div className="ecc-leases-search">
         <label htmlFor="leases-search">Search leases</label>
         <input

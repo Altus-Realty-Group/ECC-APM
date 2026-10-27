@@ -16,7 +16,7 @@ export default function TenantCardPage() {
   const params: { id?: string } | null = routeParams;
   const idNum = Number(params?.id);
   const q = useTenantCard(idNum);
-  if (!Number.isFinite(idNum)) return <div className="p-6 space-y-3" data-testid="tenant-invalid"><StateNotice kind="error" title="That tenant link is not valid." /><Link href="/portfolio/tenants" className="ecc-btn ecc-touch">Back to tenants</Link></div>;
+  if (!Number.isFinite(idNum)) return <div className="p-6 space-y-3" data-testid="tenant-invalid"><h1>Tenant record</h1><StateNotice kind="error" title="That tenant link is not valid." /><Link href="/portfolio/tenants" className="ecc-btn ecc-touch">Back to tenants</Link></div>;
 
   const { data, denied } = accessGuard(q);
   const retry = () => { void q.refetch(); };

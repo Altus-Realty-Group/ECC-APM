@@ -49,6 +49,7 @@ export default function Owners() {
   if (isLoading || (isFetching && !data)) {
     return (
       <section className="ecc-page">
+        <header className="ecc-collection-heading"><h1>Owners</h1><p>Find owners and open their portfolio and contact records.</p></header>
         <StateNotice kind="loading" title="Loading owners…" />
       </section>
     );
@@ -57,6 +58,7 @@ export default function Owners() {
   if (denied || error) {
     return (
       <section className="ecc-page">
+        <header className="ecc-collection-heading"><h1>Owners</h1><p>Find owners and open their portfolio and contact records.</p></header>
         <StateNotice
           kind={denied ? "denied" : "error"}
           title={denied ? "You don't have access to owners." : "Owners could not be loaded."}
@@ -71,6 +73,7 @@ export default function Owners() {
   if (!data || data.length === 0) {
     return (
       <section className="ecc-page">
+        <header className="ecc-collection-heading"><h1>Owners</h1><p>Find owners and open their portfolio and contact records.</p></header>
         <StateNotice kind="empty" title="No owners are available yet." onRetry={() => { void refetch(); }} retrying={isFetching} />
       </section>
     );
@@ -78,8 +81,8 @@ export default function Owners() {
 
   return (
     <section className="ecc-page">
+      <header className="ecc-collection-heading"><h1>Owners</h1><p>Find owners and open their portfolio and contact records.</p></header>
       <div className="ecc-list-search">
-        <h1 className="ecc-page-title">Owners</h1>
         <label htmlFor="owners-search">Search owners</label>
         <input
           id="owners-search"

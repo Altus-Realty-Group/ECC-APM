@@ -1,3 +1,4 @@
+import { BLANK } from "@/lib/format";
 export default function Overview({ data }: { data: any }) {
   if (!data) return null; // shell shows skeleton
 
@@ -13,17 +14,17 @@ export default function Overview({ data }: { data: any }) {
     { label:'Email', value: email },
     { label:'Phone', value: phone },
     { label:'Address', value: address },
-    { label:'Properties Count', value: owner?.properties_count || null },
-    { label:'Total Units', value: owner?.total_units || null },
+    { label:'Properties Count', value: owner?.properties_count ?? null },
+    { label:'Total Units', value: owner?.total_units ?? null },
     { label:'Status', value: owner?.status || null },
   ];
 
   return (
-    <div className="space-y-3">
+    <div className="ecc-record-fields">
       {rows.map(row => (
-        <div key={row.label} className="flex justify-between">
+        <div key={row.label} className="ecc-record-field">
           <span className="font-medium">{row.label}</span>
-          <span>{row.value}</span>
+          <span>{row.value ?? BLANK}</span>
         </div>
       ))}
     </div>

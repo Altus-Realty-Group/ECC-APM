@@ -1,3 +1,4 @@
+import { formatCurrencyFromCents } from "@/lib/format";
 import React from 'react';
 import { FieldGroup } from "@/components/cardkit/FieldGroup";
 // ECC Guardrail compliance
@@ -6,7 +7,7 @@ export default function Overview({ tenant, activeLease }:{ tenant?: any|null; ac
     { label:'Name', value: tenant?.display_name || tenant?.name || 'Unknown tenant' },
     { label:'Email', value: tenant?.email || 'Not provided' },
     { label:'Phone', value: tenant?.phone || 'Not provided' },
-    { label:'Current Balance', value: tenant?.balance_cents!=null? `$${Math.round(tenant.balance_cents/100)}`:'Not available' },
+    { label:'Current Balance', value: formatCurrencyFromCents(tenant?.balance_cents) },
     { label:'Active Lease', value: activeLease?.id ? `Lease ${activeLease.doorloop_id || activeLease.id}` : 'No active lease', href: activeLease?`/card/lease/${activeLease.id}`:undefined },
     { label:'Move-in Date', value: activeLease?.start_date || 'Not available' },
     { label:'Status', value: tenant?.status || 'Unknown' },

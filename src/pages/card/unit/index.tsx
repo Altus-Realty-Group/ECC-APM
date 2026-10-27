@@ -1,4 +1,4 @@
-import { useRoute } from "wouter";
+import { Link, useRoute } from "wouter";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { CardShell } from "@/components/cardkit/CardShell";
 import RightRailPanel from "@/components/cardkit/RightRailPanel";
@@ -16,7 +16,7 @@ export default function UnitCardPage() {
   const params: { id?: string } | null = routeParams;
   const idNum = Number(params?.id);
   const q = useUnitCard(idNum);
-  if (!Number.isFinite(idNum)) return <div data-testid="unit-invalid">Invalid unit id</div>;
+  if (!Number.isFinite(idNum)) return <div className="p-6 space-y-3" data-testid="unit-invalid"><StateNotice kind="error" title="That unit link is not valid." /><Link href="/portfolio/units" className="ecc-btn ecc-touch">Back to units</Link></div>;
 
   const { data, denied } = accessGuard(q);
   const retry = () => { void q.refetch(); };
@@ -50,6 +50,9 @@ export default function UnitCardPage() {
   return (
     <ErrorBoundary>
       {q.isError ? <StateNotice kind="error" title="Showing the last loaded details; the latest refresh failed." onRetry={retry} retrying={q.isFetching} /> : null}
+      <div className="px-6 pt-4">
+        <Link href="/portfolio/units" className="ecc-btn ecc-touch">Back to units</Link>
+      </div>
       <CardShell
         title={unitTitle}
         hero={<HeroBlock data={data} isLoading={q.isLoading} />}

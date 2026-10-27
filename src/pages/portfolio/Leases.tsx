@@ -5,6 +5,7 @@ import { accessGuard, useResetOnAccessLoss } from "@/lib/useAccessGuard";
 import { useAllLeases } from "../../lib/ecc-resolvers";
 import { BLANK } from "@/lib/format";
 import { knownRentDollars, summarizeActiveRent, safeCardHref, joinTenants, reportedStatus } from "./portfolioTruth";
+import { filterLeaseRows } from "./leases/filterLeaseRows";
 import "./leases/leases-list.css";
 
 type LeaseRow = {
@@ -22,6 +23,7 @@ function moneyOrBlank(rent: number | null): string {
   return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(rent);
 }
 
+
 export default function LeasesPage() {
   const [q, setQ] = useState("");
   const query = useAllLeases();
@@ -29,7 +31,7 @@ export default function LeasesPage() {
   const { data, denied } = accessGuard(query);
   useResetOnAccessLoss(denied, () => setQ(""));
 
-  const rows = useMemo<LeaseRow[]>(() => {
+  const loaded = useMemo<LeaseRow[]>(() => {
     if (!data) return [];
     return data.map((l: any) => {
       const rent = knownRentDollars(l);
@@ -44,14 +46,11 @@ export default function LeasesPage() {
         end: l.end ?? BLANK,
         status,
       };
-    }).filter((r) => {
-      if (!q.trim()) return true;
-      const needle = q.trim().toLowerCase();
-      return [r.tenants, r.property, r.status, r.id].join(" ").toLowerCase().includes(needle);
     });
-  }, [data, q]);
+  }, [data]);
 
-  const summary = summarizeActiveRent(rows);
+  const rows = useMemo(() => filterLeaseRows(loaded, q), [loaded, q]);
+  const summary = summarizeActiveRent(loaded);
 
   const columns: DataColumn<LeaseRow>[] = [
     { key: "tenants", header: "TENANT(S)" },
@@ -116,10 +115,13 @@ export default function LeasesPage() {
           placeholder="Tenant, property, status or id"
           aria-label="Search leases"
         />
+        <p className="ecc-leases-match" data-testid="leases-match">
+          {rows.length.toLocaleString()} matching of {loaded.length.toLocaleString()} loaded leases.
+        </p>
       </div>
       <div className="ecc-kpis" data-testid="leases-kpis">
         <div className="ecc-kpi">
-          <div className="ecc-kpi-n">{rows.length.toLocaleString()}</div>
+          <div className="ecc-kpi-n">{loaded.length.toLocaleString()}</div>
           <div className="ecc-kpi-l">LOADED LEASES</div>
         </div>
         <div className="ecc-kpi">

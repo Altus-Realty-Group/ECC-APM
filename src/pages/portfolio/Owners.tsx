@@ -1,5 +1,5 @@
+import "./styles/list-search.css";
 import React, { useMemo, useState } from "react";
-import FilterBar from "../../components/FilterBar";
 import DataTable, { type DataColumn } from "../../components/DataTable";
 import StateNotice from "@/components/ui/StateNotice";
 import { accessGuard, useResetOnAccessLoss } from "@/lib/useAccessGuard";
@@ -78,7 +78,18 @@ export default function Owners() {
 
   return (
     <section className="ecc-page">
-      <FilterBar title="Owners" value={q} onChange={setQ} placeholder="Search name / company / id" />
+      <div className="ecc-list-search">
+        <h1 className="ecc-page-title">Owners</h1>
+        <label htmlFor="owners-search">Search owners</label>
+        <input
+          id="owners-search"
+          className="ecc-search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Name, company or id"
+          aria-label="Search owners"
+        />
+      </div>
       <DataTable
         columns={columns}
         rows={rows}

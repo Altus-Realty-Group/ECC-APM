@@ -1,6 +1,8 @@
 import React from "react";
 import { Link, Redirect, Route, Switch, useLocation } from "wouter";
 import Sidebar from "./components/Sidebar";
+import WorkspaceBar from "./components/layout/WorkspaceBar";
+import "./styles/workspace.css";
 import { NAV_SECTIONS, navLeafPaths } from "./config/navigation";
 import { ToastContainer } from "./components/ui/ToastContainer";
 import { DevErrorBanner } from "./components/DevErrorBanner";
@@ -65,7 +67,7 @@ import TenantLedgersPage from "./features/recovery/operations/TenantLedgersPage"
 
 function HomeRedirect() {
   // Known-good landing route that exists in this app.
-  return <Redirect to="/portfolio/properties" replace />;
+  return <Redirect to="/dashboard" replace />;
 }
 
 function NotFound() {
@@ -105,7 +107,9 @@ export default function App() {
         <Sidebar />
 
         {/* Main content area */}
-        <main className="ecc-main" role="main" id="main">
+        <main className="ecc-main" role="main" id="main" tabIndex={-1}>
+          <WorkspaceBar />
+          <div className="ecc-workspace-content">
           <Switch>
             {/* Home redirect */}
             <Route path="/"><HomeRedirect /></Route>
@@ -166,6 +170,7 @@ export default function App() {
               <NotFound />
             </Route>
           </Switch>
+          </div>
         </main>
         <ToastContainer />
       </div>

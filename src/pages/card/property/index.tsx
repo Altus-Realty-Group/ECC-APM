@@ -17,7 +17,7 @@ export default function PropertyCardPage() {
   const backLink = <Link href="/portfolio/properties" className="ecc-btn ecc-touch">Back to properties</Link>;
   if (!Number.isFinite(idNum)) {
     return (
-      <div className="p-6 space-y-3">
+      <div className="ecc-record-unavailable"><h1>Property record</h1>
         <StateNotice kind="error" title="That property link is not valid." testId="prop-invalid" />
         {backLink}
       </div>
@@ -29,13 +29,13 @@ export default function PropertyCardPage() {
   const { data, denied } = accessGuard(q);
 
   if (q.isLoading && !denied) {
-    return <div className="p-6 space-y-3"><StateNotice kind="loading" title="Loading property…" />{backLink}</div>;
+    return <div className="ecc-record-unavailable"><h1>Property record</h1><StateNotice kind="loading" title="Loading property…" />{backLink}</div>;
   }
 
   if (!data) {
     const unreadable = !denied && isContractError(q.error);
     return (
-      <div className="p-6 space-y-3">
+      <div className="ecc-record-unavailable"><h1>Property record</h1>
         <StateNotice
           kind={denied ? "denied" : "error"}
           title={

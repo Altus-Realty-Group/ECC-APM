@@ -54,13 +54,14 @@ export default function DataHub() {
   const searchQuery = useDataHubOwnersSearch(submittedSearch);
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-8">
+    <div className="ecc-data-workspace">
       <h1 className="text-2xl font-semibold">ECC Data Hub</h1>
-      <p className="text-gray-600">Explore available records and search owners. Connection failures and access restrictions are shown separately from empty results.</p>
+      <p className="ecc-page-description">Explore available records and search owners. Connection failures and access restrictions are shown separately from empty results.</p>
 
       {/* Entities explorer */}
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="ecc-data-section">
+        <h2>Record explorer</h2>
+        <div className="ecc-data-controls">
           <label className="text-sm" htmlFor="datahub-entity">Entity:</label>
           <select id="datahub-entity" className="ecc-touch border rounded-md px-2 py-1"
                   value={entity} onChange={(e)=>setEntity(e.target.value as EntityKey)}>
@@ -81,12 +82,12 @@ export default function DataHub() {
       </div>
 
       {/* Owner Search */}
-      <div className="space-y-2">
+      <div className="ecc-data-section">
         <h2 className="text-lg font-semibold">Owners Search</h2>
         <div className="flex flex-wrap gap-2">
           <input aria-label="Search owners" className="ecc-touch border rounded-md px-2 py-1 flex-1 min-w-0" placeholder="Search owners"
                  value={searchQ} onChange={(e)=>setSearchQ(e.target.value)} />
-          <button className="ecc-touch rounded-lg px-3 py-1 bg-black text-white" onClick={()=>setSubmittedSearch(searchQ.trim())}>Search</button>
+          <button className="ecc-btn ecc-btn-gold" onClick={()=>setSubmittedSearch(searchQ.trim())}>Search</button>
         </div>
         {submittedSearch && (searchQuery.error
           ? <StateNotice kind={errorKind(searchQuery.error)} title="Owner search could not be loaded" onRetry={() => { void searchQuery.refetch(); }} />

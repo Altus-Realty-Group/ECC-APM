@@ -16,7 +16,7 @@ export default function OwnerCardPage() {
   const params: { id?: string } | null = routeParams;
   const idNum = Number(params?.id);
   const q = useOwnerCard(idNum);
-  if (!Number.isFinite(idNum)) return <div className="p-6 space-y-3" data-testid="owner-invalid"><StateNotice kind="error" title="That owner link is not valid." /><Link href="/portfolio/owners" className="ecc-btn ecc-touch">Back to owners</Link></div>;
+  if (!Number.isFinite(idNum)) return <div className="p-6 space-y-3" data-testid="owner-invalid"><h1>Owner record</h1><StateNotice kind="error" title="That owner link is not valid." /><Link href="/portfolio/owners" className="ecc-btn ecc-touch">Back to owners</Link></div>;
 
   const { data, denied } = accessGuard(q);
   const retry = () => { void q.refetch(); };
@@ -36,7 +36,7 @@ export default function OwnerCardPage() {
   const rightRail = (
     <div className="space-y-4">
       <RightRailPanel title="Portfolio" data-testid="rr-portfolio">
-        <div className="text-sm text-neutral-300">Properties: {data ? formatNumber(properties.length) : BLANK}</div>
+        <div className="text-sm text-neutral-300">Loaded property links: {data ? formatNumber(properties.length) : BLANK}</div>
       </RightRailPanel>
     </div>
   );

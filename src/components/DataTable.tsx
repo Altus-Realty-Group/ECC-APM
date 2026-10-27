@@ -293,7 +293,8 @@ export default function DataTable<Row = any>(props: DataTableProps<Row>) {
       <div className="ecc-table-toolbar">
         <input
           className="ecc-input"
-          placeholder="Search…"
+          placeholder="Search table records…"
+          aria-label="Search table records"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -347,6 +348,7 @@ export default function DataTable<Row = any>(props: DataTableProps<Row>) {
                       <input
                         className="ecc-input ecc-input--min"
                         placeholder="Min"
+                        aria-label={`Minimum ${c.header}`}
                         inputMode="numeric"
                         value={nf?.min ?? ""}
                         onChange={(e) =>
@@ -356,6 +358,7 @@ export default function DataTable<Row = any>(props: DataTableProps<Row>) {
                       <input
                         className="ecc-input ecc-input--max"
                         placeholder="Max"
+                        aria-label={`Maximum ${c.header}`}
                         inputMode="numeric"
                         value={nf?.max ?? ""}
                         onChange={(e) =>
@@ -374,6 +377,7 @@ export default function DataTable<Row = any>(props: DataTableProps<Row>) {
                   <th key={c.key}>
                     <select
                       className="ecc-select"
+                      aria-label={`Filter ${c.header}`}
                       value={String(val)}
                       onChange={(e) =>
                         setEnumFilter(
@@ -400,6 +404,7 @@ export default function DataTable<Row = any>(props: DataTableProps<Row>) {
                   <input
                     className="ecc-input"
                     placeholder="Filter…"
+                    aria-label={`Filter ${c.header}`}
                     value={tf?.value ?? ""}
                     onChange={(e) => setTextFilter(c.key, e.target.value)}
                   />
@@ -530,6 +535,7 @@ export default function DataTable<Row = any>(props: DataTableProps<Row>) {
 
           <select
             className="ecc-select"
+            aria-label="Rows per page"
             value={pageSize}
             onChange={(e) => setPageSize(Number(e.target.value))}
           >

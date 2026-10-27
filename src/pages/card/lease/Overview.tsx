@@ -1,3 +1,4 @@
+import { BLANK, formatCurrencyFromCents } from "@/lib/format";
 export default function Overview({ data }: { data: any }) {
   if (!data) return null; // shell shows skeleton
 
@@ -17,18 +18,18 @@ export default function Overview({ data }: { data: any }) {
     { label:'Status', value: lease?.status || null },
     { label:'Start Date', value: lease?.start_date || null },
     { label:'End Date', value: lease?.end_date || null },
-    { label:'Monthly Rent', value: lease?.rent_cents ? `$${Math.round(lease.rent_cents/100)}` : null },
+    { label:'Monthly Rent', value: formatCurrencyFromCents(lease?.rent_cents) },
   ];
 
   return (
-    <div className="space-y-3">
+    <div className="ecc-record-fields">
       {rows.map(row => (
-        <div key={row.label} className="flex justify-between">
+        <div key={row.label} className="ecc-record-field">
           <span className="font-medium">{row.label}</span>
           {row.href ? (
             <a href={row.href} className="text-blue-400 hover:underline">{row.value}</a>
           ) : (
-            <span>{row.value}</span>
+            <span>{row.value ?? BLANK}</span>
           )}
         </div>
       ))}

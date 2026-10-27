@@ -103,7 +103,7 @@ test("dashboard: empty payload -> empty notice with retry, all metrics unreporte
   const html = dashboard({});
   assert.match(html, /state-empty/);
   assert.match(html, />Retry</);
-  assert.equal((html.match(/Not reported/g) ?? []).length, 4);
+  assert.equal((html.match(/Not reported/g) ?? []).length, 8);
 });
 
 test("dashboard: stale data is flagged with its timestamp", () => {
@@ -122,7 +122,7 @@ test("dashboard: denied and failed states offer Retry and never show figures", (
     qc.getQueryCache().build(qc, { queryKey: ["dashboard-kpis"] }).setState({ status: "error", error: new Error("HTTP 500"), fetchStatus: "idle", data: undefined } as any));
   assert.match(failed, /state-error/);
   assert.match(failed, /could not be loaded/);
-  assert.doesNotMatch(failed, /ecc-kpi-card__value/);
+  assert.equal((failed.match(/data-testid="kpi\.[^"]+" data-missing="true"/g) ?? []).length, 4);
 });
 
 test("dashboard: failed refresh keeps last figures and offers Retry", () => {
@@ -226,7 +226,8 @@ test("dashboard: cached figures are NOT rendered after a denied refresh", () => 
   const cached = normalizeDashboardKpis({ propertiesTotal: 9, unitsTotal: 90, occupancyRate: 0.5, revenue30dCents: 12345, lastUpdated: new Date().toISOString() });
   const html = renderIn(seeded(["dashboard-kpis"], cached, denied403()), "/dashboard", <DashboardPage />);
   assert.match(html, /state-denied/);
-  assert.doesNotMatch(html, /ecc-kpi-card__value|\$123\.45|occupancy-trend/);
+  assert.doesNotMatch(html, /\$123\.45|occupancy-trend/);
+  assert.equal((html.match(/data-testid="kpi\.[^"]+" data-missing="true"/g) ?? []).length, 4);
 });
 
 test("dashboard: a malformed payload shows a contract error with no figures", () => {
@@ -236,7 +237,7 @@ test("dashboard: a malformed payload shows a contract error with no figures", ()
   const html = renderIn(qc, "/dashboard", <DashboardPage />);
   assert.match(html, /state-error/);
   assert.match(html, /unexpected format/);
-  assert.doesNotMatch(html, /ecc-kpi-card__value/);
+  assert.equal((html.match(/data-testid="kpi\.[^"]+" data-missing="true"/g) ?? []).length, 4);
 });
 
 test("dashboard: a future source time is flagged and never shown as 'Updated'", () => {

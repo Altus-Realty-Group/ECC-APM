@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 
 type Props = {
   title: string;
@@ -11,16 +11,21 @@ type Props = {
 };
 
 export default function FilterBar({ title, placeholder = "Search…", value, onChange, onCreate, createLabel = "Create", rightSlot }: Props) {
+  const searchId = useId();
   return (
     <div className="ecc-page-head">
       <h1 className="ecc-page-title">{title}</h1>
       <div className="ecc-page-tools">
+        <label className="ecc-search-label" htmlFor={searchId}>Search {title}
         <input
+          id={searchId}
+          type="search"
           className="ecc-search"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
         />
+        </label>
         {rightSlot}
         {onCreate && (
           <button className="ecc-btn ecc-btn-gold" onClick={onCreate}>{createLabel}</button>

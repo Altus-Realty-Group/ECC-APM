@@ -100,3 +100,47 @@
   .ecc-dashboard-metrics .ecc-kpi-card:last-child .ecc-kpi-card__value { font-size: clamp(18px, 5vw, 22px); white-space: nowrap; letter-spacing: -.035em; }
   .ecc-dashboard-history .recovery-history th, .ecc-dashboard-history .recovery-history td { padding: 10px 5px; font-size: 13px; }
 }
+
+/* Command center: preserve the complete information architecture during outages. */
+.ecc-dashboard .ecc-dashboard-metrics { gap: 12px; border: 0; border-radius: 0; background: none; }
+.ecc-dashboard-metrics .ecc-kpi-card { border: 1px solid #393932; border-radius: 9px; padding: 20px; background: #181817; }
+.ecc-dashboard-metrics .ecc-kpi-card:last-child { border-right: 1px solid #393932; }
+.ecc-dashboard-charts, .ecc-command-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; min-width: 0; }
+.ecc-overview-panel { border: 1px solid #393932; border-radius: 10px; background: #151514; padding: 22px; min-width: 0; display: flex; flex-direction: column; gap: 18px; }
+.ecc-overview-panel-heading { display: flex; justify-content: space-between; gap: 16px; align-items: start; }
+.ecc-overview-panel-heading > svg { color: #c7b675; flex-shrink: 0; margin-top: 4px; }
+.ecc-dashboard .ecc-panel-eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: .09em; margin-bottom: 6px; color: #bcbcb0; }
+.ecc-panel-unavailable { flex: 1; min-height: 110px; padding: 18px; border: 1px dashed #4a4a40; border-radius: 7px; display: flex; flex-direction: column; justify-content: center; gap: 7px; background: #111110; }
+.ecc-dashboard .ecc-panel-unavailable p { color: #e4e4da; font-size: 14px; font-weight: 500; }
+.ecc-panel-unavailable small { color: #bcbcb0; line-height: 1.65; font-size: 13px; }
+.ecc-dashboard .ecc-panel-link { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; color: #fff; border-top: 1px solid #393932; padding-top: 12px; font-size: 13px; margin-top: auto; }
+.ecc-panel-link > span { color: #d4af37; }
+.ecc-occupancy-position { display: flex; align-items: center; gap: 24px; flex: 1; }
+.ecc-occupancy-position svg { width: 160px; flex: 0 0 160px; }
+.ecc-occupancy-position strong { font-size: 26px; color: #fff; font-variant-numeric: tabular-nums; }
+.ecc-dashboard .ecc-chart-source { color: #bcbcb0; font-size: 12px; line-height: 1.6; margin-top: 8px; }
+.ecc-chart-key { width: 9px; height: 9px; background: #d4af37; display: inline-block; border-radius: 2px; margin-right: 6px; }
+.ecc-dashboard .ecc-dashboard-history { border-top: 1px solid #393932; padding: 22px; }
+.ecc-dashboard-history .recovery-history { height: 100%; }
+.ecc-dashboard-history .ecc-kpi-card { flex: 1; }
+.ecc-dashboard-history .ecc-kpi-card > div:last-child { min-height: 180px; }
+.ecc-operation-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid #393932; border-radius: 9px; overflow: hidden; }
+.ecc-operation-metrics .ecc-kpi-card { background: #141413; padding: 18px; border: 0; border-right: 1px solid #393932; border-radius: 0; box-shadow: none; }
+.ecc-operation-metrics .ecc-kpi-card:last-child { border-right: 0; }
+.ecc-operation-metrics .ecc-kpi-card__value { font-size: 25px; color: #e4e4da; }
+.ecc-leasing-stages { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-block: 1px solid #393932; }
+.ecc-leasing-stages > div { padding: 16px 4px; display: grid; gap: 8px; text-align: center; }
+.ecc-leasing-stages span { font-size: 11px; color: #bcbcb0; overflow-wrap: anywhere; }
+.ecc-leasing-stages strong { font-size: 25px; color: #fff; }
+@media (max-width: 1000px) {
+  .ecc-dashboard-charts, .ecc-command-panels { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .ecc-overview-panel, .ecc-dashboard .ecc-dashboard-history { padding: 16px; }
+  .ecc-operation-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ecc-operation-metrics .ecc-kpi-card { padding: 14px; border-bottom: 1px solid #393932; }
+  .ecc-operation-metrics .ecc-kpi-card:nth-child(2) { border-right: 0; }
+  .ecc-operation-metrics .ecc-kpi-card:nth-child(n+3) { border-bottom: 0; }
+  .ecc-occupancy-position { gap: 12px; flex-wrap: wrap; }
+  .ecc-occupancy-position svg { width: 136px; flex-basis: 136px; margin-inline: auto; }
+}

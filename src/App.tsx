@@ -40,6 +40,7 @@ import AdminGeocodeManagementPage from "./features/admin/pages/AdminGeocodeManag
 import AdminTransferManagementPage from "./features/admin/pages/AdminTransferManagementPage";
 
 // Systems Pages
+import VacancyReviewPage from "./features/vacancy/VacancyReviewPage";
 import RenewalPlanningPage from "./features/renewals/RenewalPlanningPage";
 import IntegrationsHealthPage from "./features/systems/integrations/IntegrationsHealthPage";
 
@@ -111,6 +112,7 @@ export default function App() {
             <Route path="/dashboard" component={DashboardPage} />
             <Route path="/data" component={DataHub} />
             <Route path="/ops/operations" component={OperationsRecoveryPage} />
+            <Route path="/ops/ai/vacancy-analytics" component={VacancyReviewPage} />
             <Route path="/ops/ai/renewal-forecasting" component={RenewalPlanningPage} />
             <Route path="/ops/legal/case-manager" component={LegalCaseManagerPage} />
             <Route path="/ops/maintenance/work-orders" component={WorkOrdersPage} />

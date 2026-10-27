@@ -29,7 +29,7 @@ export default function PropertyCardPage() {
   const { data, denied } = accessGuard(q);
 
   if (q.isLoading && !denied) {
-    return <div className="p-6"><StateNotice kind="loading" title="Loading property…" /></div>;
+    return <div className="p-6 space-y-3"><StateNotice kind="loading" title="Loading property…" />{backLink}</div>;
   }
 
   if (!data) {

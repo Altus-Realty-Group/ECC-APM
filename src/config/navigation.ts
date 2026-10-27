@@ -64,6 +64,7 @@ const BUILT_NAV_SECTIONS: NavSection[] = [
     { title: "Tenant Ledgers", path: "/ops/accounting/tenant-ledgers", icon: "FileSpreadsheet" },
   ] },
   { title: "AI Analytics", icon: "BarChart3", children: [
+    { title: "Vacancy review", path: "/ops/ai/vacancy-analytics", icon: "Building2" },
     { title: "Renewal planning", path: "/ops/ai/renewal-forecasting", icon: "FileSpreadsheet" },
   ] },
   { title: "Communication", icon: "FileText", children: [
@@ -120,7 +121,7 @@ export const PLANNED_DESTINATIONS: PlannedDestination[] = [
   })),
   ...[
     ["Risk Summary", "risk-summary"],
-    ["Vacancy Analytics", "vacancy-analytics"], ["ML Leasing Logs", "ml-leasing-logs"],
+    ["ML Leasing Logs", "ml-leasing-logs"],
   ].map(([title, slug]) => ({
     title, path: `/ops/ai/${slug}`, group: "AI Analytics",
     dependency: "Needs an approved analytics source. " + STUB,

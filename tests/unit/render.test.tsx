@@ -103,7 +103,7 @@ test("dashboard: empty payload -> empty notice with retry, all metrics unreporte
   const html = dashboard({});
   assert.match(html, /state-empty/);
   assert.match(html, />Retry</);
-  assert.equal((html.match(/Not reported/g) ?? []).length, 8);
+  assert.equal((html.match(/Not reported/g) ?? []).length, 7);
 });
 
 test("dashboard: stale data is flagged with its timestamp", () => {

@@ -87,7 +87,8 @@ test("dashboard confirmed zero is distinct from missing values", () => {
 test("dashboard missing values and empty history remain visibly unreported", () => {
   const html = render({ data: normalizeDashboardKpis({}) });
   context(html);
-  assert.equal((html.match(/>Not reported</g) ?? []).length, 8);
+  assert.equal((html.match(/>Not reported</g) ?? []).length, 7);
+  assert.doesNotMatch(html, /Lease renewals due/); // Actual date review has its own governed read.
   assert.match(html, /state-empty/);
   assert.match(html, /No trend data reported/);
   assert.doesNotMatch(html, /\$0\.00|View reported observations/);

@@ -35,7 +35,6 @@ export function CommandCenterPanels({ summary }: { summary: DashboardKpis | null
         <KpiCard label="Rent-ready vacancies" value={null} testId="operating.rent-ready" />
         <KpiCard label="Collections MTD" value={null} testId="operating.collections" />
         <KpiCard label="Critical work orders" value={null} testId="operating.critical-work" />
-        <KpiCard label="Lease renewals due" value={null} testId="operating.renewals" />
       </div>
     </section>
     <div className="ecc-command-panels">
@@ -57,7 +56,7 @@ export function CommandCenterPanels({ summary }: { summary: DashboardKpis | null
       </section>
       <section className="ecc-overview-panel" aria-labelledby="priority-work-title">
         <div className="ecc-overview-panel-heading"><div><p className="ecc-panel-eyebrow">Action center</p><h2 id="priority-work-title">Priority work</h2></div><ClipboardList size={18} aria-hidden="true" /></div>
-        <div className="ecc-panel-unavailable"><p>Priority records are unavailable.</p><small>Delinquencies, expiring leases and urgent maintenance need confirmed source records. This is not an all-clear.</small></div>
+        <div className="ecc-panel-unavailable"><p>Delinquency and urgent maintenance records are unavailable.</p><small>The lease date review above shows separately confirmed expirations when available. An empty or unavailable priority feed is not an all-clear.</small></div>
         <Link className="ecc-panel-link" href="/ops/operations">Review operations <span aria-hidden="true">&#8594;</span></Link>
       </section>
     </div>

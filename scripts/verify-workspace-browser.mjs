@@ -78,37 +78,17 @@ try {
   await expect(page.getByTestId('state-denied')).toBeVisible();
   await expect(page.getByTestId('kpi.revenue')).not.toContainText('$1,234.56');
   await expect(page.getByRole('img',{name:'Reported occupancy 90.0 percent'})).toHaveCount(0);
-  await expect(page.getByRole('heading',{name:'Income, expenses & cash flow',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Review work queue',exact:true})).toBeVisible();
   await page.getByRole('combobox',{name:'Open page',exact:true}).selectOption('/reports/saved');
   await expect(page).toHaveURL(base+'/reports/saved');
   await expect(page.getByRole('heading',{name:'Saved reports',exact:true})).toBeVisible();
   await page.keyboard.press('Tab');
-  summaryMode='unavailable';portfolioReady=true;expiryMode='ready';await page.goto(base+'/dashboard');
-  // A separately authorized lease read can show actual dates during a summary outage.
-  await expect(page.getByTestId('expiry-due30')).toHaveText('1');
-  await expect(page.getByRole('list',{name:'Active lease end-date windows'})).toBeVisible();
-  const bars=page.locator('.ecc-expiry-track > span');await expect(bars).toHaveCount(5);
-  const bar=await bars.nth(1).boundingBox();assert.ok(bar.width>100&&bar.height>0,'Visible expiry bar geometry');
-  const panel=page.getByRole('region',{name:'Upcoming lease expirations'});
-  await expect(panel).toContainText('4 loaded rows');
-  await expect(panel).toContainText('portfolio completeness and source update time are not reported');
-  await panel.screenshot({path:`${out}/dashboard-lease-expiry-${width}.png`});
-  expiryMode='paused';await page.getByRole('button',{name:'Refresh expiry records',exact:true}).click();
-  await expect(page.getByTestId('expiry-due30')).toHaveCount(0);await expect(page.locator('.ecc-expiry-chart')).toHaveCount(0);
-  await expect.poll(()=>typeof releaseExpiry).toBe('function');await releaseExpiry();await expect(page.getByTestId('expiry-due30')).toHaveText('1');
-  expiryMode='denied';await page.getByRole('button',{name:'Refresh expiry records',exact:true}).click();
-  await expect(panel).toContainText("You don't have access to lease date records.");await expect(bars).toHaveCount(0);
-  expiryMode='malformed';await panel.getByRole('button',{name:'Retry',exact:true}).click();
-  await expect(panel).toContainText('Lease date records could not be confirmed.');await expect(bars).toHaveCount(0);
-  expiryMode='empty';await panel.getByRole('button',{name:'Retry',exact:true}).click();
-  await expect(panel).toContainText('No lease records were returned.');await expect(bars).toHaveCount(0);
-  expiryMode='ready';await page.getByRole('button',{name:'Refresh expiry records',exact:true}).click();await expect(page.getByTestId('expiry-due30')).toHaveText('1');
-  await page.getByRole('link',{name:'Open renewal planning',exact:true}).click();await expect(page).toHaveURL(base+'/ops/ai/renewal-forecasting');
-  await expect(page.getByRole('link',{name:'Lease 101',exact:true})).toBeVisible();
-  expiryMode='off';
+  // Command-center cohort/filter/record/session journeys live in
+  // scripts/verify-command-center-browser.mjs; keep the all-route sweep current.
+  summaryMode='unavailable';portfolioReady=true;
   if(process.env.ECC_BROWSER_DASHBOARD_ONLY==='1'){
    assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
-   console.log(`PASS dashboard width=${width}: summary/history and independent lease-expiry bars, refresh suppression, denial, malformed/empty reads and renewal navigation; no page exceptions or API writes`);
+   console.log(`PASS dashboard width=${width}: summary/history and denied data suppression`);
    await ctx.close();continue;
   }
   for(const entity of Object.keys(cards)){

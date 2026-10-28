@@ -87,7 +87,7 @@ test("dashboard confirmed zero is distinct from missing values", () => {
 test("dashboard missing values and empty history remain visibly unreported", () => {
   const html = render({ data: normalizeDashboardKpis({}) });
   context(html);
-  assert.equal((html.match(/>Not reported</g) ?? []).length, 7);
+  assert.equal((html.match(/>Not reported</g) ?? []).length, 4);
   assert.doesNotMatch(html, /Lease renewals due/); // Actual date review has its own governed read.
   assert.match(html, /state-empty/);
   assert.match(html, /No trend data reported/);
@@ -125,7 +125,7 @@ test("dashboard failed refresh explicitly labels retained values and disables co
   assert.match(html, /Last loaded figures/);
   assert.match(html, /latest refresh failed/);
   assert.match(html, /\$1,234\.56/);
-  assert.match(html, /disabled=""[^>]*>Refreshing/);
+  assert.match(html, /disabled=""[^>]*>.*?Refreshing/);
 });
 
 test("dashboard refreshed source values replace headline metrics and reported observations together", () => {

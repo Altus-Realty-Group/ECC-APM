@@ -1,134 +1,90 @@
 import React from "react";
 import { Link } from "wouter";
+import { ArrowUpRight, RefreshCw, ShieldAlert } from "lucide-react";
 import "./dashboard-workflow.css";
 import { useDashboardKpis } from "@/features/dashboard/hooks/useDashboardKpis";
-import { KpiCard } from "@/features/dashboard/components/KpiCard";
+import { useAllLeases, useAllUnits } from "@/lib/ecc-resolvers";
+import { useSessionEpoch } from "@/lib/sessionScope";
+import { usePlanningDate } from "@/features/renewals/usePlanningDate";
+import { KpiCard } from "../components/KpiCard";
 import OccupancyHistory from "@/components/recovery/OccupancyHistory";
-import { DASHBOARD_KPI_TEST_IDS } from "@/features/dashboard/constants/testIds";
-import { deriveDashboardStatus } from "@/features/dashboard/dashboardStatus";
+import { DASHBOARD_KPI_TEST_IDS } from "../constants/testIds";
+import { deriveDashboardStatus } from "../dashboardStatus";
 import StateNotice from "@/components/ui/StateNotice";
-import { CommandCenterPanels, OccupancyPosition } from "../components/CommandCenterPanels";
-import LeaseExpiryPanel from "../components/LeaseExpiryPanel";
+import { OccupancyPosition } from "../components/CommandCenterPanels";
+import CommandWorkSurface from "../components/CommandWorkSurface";
+import type { RecordQuery } from "../commandWork";
 
-type DashboardQuery = Pick<ReturnType<typeof useDashboardKpis>,
-  "data" | "isLoading" | "isError" | "error" | "refetch" | "isFetching">;
+type DashboardQuery = Pick<ReturnType<typeof useDashboardKpis>, "data" | "isLoading" | "isError" | "error" | "refetch" | "isFetching">;
 
-/** Keeps the same operator context and next actions around every source state. */
-export function DashboardView({ query, leaseReview }: { query: DashboardQuery; leaseReview?: React.ReactNode }) {
+/** One source banner, sourced infographics, and record-level review actions. */
+export function DashboardView({ query, leases, units, today = "Planning date not supplied", epoch = 0 }: {
+  query: DashboardQuery; leases?: RecordQuery; units?: RecordQuery; today?: string; epoch?: number;
+}) {
   const { data, isLoading, isError, error, refetch, isFetching } = query;
-  const retry = () => { void refetch(); };
   const status = deriveDashboardStatus({ isLoading, isError, error, data });
-
-  const updatedText = data?.lastUpdated
-    ? `Updated ${new Date(data!.lastUpdated!).toLocaleString()}`
-    : status.freshness === "future"
-      ? "The reported update time is in the future, so freshness cannot be confirmed"
-      : status.freshness === "invalid"
-        ? "The reported update time is not valid, so freshness cannot be confirmed"
-        : "Update time not reported";
-
   const showFigures = status.mode === "ready" && data;
-  const sourceStatus = status.mode === "loading" ? "Loading summary"
-    : status.mode === "failed" ? "Summary unavailable"
-    : status.mode === "empty" ? "Summary not yet available"
-    : status.refreshFailed ? "Last loaded figures"
-    : status.freshness === "stale" ? "Older figures"
-    : status.freshness === "fresh" ? "Source updated"
-    : "Update time unconfirmed";
+  const unbound = [error, leases?.error, units?.error].some(value => String((value as Error)?.message ?? "").includes("BACKEND_NOT_CONNECTED"));
+  const updatedText = status.freshness === "future" ? "The reported update time is in the future, so freshness cannot be confirmed"
+    : status.freshness === "invalid" ? "The reported update time is not valid, so freshness cannot be confirmed"
+    : data?.lastUpdated ? "Updated " + new Date(data.lastUpdated).toLocaleString() : "Update time not reported";
+  const sourceStatus = unbound ? "Data connection required" : status.mode === "loading" ? "Loading summary"
+    : status.mode === "failed" ? "Summary unavailable" : status.mode === "empty" ? "Summary not yet available"
+    : status.refreshFailed ? "Last loaded figures" : status.freshness === "stale" ? "Older figures"
+    : status.freshness === "fresh" ? "Source updated" : "Update time unconfirmed";
+  const busy = isFetching || leases?.isFetching || units?.isFetching;
+  const retry = () => { void refetch(); void leases?.refetch(); void units?.refetch(); };
+  const failureTitle = unbound ? "ECC is not connected to its operating data."
+    : status.failure === "denied" ? "You don't have access to the portfolio summary."
+    : status.contractViolation ? "The portfolio summary came back in an unexpected format."
+    : "The portfolio summary could not be loaded.";
 
-  let unavailable: React.ReactNode = null;
-  if (status.mode === "loading") {
-    unavailable = <StateNotice kind="loading" title="Loading portfolio summary…" />;
-  } else if (status.mode === "failed") {
-    const denied = status.failure === "denied";
-    unavailable = <StateNotice
-      kind={denied ? "denied" : "error"}
-      title={denied ? "You don't have access to the portfolio summary."
-        : status.contractViolation ? "The portfolio summary came back in an unexpected format."
-        : "The portfolio summary could not be loaded."}
-      detail={denied ? "No figures are shown. Ask an administrator to confirm your access, then try again."
-        : status.contractViolation ? "No figures are shown because they could not be trusted. Try again; if it keeps happening, report it to the data owner."
-        : "The summary service is unavailable. Your KPI and chart areas remain visible below, but no figures are confirmed. Retry after the data connection is restored."}
-      onRetry={retry} retrying={isFetching}
-    />;
-  } else if (status.mode === "empty" || !data) {
-    unavailable = <StateNotice kind="empty" title="No portfolio summary is available yet." onRetry={retry} retrying={isFetching} />;
-  }
+  return <section className="ecc-dashboard cc-command" aria-labelledby="dashboard-title">
+    <header className="cc-heading">
+      <div><p className="cc-overline">Altus Property Management · operations</p><h1 id="dashboard-title">Command center</h1><p className="cc-heading-note">See the signal. Review the record. Move the work forward.</p></div>
+      <div className="cc-heading-actions"><button type="button" className="cc-secondary" onClick={retry} disabled={!!busy}><RefreshCw size={15} aria-hidden="true" />{busy ? "Refreshing…" : "Refresh figures"}</button><Link href="/portfolio/properties" className="cc-primary">Review properties <ArrowUpRight size={16} aria-hidden="true" /></Link></div>
+    </header>
 
-  return (
-    <section className="ecc-dashboard" aria-labelledby="dashboard-title">
-      <header className="ecc-dashboard-header">
-        <div>
-          <p className="ecc-dashboard-eyebrow">Portfolio overview</p>
-          <h1 id="dashboard-title">Command center</h1>
-          <p>Portfolio performance, financial position and the work that needs attention.</p>
-        </div>
-        <Link className="ecc-dashboard-primary" href="/portfolio/properties">Review properties <span aria-hidden="true">→</span></Link>
-      </header>
+    <div className="cc-source-line" data-testid="dashboard-freshness"><span className={"cc-source-dot " + (showFigures ? "is-ready" : "")} aria-hidden="true" /><strong>{sourceStatus}</strong><span>Source: portfolio summary feed. {showFigures ? updatedText : "Figures are not confirmed."}</span></div>
 
-      <div className="ecc-dashboard-source" data-testid="dashboard-freshness">
-        <span className="ecc-dashboard-source-status">{sourceStatus}</span>
-        <p>Source: portfolio summary feed. {showFigures ? updatedText : "Figures are not confirmed."}</p>
-        {showFigures ? <button type="button" onClick={retry} disabled={isFetching}>
-          {isFetching ? "Refreshing…" : "Refresh figures"}
-        </button> : null}
-      </div>
+    {status.mode === "failed" || unbound ? <div className="cc-connection-alert" role="alert" data-testid={status.failure === "denied" ? "state-denied" : "state-error"}>
+      <ShieldAlert size={20} aria-hidden="true" /><div><strong>{failureTitle}</strong><p>{unbound ? "The workspace is running, but its protected data connection has not been configured. Retrying or refreshing the browser cannot create that connection. No operating figures are confirmed."
+        : status.failure === "denied" ? "Cached figures are hidden. Confirm your access before retrying."
+        : "No new figures can be confirmed. Retry the read or review the connection status."}</p></div>
+      <button type="button" className="cc-secondary" onClick={retry} disabled={!!busy}>Retry</button>
+      <Link href="/systems/integrations" className="cc-secondary">Connection status</Link>
+    </div> : status.mode === "loading" ? <StateNotice kind="loading" title="Loading portfolio summary…" />
+      : status.mode === "empty" ? <StateNotice kind="empty" title="No portfolio summary is available yet." onRetry={retry} retrying={isFetching} /> : null}
 
-      {unavailable}
+    {showFigures && status.refreshFailed ? <StateNotice kind={status.refreshFailed} title="Showing the last loaded figures; the latest refresh failed." onRetry={retry} retrying={isFetching} /> : null}
+    {showFigures && status.coverage !== "full" ? <p className="cc-source-note" data-testid={status.coverage === "none" ? "state-empty" : "state-partial"}>Some summary values are not reported. Missing values stay unknown; they are not zero.</p> : null}
+    {showFigures && status.freshness === "stale" ? <StateNotice kind="stale" title="These figures may be out of date." detail={updatedText} onRetry={retry} retrying={isFetching} /> : null}
+    {showFigures && ["future", "invalid"].includes(status.freshness) ? <StateNotice kind="partial" title="The data source's update time can't be trusted." detail={updatedText} testId="state-timestamp" /> : null}
 
-      {showFigures ? <div className="ecc-dashboard-notices">
-          {status.refreshFailed ? <StateNotice kind={status.refreshFailed}
-            title="Showing the last loaded figures; the latest refresh failed."
-            onRetry={retry} retrying={isFetching} /> : null}
-          {status.coverage === "none" ? <StateNotice kind="empty"
-            title="The portfolio summary returned no figures."
-            detail="Metrics below are shown as not reported rather than as zero."
-            onRetry={retry} retrying={isFetching} /> : null}
-          {status.coverage === "partial" ? <StateNotice kind="partial"
-            title={`Some figures were not reported: ${status.missing.join(", ")}.`} /> : null}
-          {status.freshness === "stale" ? <StateNotice kind="stale"
-            title="These figures may be out of date." detail={updatedText}
-            onRetry={retry} retrying={isFetching} /> : null}
-          {status.freshness === "future" || status.freshness === "invalid" ? <StateNotice kind="partial"
-            title="The data source's update time can't be trusted." detail={updatedText} testId="state-timestamp" /> : null}
-        </div> : null}
+    <div className="cc-kpi-strip" aria-label="Reported portfolio figures">
+      <KpiCard label="Properties" value={showFigures ? data.propertiesTotal : null} testId={DASHBOARD_KPI_TEST_IDS.PROPERTIES} />
+      <KpiCard label="Units" value={showFigures ? data.unitsTotal : null} testId={DASHBOARD_KPI_TEST_IDS.UNITS} />
+      <KpiCard label="Occupancy" value={showFigures ? data.occupancyRate : null} format="percent" decimals={1} testId={DASHBOARD_KPI_TEST_IDS.OCCUPANCY} />
+      <KpiCard label="Revenue (30d)" value={showFigures ? data.revenue30dCents : null} format="currencyCents" testId={DASHBOARD_KPI_TEST_IDS.REVENUE} />
+    </div>
 
-        <section className="ecc-dashboard-snapshot" aria-labelledby="dashboard-snapshot-title">
-          <div className="ecc-dashboard-section-heading">
-            <h2 id="dashboard-snapshot-title">Portfolio snapshot</h2>
-            <p>Reported figures · unavailable values stay unreported</p>
-          </div>
-          <div className="ecc-kpi-grid ecc-dashboard-metrics">
-            <KpiCard label="Properties" value={showFigures ? data.propertiesTotal : null} testId={DASHBOARD_KPI_TEST_IDS.PROPERTIES} />
-            <KpiCard label="Units" value={showFigures ? data.unitsTotal : null} testId={DASHBOARD_KPI_TEST_IDS.UNITS} />
-            <KpiCard label="Occupancy" value={showFigures ? data.occupancyRate : null} format="percent" decimals={1} testId={DASHBOARD_KPI_TEST_IDS.OCCUPANCY} />
-            <KpiCard label="Revenue (30d)" value={showFigures ? data.revenue30dCents : null} format="currencyCents" testId={DASHBOARD_KPI_TEST_IDS.REVENUE} />
-          </div>
-        </section>
-
-      <div className="ecc-dashboard-charts">
-        <OccupancyPosition rate={showFigures ? data.occupancyRate : null} />
-        <section className="ecc-overview-panel ecc-dashboard-history" aria-label="Occupancy history">
-          {showFigures ? <OccupancyHistory series={data.series} /> : <><h2>Reported occupancy history</h2><div className="ecc-panel-unavailable"><p>Occupancy history is unavailable.</p><small>No historical observations have been confirmed.</small></div></>}
-        </section>
-      </div>
-      {leaseReview}
-      <CommandCenterPanels summary={showFigures ? data : null} />
-      <div className="ecc-dashboard-workspace">
-        <section className="ecc-dashboard-workflows" aria-labelledby="dashboard-workflows-title">
-          <h2 id="dashboard-workflows-title">Continue your work</h2>
-          <p>Open the records behind your next decision.</p>
-          <nav aria-label="Portfolio workflows">
-            <Link href="/portfolio/leases"><span><strong>Review leases</strong><small>Check lease records and reported rent.</small></span><span aria-hidden="true">→</span></Link>
-            <Link href="/portfolio/owners"><span><strong>Review owners</strong><small>Open owner records and linked properties.</small></span><span aria-hidden="true">→</span></Link>
-            <Link href="/ops/operations"><span><strong>Open operations</strong><small>Review availability of legal cases, work orders and tenant ledgers.</small></span><span aria-hidden="true">→</span></Link>
-          </nav>
-        </section>
-      </div>
-    </section>
-  );
+    <div className={"cc-overview-layout" + (unbound && !showFigures ? " cc-overview-no-signal" : "")}>
+      {(!unbound || showFigures) ? <section className="cc-signal cc-portfolio-signal" aria-labelledby="portfolio-signal-title"><header><div><p className="cc-overline">Portfolio signal</p><h2 id="portfolio-signal-title">Occupancy &amp; reported trend</h2></div></header>
+        <div className="cc-portfolio-chart"><OccupancyPosition rate={showFigures ? data.occupancyRate : null} /><div className="cc-occupancy-history">{showFigures ? <OccupancyHistory series={data.series} /> : <p className="cc-inline-state">Occupancy history is unavailable. No historical observations have been confirmed.</p>}</div></div>
+      </section> : null}
+      <aside className="cc-workflow-rail" aria-labelledby="workflow-rail-title"><p className="cc-overline">Operational worklists</p><h2 id="workflow-rail-title">Start with the record</h2><nav aria-label="Portfolio workflows">
+        <Link href="/ops/ai/renewal-forecasting"><span><strong>Plan lease reviews</strong><small>Reported end dates and records to verify</small></span><ArrowUpRight size={17} aria-hidden="true" /></Link>
+        <Link href="/ops/ai/vacancy-analytics"><span><strong>Review unit availability</strong><small>Reported status, condition and next review</small></span><ArrowUpRight size={17} aria-hidden="true" /></Link>
+        <Link href="/portfolio/leases"><span><strong>Review leases</strong><small>Open the lease and linked tenant records</small></span><ArrowUpRight size={17} aria-hidden="true" /></Link>
+        <Link href="/portfolio/owners"><span><strong>Review owners</strong><small>Owner records and linked properties</small></span><ArrowUpRight size={17} aria-hidden="true" /></Link>
+        <Link href="/ops/operations"><span><strong>Open operations</strong><small>Legal, maintenance and ledger availability</small></span><ArrowUpRight size={17} aria-hidden="true" /></Link>
+      </nav></aside>
+    </div>
+    <CommandWorkSurface key={epoch} leases={leases} units={units} today={today} />
+    <details className="cc-capabilities"><summary>Data coverage &amp; additional operating intelligence</summary><p>Cash flow, collections, critical work orders, rent readiness, leasing conversion and city-level occupancy are not connected. They are not estimated from rent, status labels or property counts. Review lease dates and unit records above; unavailable feeds are not an all-clear.</p><Link href="/systems/integrations">Review integration status</Link></details>
+  </section>;
 }
 
 export default function DashboardPage() {
-  return <DashboardView query={useDashboardKpis()} leaseReview={<LeaseExpiryPanel />} />;
+  return <DashboardView query={useDashboardKpis()} leases={useAllLeases()} units={useAllUnits()} today={usePlanningDate()} epoch={useSessionEpoch()} />;
 }

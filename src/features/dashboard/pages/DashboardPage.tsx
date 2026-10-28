@@ -8,12 +8,13 @@ import { DASHBOARD_KPI_TEST_IDS } from "@/features/dashboard/constants/testIds";
 import { deriveDashboardStatus } from "@/features/dashboard/dashboardStatus";
 import StateNotice from "@/components/ui/StateNotice";
 import { CommandCenterPanels, OccupancyPosition } from "../components/CommandCenterPanels";
+import LeaseExpiryPanel from "../components/LeaseExpiryPanel";
 
 type DashboardQuery = Pick<ReturnType<typeof useDashboardKpis>,
   "data" | "isLoading" | "isError" | "error" | "refetch" | "isFetching">;
 
 /** Keeps the same operator context and next actions around every source state. */
-export function DashboardView({ query }: { query: DashboardQuery }) {
+export function DashboardView({ query, leaseReview }: { query: DashboardQuery; leaseReview?: React.ReactNode }) {
   const { data, isLoading, isError, error, refetch, isFetching } = query;
   const retry = () => { void refetch(); };
   const status = deriveDashboardStatus({ isLoading, isError, error, data });
@@ -111,6 +112,7 @@ export function DashboardView({ query }: { query: DashboardQuery }) {
           {showFigures ? <OccupancyHistory series={data.series} /> : <><h2>Reported occupancy history</h2><div className="ecc-panel-unavailable"><p>Occupancy history is unavailable.</p><small>No historical observations have been confirmed.</small></div></>}
         </section>
       </div>
+      {leaseReview}
       <CommandCenterPanels summary={showFigures ? data : null} />
       <div className="ecc-dashboard-workspace">
         <section className="ecc-dashboard-workflows" aria-labelledby="dashboard-workflows-title">
@@ -128,5 +130,5 @@ export function DashboardView({ query }: { query: DashboardQuery }) {
 }
 
 export default function DashboardPage() {
-  return <DashboardView query={useDashboardKpis()} />;
+  return <DashboardView query={useDashboardKpis()} leaseReview={<LeaseExpiryPanel />} />;
 }

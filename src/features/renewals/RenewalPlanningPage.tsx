@@ -1,23 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { useAllLeases } from "@/lib/ecc-resolvers";
 import { accessGuard, useResetOnAccessLoss } from "@/lib/useAccessGuard";
 import StateNotice from "@/components/ui/StateNotice";
-import { BUCKET_LABELS, EXPIRY_BUCKETS, chicagoPlanningDate, planningRows, planningSummary, filterPlanningRows, type ExpiryBucket, type StatusScope } from "./renewalPlanning";
+import { BUCKET_LABELS, EXPIRY_BUCKETS, planningRows, planningSummary, filterPlanningRows, type ExpiryBucket, type StatusScope } from "./renewalPlanning";
+import { usePlanningDate } from "./usePlanningDate";
 import "./renewal-planning.css";
 
 type Query = Pick<ReturnType<typeof useAllLeases>, "data" | "isSuccess" | "isLoading" | "isFetching" | "isError" | "error" | "refetch">;
-function usePlanningDate() {
-  const [date, setDate] = useState(chicagoPlanningDate);
-  useEffect(() => {
-    const update = () => setDate(chicagoPlanningDate());
-    const timer = setInterval(update, 60_000);
-    window.addEventListener("focus", update);
-    return () => { clearInterval(timer); window.removeEventListener("focus", update); };
-  }, []);
-  return date;
-}
-
 export function RenewalPlanningView({ query, today }: { query: Query; today: string }) {
   const [search, setSearch] = useState("");
   const [bucket, setBucket] = useState<ExpiryBucket>("all");

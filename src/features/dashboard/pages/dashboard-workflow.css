@@ -102,6 +102,17 @@
 }
 
 /* Command center: preserve the complete information architecture during outages. */
+.ecc-expiry-metrics { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; margin: 0; }
+.ecc-expiry-metrics > div { border-left: 2px solid #d4af37; padding-left: 14px; min-width: 0; }
+.ecc-expiry-metrics dt { color: #c6c6bc; font-size: 13px; line-height: 1.5; }
+.ecc-expiry-metrics dd { color: #fff; font-size: 28px; font-weight: 600; margin: 6px 0 0; font-variant-numeric: tabular-nums; }
+.ecc-expiry-chart { margin: 0; }
+.ecc-expiry-chart figcaption { color: #c6c6bc; font-size: 13px; margin-bottom: 18px; }
+.ecc-expiry-chart ul { list-style: none; display: grid; gap: 14px; padding: 0; margin: 0; }
+.ecc-expiry-chart li > div:first-child { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; font-size: 13px; }
+.ecc-expiry-track { height: 10px; background: #393932; border-radius: 3px; overflow: hidden; }
+.ecc-expiry-track > span { display: block; height: 100%; background: #d4af37; }
+@media(max-width:580px) { .ecc-expiry-metrics { grid-template-columns: 1fr; } }
 .ecc-dashboard .ecc-dashboard-metrics { gap: 12px; border: 0; border-radius: 0; background: none; }
 .ecc-dashboard-metrics .ecc-kpi-card { border: 1px solid #393932; border-radius: 9px; padding: 20px; background: #181817; }
 .ecc-dashboard-metrics .ecc-kpi-card:last-child { border-right: 1px solid #393932; }
@@ -124,7 +135,7 @@
 .ecc-dashboard-history .recovery-history { height: 100%; }
 .ecc-dashboard-history .ecc-kpi-card { flex: 1; }
 .ecc-dashboard-history .ecc-kpi-card > div:last-child { min-height: 180px; }
-.ecc-operation-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid #393932; border-radius: 9px; overflow: hidden; }
+.ecc-operation-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid #393932; border-radius: 9px; overflow: hidden; }
 .ecc-operation-metrics .ecc-kpi-card { background: #141413; padding: 18px; border: 0; border-right: 1px solid #393932; border-radius: 0; box-shadow: none; }
 .ecc-operation-metrics .ecc-kpi-card:last-child { border-right: 0; }
 .ecc-operation-metrics .ecc-kpi-card__value { font-size: 25px; color: #e4e4da; }
@@ -137,9 +148,9 @@
 }
 @media (max-width: 600px) {
   .ecc-overview-panel, .ecc-dashboard .ecc-dashboard-history { padding: 16px; }
-  .ecc-operation-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ecc-operation-metrics { grid-template-columns: 1fr; }
   .ecc-operation-metrics .ecc-kpi-card { padding: 14px; border-bottom: 1px solid #393932; }
-  .ecc-operation-metrics .ecc-kpi-card:nth-child(2) { border-right: 0; }
+  .ecc-operation-metrics .ecc-kpi-card { border-right: 0; }
   .ecc-operation-metrics .ecc-kpi-card:nth-child(n+3) { border-bottom: 0; }
   .ecc-occupancy-position { gap: 12px; flex-wrap: wrap; }
   .ecc-occupancy-position svg { width: 136px; flex-basis: 136px; margin-inline: auto; }

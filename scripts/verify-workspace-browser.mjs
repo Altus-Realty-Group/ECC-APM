@@ -22,7 +22,12 @@ try {
   const ctx=await browser.newContext({viewport:{width,height:900},reducedMotion:'reduce'});
   const page=await ctx.newPage();const errors=[],writes=[],reads=[];
   page.on('pageerror',e=>errors.push(e.message));
-  let summaryMode='unavailable', portfolioReady=false;
+  let summaryMode='unavailable', portfolioReady=false, expiryMode='off', releaseExpiry;
+  const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const part=type=>parts.find(p=>p.type===type).value;
+  const date=new Date(`${part('year')}-${part('month')}-${part('day')}T00:00:00Z`);
+  const endIn=days=>new Date(date.getTime()+days*86400000).toISOString().slice(0,10);
+  const expiryRows=[{id:101,status:'active',end:endIn(10)},{id:102,status:'active',end:endIn(40)},{id:103,status:'active',end:null},{id:104,status:'ended',end:endIn(10)}];
   await page.route('**/*',async route=>{
    const req=route.request(),url=new URL(req.url());
    if(url.origin!==new URL(base).origin)return route.abort();
@@ -33,6 +38,13 @@ try {
     if(portfolioReady&&url.pathname==='/api/owners/search')return route.fulfill({json:[{id:1,name:'Fixture owner search'}]});
     const collection=/^\/api\/portfolio\/(\w+)$/.exec(url.pathname)?.[1];
     const card=/^\/api\/rpc\/get_(\w+)_card$/.exec(url.pathname)?.[1];
+    if(collection==='leases'&&expiryMode!=='off'){
+     if(expiryMode==='paused')return new Promise(resolve=>{releaseExpiry=async()=>{await route.fulfill({json:expiryRows});resolve()}});
+     if(expiryMode==='denied')return route.fulfill({status:403,json:{error:'DENIED_TEST_INPUT'}});
+     if(expiryMode==='malformed')return route.fulfill({json:[null]});
+     if(expiryMode==='empty')return route.fulfill({json:[]});
+     return route.fulfill({json:expiryRows});
+    }
     if(portfolioReady&&collection&&collections[collection])return route.fulfill({json:collections[collection]});
     if(portfolioReady&&card&&cards[card])return route.fulfill({json:cards[card]});
     if(url.pathname==='/api/dashboard/kpi/summary'&&summaryMode==='ready')return route.fulfill({json:{propertiesTotal:4,unitsTotal:40,occupancyRate:.9,revenue30dCents:123456,lastUpdated:new Date().toISOString(),series:[{date:'2026-10-01',occupancy:.8},{date:'2026-10-15',occupancy:.9}]}});
@@ -71,7 +83,34 @@ try {
   await expect(page).toHaveURL(base+'/reports/saved');
   await expect(page.getByRole('heading',{name:'Saved reports',exact:true})).toBeVisible();
   await page.keyboard.press('Tab');
-  summaryMode='unavailable';portfolioReady=true;
+  summaryMode='unavailable';portfolioReady=true;expiryMode='ready';await page.goto(base+'/dashboard');
+  // A separately authorized lease read can show actual dates during a summary outage.
+  await expect(page.getByTestId('expiry-due30')).toHaveText('1');
+  await expect(page.getByRole('list',{name:'Active lease end-date windows'})).toBeVisible();
+  const bars=page.locator('.ecc-expiry-track > span');await expect(bars).toHaveCount(5);
+  const bar=await bars.nth(1).boundingBox();assert.ok(bar.width>100&&bar.height>0,'Visible expiry bar geometry');
+  const panel=page.getByRole('region',{name:'Upcoming lease expirations'});
+  await expect(panel).toContainText('4 loaded rows');
+  await expect(panel).toContainText('portfolio completeness and source update time are not reported');
+  await panel.screenshot({path:`${out}/dashboard-lease-expiry-${width}.png`});
+  expiryMode='paused';await page.getByRole('button',{name:'Refresh expiry records',exact:true}).click();
+  await expect(page.getByTestId('expiry-due30')).toHaveCount(0);await expect(page.locator('.ecc-expiry-chart')).toHaveCount(0);
+  await expect.poll(()=>typeof releaseExpiry).toBe('function');await releaseExpiry();await expect(page.getByTestId('expiry-due30')).toHaveText('1');
+  expiryMode='denied';await page.getByRole('button',{name:'Refresh expiry records',exact:true}).click();
+  await expect(panel).toContainText("You don't have access to lease date records.");await expect(bars).toHaveCount(0);
+  expiryMode='malformed';await panel.getByRole('button',{name:'Retry',exact:true}).click();
+  await expect(panel).toContainText('Lease date records could not be confirmed.');await expect(bars).toHaveCount(0);
+  expiryMode='empty';await panel.getByRole('button',{name:'Retry',exact:true}).click();
+  await expect(panel).toContainText('No lease records were returned.');await expect(bars).toHaveCount(0);
+  expiryMode='ready';await page.getByRole('button',{name:'Refresh expiry records',exact:true}).click();await expect(page.getByTestId('expiry-due30')).toHaveText('1');
+  await page.getByRole('link',{name:'Open renewal planning',exact:true}).click();await expect(page).toHaveURL(base+'/ops/ai/renewal-forecasting');
+  await expect(page.getByRole('link',{name:'Lease 101',exact:true})).toBeVisible();
+  expiryMode='off';
+  if(process.env.ECC_BROWSER_DASHBOARD_ONLY==='1'){
+   assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
+   console.log(`PASS dashboard width=${width}: summary/history and independent lease-expiry bars, refresh suppression, denial, malformed/empty reads and renewal navigation; no page exceptions or API writes`);
+   await ctx.close();continue;
+  }
   for(const entity of Object.keys(cards)){
    await page.goto(`${base}/card/${entity}/1`);
    await expect(page.locator('.ecc-record')).toBeVisible();

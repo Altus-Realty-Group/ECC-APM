@@ -34,7 +34,7 @@ export default function CommandWorkSurface({ leases, units, today }: { leases?: 
   const start = currentPage * 25;
   function chooseTab(value: "leases" | "units") { setTab(value); setSearch(""); setPage(0); }
   return <>
-    <div className="cc-record-signals">
+    {(leaseRows !== null || unitRows !== null) ? <div className="cc-record-signals">
       <section className="cc-signal" aria-labelledby="lease-horizon-title">
         <header><div><p className="cc-overline">Leasing exposure</p><h2 id="lease-horizon-title">Lease horizon</h2></div><Link href="/ops/ai/renewal-forecasting">Full review <span aria-hidden="true">↗</span></Link></header>
         <p className="cc-source-note">Active loaded leases with a valid end date and unique record link. Select a window to review its records.</p>
@@ -56,7 +56,7 @@ export default function CommandWorkSurface({ leases, units, today }: { leases?: 
           <footer><span>{unitRows.length} loaded unit rows · completeness not reported</span></footer>
         </> : <p className="cc-inline-state">Unit records unavailable. No availability or readiness is inferred.</p>}
       </section>
-    </div>
+    </div> : null}
     <section className="cc-workbench" aria-labelledby="workbench-title" ref={workbench} tabIndex={-1}>
       <header><div><p className="cc-overline">From signal to record</p><h2 id="workbench-title">Review work queue</h2><p className="cc-source-note">Planning date {today} · Central time. Review source records before assigning work or sending notices.</p></div><Link className="cc-secondary" href={reviewHref}>Open full review <span aria-hidden="true">↗</span></Link></header>
       <div className="cc-workbench-toolbar">

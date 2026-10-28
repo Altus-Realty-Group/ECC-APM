@@ -68,10 +68,10 @@ export function DashboardView({ query, leases, units, today = "Planning date not
       <KpiCard label="Revenue (30d)" value={showFigures ? data.revenue30dCents : null} format="currencyCents" testId={DASHBOARD_KPI_TEST_IDS.REVENUE} />
     </div>
 
-    <div className="cc-overview-layout">
-      <section className="cc-signal cc-portfolio-signal" aria-labelledby="portfolio-signal-title"><header><div><p className="cc-overline">Portfolio signal</p><h2 id="portfolio-signal-title">Occupancy &amp; reported trend</h2></div></header>
+    <div className={"cc-overview-layout" + (unbound && !showFigures ? " cc-overview-no-signal" : "")}>
+      {(!unbound || showFigures) ? <section className="cc-signal cc-portfolio-signal" aria-labelledby="portfolio-signal-title"><header><div><p className="cc-overline">Portfolio signal</p><h2 id="portfolio-signal-title">Occupancy &amp; reported trend</h2></div></header>
         <div className="cc-portfolio-chart"><OccupancyPosition rate={showFigures ? data.occupancyRate : null} /><div className="cc-occupancy-history">{showFigures ? <OccupancyHistory series={data.series} /> : <p className="cc-inline-state">Occupancy history is unavailable. No historical observations have been confirmed.</p>}</div></div>
-      </section>
+      </section> : null}
       <aside className="cc-workflow-rail" aria-labelledby="workflow-rail-title"><p className="cc-overline">Operational worklists</p><h2 id="workflow-rail-title">Start with the record</h2><nav aria-label="Portfolio workflows">
         <Link href="/ops/ai/renewal-forecasting"><span><strong>Plan lease reviews</strong><small>Reported end dates and records to verify</small></span><ArrowUpRight size={17} aria-hidden="true" /></Link>
         <Link href="/ops/ai/vacancy-analytics"><span><strong>Review unit availability</strong><small>Reported status, condition and next review</small></span><ArrowUpRight size={17} aria-hidden="true" /></Link>

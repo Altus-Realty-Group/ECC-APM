@@ -31,6 +31,7 @@ An admitted, protected server connection must implement the summary and collecti
 - 351 unit tests passed, including exact 30/90-day boundaries, duplicate IDs, missing/literal status groups, cached-row suppression, scoped queue links and consolidated connection messaging.
 - TypeScript check and production build passed.
 - `ECC_BROWSER_EXECUTABLE=/path/to/chromium node scripts/verify-command-center-browser.mjs` passed at 1440px and 390px with isolated contract fixtures. Checks cover actual occupancy/chart geometry, chart-to-queue selection/focus, search/reset, status selection, 25-row pagination, card navigation, paused refresh, denied cached data, malformed/empty collections, session reset, one unconnected alert, no document overflow, no uncaught errors and no API writes. All external network requests are blocked by that driver.
+- The updated broader browser driver also passed 32 route states at both widths, plus keyboard card tabs, portfolio search, page switching, exports, preferences and unsaved-draft/session behavior. That sweep preceded the final disconnected-placeholder suppression; the final focused dashboard journeys, unit/type/build checks passed again after it.
 - Loaded/unconnected desktop/mobile screenshots were inspected. Fixtures are test inputs only and are never installed in the application as operating data.
 - The provided live preview redirected this review browser to Replit's private-app sign-in wall. No live data or live UI acceptance is claimed. No runtime restart or publication performed.
 

@@ -102,8 +102,8 @@ test("dashboard: missing revenue is not shown as $0", () => {
 test("dashboard: empty payload -> empty notice with retry, all metrics unreported", () => {
   const html = dashboard({});
   assert.match(html, /state-empty/);
-  assert.match(html, />Retry</);
-  assert.equal((html.match(/Not reported/g) ?? []).length, 7);
+  assert.match(html, /Retry record read/);
+  assert.equal((html.match(/Not reported/g) ?? []).length, 4);
 });
 
 test("dashboard: stale data is flagged with its timestamp", () => {

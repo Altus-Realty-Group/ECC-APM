@@ -1,0 +1,54 @@
+.ecc-company-workspace {
+  color: #f5f5f5;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+.ecc-company-title {
+  font-size: 28px;
+  margin: 0 0 16px;
+}
+.ecc-company-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ecc-company-row {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid #d4af37;
+  background: #111;
+  color: #f5f5f5;
+  text-align: left;
+}
+.ecc-company-row:focus {
+  outline: 2px solid #d4af37;
+  outline-offset: 2px;
+}
+.ecc-company-row[aria-pressed="true"] {
+  background: #1a1a1a;
+}
+.ecc-company-role {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.ecc-company-context {
+  border-top: 1px solid #333;
+  padding-top: 16px;
+}
+.ecc-company-note {
+  font-size: 13px;
+  opacity: 0.85;
+}
+@media (max-width: 420px) {
+  .ecc-company-workspace { padding: 16px 12px; }
+  .ecc-company-title { font-size: 22px; }
+}

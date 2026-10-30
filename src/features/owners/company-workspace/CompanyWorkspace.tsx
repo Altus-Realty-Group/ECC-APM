@@ -1,42 +1,53 @@
 import React, { useEffect, useRef, useState } from "react";
 import StateNotice from "@/components/ui/StateNotice";
-import type { CompanyMembership, CompanyWorkspaceState } from "./types";
+import { useSessionEpoch } from "@/lib/sessionScope";
+import type { CompanyMembership, CompanyWorkspaceState, WorkspaceContext } from "./types";
 import type { CompanyWorkspaceAdapter } from "./adapter";
 import { selectCompany } from "./adapter";
 import "./company-workspace.css";
 
 type Props = {
   adapter: CompanyWorkspaceAdapter;
+  /** Management customer. Distinct from personal session and owning company. */
+  customerId?: string | null;
 };
 
-export default function CompanyWorkspace({ adapter }: Props) {
+export default function CompanyWorkspace({ adapter, customerId = null }: Props) {
+  const sessionEpoch = useSessionEpoch();
+  const context: WorkspaceContext = { sessionEpoch, customerId };
   const [state, setState] = useState<CompanyWorkspaceState>({ kind: "loading" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const epoch = useRef(0);
+  const controllerRef = useRef<AbortController | null>(null);
 
   const load = () => {
+    controllerRef.current?.abort();
     const current = ++epoch.current;
     const controller = new AbortController();
+    controllerRef.current = controller;
     setState({ kind: "loading" });
     setSelectedId(null);
-    void adapter.load(controller.signal).then((next) => {
+    void adapter.load(context, controller.signal).then((next) => {
       if (current !== epoch.current) return;
       setState(next);
       if (next.kind === "ready") {
-        const { selected, denied } = selectCompany(next.memberships, next.selectedId ?? "");
+        const visible = next.memberships.filter((m) => m.role !== "denied");
+        const { selected, denied } = selectCompany(visible, next.selectedId ?? "");
         setSelectedId(denied ? null : selected?.companyId ?? null);
       }
     }).catch(() => {
       if (current !== epoch.current) return;
       setState({ kind: "error", message: "Company workspace could not be loaded." });
     });
-    return controller;
   };
 
   useEffect(() => {
-    const controller = load();
-    return () => { controller.abort(); epoch.current++; };
-  }, [adapter]);
+    load();
+    return () => {
+      controllerRef.current?.abort();
+      epoch.current++;
+    };
+  }, [adapter, sessionEpoch, customerId]);
 
   const onSelect = (id: string) => {
     if (state.kind !== "ready") return;
@@ -88,7 +99,7 @@ export default function CompanyWorkspace({ adapter }: Props) {
       {state.partial ? <StateNotice kind="partial" title="Some company details are incomplete." /> : null}
       <h1 className="ecc-company-title">Your companies</h1>
       <ul className="ecc-company-list" role="list">
-        {state.memberships.map((m) => (
+        {state.memberships.filter((m) => m.role !== "denied").map((m) => (
           <li key={m.companyId}>
             <button
               type="button"

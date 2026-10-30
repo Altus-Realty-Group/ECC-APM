@@ -29,7 +29,7 @@ test("primary contact alone grants no admin, financial or banking power", () => 
 });
 
 test("unbound adapter returns truthful unavailable state", async () => {
-  const state = await unboundCompanyWorkspaceAdapter().load();
+  const state = await unboundCompanyWorkspaceAdapter().load({ sessionEpoch: 0, customerId: null });
   assert.equal(state.kind, "unavailable");
   if (state.kind === "unavailable") assert.match(state.reason, /not bound/);
 });
@@ -43,8 +43,15 @@ test("component source imports page-local CSS and rejects denied selectedId", ()
   assert.match(css, /max-width:\s*420px|max-width:\s*720px/);
 });
 
-test("fixture adapter accepts AbortSignal", async () => {
+test("fixture adapter accepts context and AbortSignal", async () => {
   const adapter = fixtureAdapter({ kind: "ready", memberships, selectedId: "A" });
-  const state = await adapter.load(new AbortController().signal);
+  const state = await adapter.load({ sessionEpoch: 1, customerId: "cust-1" }, new AbortController().signal);
   assert.equal(state.kind, "ready");
+});
+
+test("denied memberships are omitted from visible selection", () => {
+  const visible = memberships.filter((m) => m.role !== "denied");
+  assert.equal(visible.length, 2);
+  assert.equal(selectCompany(visible, "C").denied, true);
+  assert.equal(selectCompany(visible, "C").selected, null);
 });

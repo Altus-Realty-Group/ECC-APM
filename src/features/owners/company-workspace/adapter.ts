@@ -21,7 +21,7 @@ export function unboundCompanyWorkspaceAdapter(): CompanyWorkspaceAdapter {
 
 /** Isolated fixture helper for tests only. Not used in operating UI. */
 export function fixtureAdapter(state: CompanyWorkspaceState): CompanyWorkspaceAdapter {
-  return { async load() { return state; } };
+  return { async load(_signal?: AbortSignal) { return state; } };
 }
 
 export function selectCompany(
@@ -29,7 +29,6 @@ export function selectCompany(
   companyId: string
 ): { selected: CompanyMembership | null; denied: boolean } {
   const found = memberships.find((m) => m.companyId === companyId);
-  if (!found) return { selected: null, denied: true };
-  if (found.role === "denied") return { selected: found, denied: true };
+  if (!found || found.role === "denied") return { selected: null, denied: true };
   return { selected: found, denied: false };
 }

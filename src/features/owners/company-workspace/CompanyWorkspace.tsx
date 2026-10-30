@@ -3,6 +3,7 @@ import StateNotice from "@/components/ui/StateNotice";
 import type { CompanyMembership, CompanyWorkspaceState } from "./types";
 import type { CompanyWorkspaceAdapter } from "./adapter";
 import { selectCompany } from "./adapter";
+import "./company-workspace.css";
 
 type Props = {
   adapter: CompanyWorkspaceAdapter;
@@ -15,18 +16,27 @@ export default function CompanyWorkspace({ adapter }: Props) {
 
   const load = () => {
     const current = ++epoch.current;
+    const controller = new AbortController();
     setState({ kind: "loading" });
-    void adapter.load().then((next) => {
-      if (current !== epoch.current) return; // reject late response
+    setSelectedId(null);
+    void adapter.load(controller.signal).then((next) => {
+      if (current !== epoch.current) return;
       setState(next);
-      if (next.kind === "ready") setSelectedId(next.selectedId);
+      if (next.kind === "ready") {
+        const { selected, denied } = selectCompany(next.memberships, next.selectedId ?? "");
+        setSelectedId(denied ? null : selected?.companyId ?? null);
+      }
     }).catch(() => {
       if (current !== epoch.current) return;
       setState({ kind: "error", message: "Company workspace could not be loaded." });
     });
+    return controller;
   };
 
-  useEffect(() => { load(); }, [adapter]);
+  useEffect(() => {
+    const controller = load();
+    return () => { controller.abort(); epoch.current++; };
+  }, [adapter]);
 
   const onSelect = (id: string) => {
     if (state.kind !== "ready") return;

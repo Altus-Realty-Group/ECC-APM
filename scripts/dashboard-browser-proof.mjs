@@ -6,6 +6,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { build, preview } from "vite";
 import { chromium } from "playwright";
+import { expect } from "@playwright/test";
 
 const scratch = await mkdtemp(path.join(tmpdir(), "ecc-dashboard-proof-"));
 const artifacts = process.env.PROOF_ARTIFACT_DIR || path.join(scratch, "artifacts");
@@ -40,16 +41,16 @@ try {
     assert.ok(chartBox && chartBox.width > 0 && chartBox.height > 0, "Reported history chart has no geometry");
     const lease = page.locator('[data-review-action="lease-dates"]');
     await lease.click();
-    assert.equal(await page.locator('[aria-label="End-date window"]').inputValue(), "review");
-    for (const id of [1, 2]) assert.equal(await page.locator(`a[href="/card/lease/${id}"]`).count(), 1);
-    for (const id of [3, 4]) assert.equal(await page.locator(`a[href="/card/lease/${id}"]`).count(), 0);
-    assert.equal(await page.locator(".cc-workbench").evaluate(node => node === document.activeElement), true);
+    await expect(page.locator('[aria-label="End-date window"]')).toHaveValue("review");
+    for (const id of [1, 2]) await expect(page.locator(`a[href="/card/lease/${id}"]`)).toHaveCount(1);
+    for (const id of [3, 4]) await expect(page.locator(`a[href="/card/lease/${id}"]`)).toHaveCount(0);
+    await expect(page.locator(".cc-workbench")).toBeFocused();
     const unit = page.locator('[data-review-action="unit-status"]');
     await unit.focus(); await page.keyboard.press("Enter");
-    assert.equal(await page.locator('[aria-label="Queue unit status"]').inputValue(), "missing");
-    assert.equal(await page.locator('a[href="/card/unit/11"]').count(), 1);
-    assert.equal(await page.locator('a[href="/card/unit/12"]').count(), 0);
-    assert.equal(await page.locator(".cc-workbench").evaluate(node => node === document.activeElement), true);
+    await expect(page.locator('[aria-label="Queue unit status"]')).toHaveValue("missing");
+    await expect(page.locator('a[href="/card/unit/11"]')).toHaveCount(1);
+    await expect(page.locator('a[href="/card/unit/12"]')).toHaveCount(0);
+    await expect(page.locator(".cc-workbench")).toBeFocused();
     const targets = [];
     for (const locator of [lease, unit, page.getByRole("link", { name: "Review property records", exact: true }),
       page.getByRole("link", { name: "Review unit records", exact: true })]) {
@@ -59,16 +60,16 @@ try {
     assert.ok(overflow <= 1, `Horizontal page overflow at${width}px: ${overflow}`);
     await page.screenshot({ path: path.join(artifacts, `dashboard-${width}-ready.png`), fullPage: true });
     await page.locator('[data-fixture-state="refreshing"]').click();
-    assert.equal(await lease.isDisabled(), true); assert.equal(await unit.isDisabled(), true);
-    assert.equal(await page.locator('a[href^="/card/lease/"],a[href^="/card/unit/"]').count(), 0);
+    await expect(lease).toBeDisabled(); await expect(unit).toBeDisabled();
+    await expect(page.locator('a[href^="/card/lease/"],a[href^="/card/unit/"]')).toHaveCount(0);
     await page.locator('[data-fixture-state="denied"]').click();
     await page.locator('[data-testid="state-denied"]').waitFor();
-    assert.equal(await page.locator('[data-testid^="kpi."][data-missing="true"]').count(), 4);
-    assert.equal(await page.locator(".cc-occupancy-history svg.recharts-surface").count(), 0);
+    await expect(page.locator('[data-testid^="kpi."][data-missing="true"]')).toHaveCount(4);
+    await expect(page.locator(".cc-occupancy-history svg.recharts-surface")).toHaveCount(0);
     await page.screenshot({ path: path.join(artifacts, `dashboard-${width}-denied.png`), fullPage: true });
     await page.locator('[data-fixture-state="missing"]').click();
-    assert.equal(await page.locator('[data-testid^="kpi."][data-missing="true"]').count(), 4);
-    assert.equal(await page.locator(".cc-occupancy-history").getByText("No trend data reported", { exact: true }).count(), 1);
+    await expect(page.locator('[data-testid^="kpi."][data-missing="true"]')).toHaveCount(4);
+    await expect(page.locator(".cc-occupancy-history").getByText("No trend data reported for this period.", { exact: true })).toBeVisible();
     receipt.viewports.push({ width, height: 1000, chartBox, targets, overflow,
       checks: ["90_vs91_day_records", "unit_status_records", "keyboard_focus", "refresh_suppression", "denied_cache", "unknown_values"] });
   }

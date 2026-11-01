@@ -46,6 +46,7 @@ export function DashboardView({ query, leases, units, today = "Planning date not
     </header>
 
     <div className="cc-source-line" data-testid="dashboard-freshness"><span className={"cc-source-dot " + (showFigures ? "is-ready" : "")} aria-hidden="true" /><strong>{sourceStatus}</strong><span>Source: portfolio summary feed. {showFigures ? updatedText : "Figures are not confirmed."}</span></div>
+    <p className="cc-source-note" data-testid="dashboard-provenance">Revenue (30d) is reported revenue, not net operating income or collected cash. Missing occupancy history is unavailable, not a trend. Work orders, invoices and reconciliation are not available until their sources are connected.</p>
 
     {status.mode === "failed" || unbound ? <div className="cc-connection-alert" role="alert" data-testid={status.failure === "denied" ? "state-denied" : "state-error"}>
       <ShieldAlert size={20} aria-hidden="true" /><div><strong>{failureTitle}</strong><p>{unbound ? "The workspace is running, but its protected data connection has not been configured. Retrying or refreshing the browser cannot create that connection. No operating figures are confirmed."
@@ -67,6 +68,10 @@ export function DashboardView({ query, leases, units, today = "Planning date not
       <KpiCard label="Occupancy" value={showFigures ? data.occupancyRate : null} format="percent" decimals={1} testId={DASHBOARD_KPI_TEST_IDS.OCCUPANCY} />
       <KpiCard label="Revenue (30d)" value={showFigures ? data.revenue30dCents : null} format="currencyCents" testId={DASHBOARD_KPI_TEST_IDS.REVENUE} />
     </div>
+    <nav className="cc-kpi-links" aria-label="Record review">
+      <Link href="/portfolio/properties" className="cc-secondary">Review property records</Link>
+      <Link href="/portfolio/units" className="cc-secondary">Review unit records</Link>
+    </nav>
 
     <div className={"cc-overview-layout" + (unbound && !showFigures ? " cc-overview-no-signal" : "")}>
       {(!unbound || showFigures) ? <section className="cc-signal cc-portfolio-signal" aria-labelledby="portfolio-signal-title"><header><div><p className="cc-overline">Portfolio signal</p><h2 id="portfolio-signal-title">Occupancy &amp; reported trend</h2></div></header>

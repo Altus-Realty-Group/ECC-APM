@@ -25,6 +25,8 @@ export default function CommandWorkSurface({ leases, units, today }: { leases?: 
   const unitVisible = unitRows?.filter(row => (unitStatus === "all" || unitStatusKey(row.status) === unitStatus) && (!needle || [row.unit, row.property, row.id, row.status].filter(Boolean).join(" ").toLowerCase().includes(needle))) ?? [];
   const groups = unitRows ? unitStatusGroups(unitRows) : [];
   const counts = LEASE_WINDOWS.map(item => ({ ...item, count: leaseRows?.filter(row => inLeaseWindow(row, item.key)).length ?? null }));
+  const leaseReviewCount = leaseRows?.filter(row => inLeaseWindow(row, "review")).length ?? null;
+  const missingStatusCount = unitRows?.filter(row => row.status === null).length ?? null;
   const max = Math.max(1, ...counts.map(item => item.count ?? 0));
   const canRead = tab === "leases" ? leaseRows !== null : unitRows !== null;
   const query = tab === "leases" ? leases : units;
@@ -34,6 +36,17 @@ export default function CommandWorkSurface({ leases, units, today }: { leases?: 
   const start = currentPage * 25;
   function chooseTab(value: "leases" | "units") { setTab(value); setSearch(""); setPage(0); }
   return <>
+    <section className="cc-next-review" aria-labelledby="next-review-title">
+      <header><p className="cc-overline">Choose the next record review</p><h2 id="next-review-title">Needs review in loaded records</h2><p className="cc-source-note">These counts cover the loaded collection, not every property. Work orders, invoices and payment verification remain unavailable.</p></header>
+      <div className="cc-next-review-actions">
+        <button type="button" data-review-action="lease-dates" disabled={leaseReviewCount === null} onClick={() => { setTab("leases"); setWindow("review"); setSearch(""); jumpToQueue(); }}>
+          <span><strong>Review lease dates</strong><small>Active leases: past end through 90 days</small></span><b>{leaseReviewCount === null ? "Not available" : `${leaseReviewCount} loaded records`}</b>
+        </button>
+        <button type="button" data-review-action="unit-status" disabled={missingStatusCount === null} onClick={() => { setTab("units"); setUnitStatus("missing"); setSearch(""); jumpToQueue(); }}>
+          <span><strong>Verify missing unit status</strong><small>Missing status does not establish availability</small></span><b>{missingStatusCount === null ? "Not available" : `${missingStatusCount} loaded records`}</b>
+        </button>
+      </div>
+    </section>
     {(leaseRows !== null || unitRows !== null) ? <div className="cc-record-signals">
       <section className="cc-signal" aria-labelledby="lease-horizon-title">
         <header><div><p className="cc-overline">Leasing exposure</p><h2 id="lease-horizon-title">Lease horizon</h2></div><Link href="/ops/ai/renewal-forecasting">Full review <span aria-hidden="true">↗</span></Link></header>

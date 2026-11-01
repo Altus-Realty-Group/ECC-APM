@@ -114,3 +114,19 @@
 @media(max-width:500px) { #ecc-app .cc-queue-scroll table { min-width:0; width:100%; } .cc-queue-scroll thead { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); } .cc-queue-scroll tbody,.cc-queue-scroll tr { display:block; } #ecc-app .cc-queue-scroll tr { border-bottom:1px solid var(--cc-line); padding:10px 14px; } #ecc-app .cc-queue-scroll td { display:block; border:0; padding:4px 0; } .cc-queue-scroll td:last-child { margin-top:6px; } .cc-record-action { width:100%; } }
 
 .cc-overview-no-signal { grid-template-columns:1fr; } .cc-overview-no-signal .cc-workflow-rail { padding:0; border:0; } .cc-overview-no-signal nav { grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:0 20px; }
+
+.cc-kpi-links { display: flex; gap: 8px; margin: 8px 0 16px; flex-wrap: wrap; }
+.cc-kpi-links a { min-height: 44px; display: inline-flex; align-items: center; padding: 0 12px; }
+.cc-next-review { display:grid; gap:12px; border-top:1px solid var(--cc-line); padding-top:18px; min-width:0; }
+.cc-next-review header { display:grid; gap:5px; }
+.cc-next-review-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.cc-next-review-actions button { display:flex; align-items:center; justify-content:space-between; gap:14px; min-height:80px; min-width:0; padding:16px; background:#171717; border:1px solid #545454; border-radius:6px; color:#f4f4f4; text-align:left; }
+.cc-next-review-actions strong { display:block; font-size:14px; }
+.cc-next-review-actions small { display:block; margin-top:5px; color:var(--cc-muted); font-size:12px; line-height:1.5; }
+.cc-next-review-actions b { color:var(--cc-gold); font-size:12px; white-space:nowrap; }
+.cc-next-review-actions button:hover:enabled { border-color:var(--cc-gold); background:#202020; }
+.cc-next-review-actions button:disabled { opacity:.65; cursor:not-allowed; }
+.cc-command :is(a,button,input,select,summary):focus-visible { outline:2px solid var(--cc-gold); outline-offset:3px; }
+@media (max-width:760px) { .cc-next-review-actions { grid-template-columns:1fr; } }
+@media (max-width:420px) { .cc-next-review-actions button { align-items:flex-start; flex-direction:column; gap:8px; } }
+@media (max-width: 420px) { .cc-kpi-links { flex-direction: column; } .cc-kpi-links a { width: 100%; justify-content: center; } }

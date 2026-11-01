@@ -23,3 +23,10 @@ Provenance note now uses operator language: Revenue (30d) is reported revenue, n
 
 ## Rollback
 Revert this commit on the branch.
+
+## Codex integration: source-backed review actions
+Added two explicit review controls in CommandWorkSurface: active loaded leases from past end through90 days, and loaded units missing reported status. Each selects the existing tab/filter, clears search, resets paging and requests focus on the record queue. Counts derive only from accepted loaded-row helpers; unavailable/refreshing sources disable the controls without substituting zero. Existing record links, figures, date semantics and source contracts are unchanged.
+
+Added responsive feature-local action layout and explicit gold focus-visible styling. Mounted tests activate both controls, check matching record links/filter values, search reset, focus/scroll requests through a labelled host double, epoch reset and suppression during refresh. This is behavior proof, not measured browser geometry.
+
+Local Playwright was available, but Chromium was absent. Installing its headless shell failed because the downloaded archives were empty/truncated (invalid ZIP); no browser measurements or screenshots are claimed. No dependency/lockfile change was made. Desktop/390px browser acceptance remains open for a working browser environment.

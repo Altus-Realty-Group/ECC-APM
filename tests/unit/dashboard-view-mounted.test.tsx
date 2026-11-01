@@ -25,13 +25,50 @@ const ready = () => normalizeDashboardKpis({ propertiesTotal: 4, unitsTotal: 40,
 const useFixtureLocation = (): [string, (to: string) => void] => ["/dashboard", () => {}];
 const tree = (props: Props) => <Router hook={useFixtureLocation}><DashboardView {...props} /></Router>;
 const text = (view: ReactTestRenderer) => JSON.stringify(view.toJSON());
-async function mount(props: Props) {
+async function mount(props: Props, hostCalls?: string[]) {
   let view!: ReactTestRenderer;
   await act(async () => { view = TestRenderer.create(tree(props), {
-    createNodeMock: () => ({ getBoundingClientRect: () => ({ width: 0, height: 0 }) }),
+    createNodeMock: () => ({ getBoundingClientRect: () => ({ width: 0, height: 0 }),
+      scrollIntoView: () => hostCalls?.push("scroll"), focus: () => hostCalls?.push("focus") }),
   }); });
   return view;
 }
+
+test("review actions select matching records, clear search and request queue focus", async () => {
+  const records = (data: unknown) => ({ data, isSuccess: true, isLoading: false, isFetching: false,
+    isError: false, error: null, refetch: () => {} });
+  const props: Props = { query: query(), today: "2026-11-01", epoch: 0,
+    leases: records([{ id: 1, status: "active", end: "2026-10-31" }, { id: 2, status: "active", end: "2026-11-15" },
+      { id: 3, status: "active", end: "2027-06-01" }, { id: 4, status: "ended", end: "2026-11-02" }]),
+    units: records([{ id: 11 }, { id: 12, status: "Vacant" }]) };
+  const hostCalls: string[] = [], view = await mount(props, hostCalls);
+  const hrefs = () => view.root.findAllByType("a").map(a => a.props.href);
+  try {
+    await act(async () => view.root.findByProps({ "aria-label": "Search review queue" }).props.onChange({ target: { value: "no-match" } }));
+    await act(async () => view.root.findByProps({ "data-review-action": "lease-dates" }).props.onClick());
+    assert.equal(view.root.findByProps({ "aria-label": "Search review queue" }).props.value, "");
+    assert.equal(view.root.findByProps({ "aria-label": "End-date window" }).props.value, "review");
+    for (const id of [1, 2]) assert.ok(hrefs().includes(`/card/lease/${id}`));
+    for (const id of [3, 4]) assert.ok(!hrefs().includes(`/card/lease/${id}`));
+    await act(async () => view.root.findByProps({ "data-review-action": "unit-status" }).props.onClick());
+    assert.equal(view.root.findByProps({ "aria-label": "Queue unit status" }).props.value, "missing");
+    assert.ok(hrefs().includes("/card/unit/11")); assert.ok(!hrefs().includes("/card/unit/12"));
+    assert.deepEqual(hostCalls, ["scroll", "focus", "scroll", "focus"]);
+    await act(async () => view.update(tree({ ...props, epoch: 1 })));
+    assert.equal(view.root.findByProps({ "aria-label": "End-date window" }).props.value, "review");
+  } finally { await act(async () => view.unmount()); }
+});
+
+test("review actions hide cached counts and disable selection while record reads refresh", async () => {
+  const cached = { data: [{ id: 1, status: "active", end: "2026-11-15" }], isSuccess: true,
+    isLoading: false, isFetching: true, isError: false, error: null, refetch: () => {} };
+  const view = await mount({ query: query(), leases: cached, units: cached, today: "2026-11-01" });
+  try {
+    for (const key of ["lease-dates", "unit-status"])
+      assert.equal(view.root.findByProps({ "data-review-action": key }).props.disabled, true);
+    assert.doesNotMatch(text(view), /1 loaded records|\/card\/lease\/1|\/card\/unit\/1/);
+  } finally { await act(async () => view.unmount()); }
+});
 const metric = (view: ReactTestRenderer, id: string) => view.root.findByProps({ "data-testid": id });
 const missing = (view: ReactTestRenderer) => {
   for (const id of ["kpi.properties", "kpi.units", "kpi.occupancy", "kpi.revenue"])

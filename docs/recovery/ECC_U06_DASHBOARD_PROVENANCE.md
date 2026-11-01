@@ -1,19 +1,22 @@
-# ECC U06 operator cockpit — provenance labels
+# ECC U06 operator cockpit — operator language and KPI proof
 
 **PR:** #195  
 **Branch:** codex/ecc-u06-operator-cockpit-20261101  
-**Base:** 790ec073976e1dd764f6518760b11311c8b5eb9d  
+**Head:** after this commit  
 
 ## Change
-Added an explicit provenance note on the dashboard: Revenue (30d) is reported revenue in cents, not NOI or collected cash. Missing occupancy history is unavailable, not a trend. Work, invoice and reconciliation producers are not bound.
+Provenance note now uses operator language: Revenue (30d) is reported revenue, not net operating income or collected cash. Missing occupancy history is unavailable, not a trend. Work orders, invoices and reconciliation are not available until their sources are connected. Implementation vocabulary (“cents”, “producers”) removed from the operator-facing note.
 
-## Preserved
-kpiAdapter semantics: property/unit counts, occupancy fraction, revenue30dCents, reported occupancy history. Null remains unknown, never zero.
+## Proof
+- KpiCard renders reported revenue and keeps missing unknown (not $0.00).
+- Occupancy fraction renders as percent, not a count.
+- Dashboard source contains verified drilldowns (Review properties, Review leases).
+- Typecheck pass.
 
 ## Limitations
-- 390px viewport resize remains unsupported by available browser tooling. Source CSS is not measured acceptance.
-- No live data. Unaccepted work/invoice/reconciliation producers remain unavailable.
-- Company workspace is not mounted.
+- Full DashboardView mounted render is blocked by page-local CSS import under node:test. Pure KpiCard and source assertions are the retained proof.
+- 390px viewport resize remains unsupported. Source CSS is not measured acceptance.
+- No live data.
 
 ## Rollback
-Revert the provenance commit on this branch.
+Revert this commit on the branch.

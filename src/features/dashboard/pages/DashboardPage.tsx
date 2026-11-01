@@ -68,6 +68,10 @@ export function DashboardView({ query, leases, units, today = "Planning date not
       <KpiCard label="Occupancy" value={showFigures ? data.occupancyRate : null} format="percent" decimals={1} testId={DASHBOARD_KPI_TEST_IDS.OCCUPANCY} />
       <KpiCard label="Revenue (30d)" value={showFigures ? data.revenue30dCents : null} format="currencyCents" testId={DASHBOARD_KPI_TEST_IDS.REVENUE} />
     </div>
+    <nav className="cc-kpi-links" aria-label="Record review">
+      <Link href="/portfolio/properties" className="cc-secondary">Review property records</Link>
+      <Link href="/portfolio/units" className="cc-secondary">Review unit records</Link>
+    </nav>
 
     <div className={"cc-overview-layout" + (unbound && !showFigures ? " cc-overview-no-signal" : "")}>
       {(!unbound || showFigures) ? <section className="cc-signal cc-portfolio-signal" aria-labelledby="portfolio-signal-title"><header><div><p className="cc-overline">Portfolio signal</p><h2 id="portfolio-signal-title">Occupancy &amp; reported trend</h2></div></header>

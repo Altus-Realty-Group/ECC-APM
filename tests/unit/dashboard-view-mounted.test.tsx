@@ -114,3 +114,12 @@ test("mounted refresh invokes supplied reads and prevents another refresh while 
     assert.equal(busy.props.disabled, true);
   } finally { await act(async () => view.unmount()); }
 });
+
+test("KPI strip includes property and unit record-review links", async () => {
+  const view = await mount({ query: query({ data: ready() }) });
+  const json = text(view);
+  assert.match(json, /Review property records/);
+  assert.match(json, /Review unit records/);
+  assert.match(json, /\/portfolio\/properties/);
+  assert.match(json, /\/portfolio\/units/);
+});

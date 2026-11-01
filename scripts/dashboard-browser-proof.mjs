@@ -39,6 +39,7 @@ try {
     await chart.waitFor();
     const chartBox = await chart.boundingBox();
     assert.ok(chartBox && chartBox.width > 0 && chartBox.height > 0, "Reported history chart has no geometry");
+    await page.screenshot({ path: path.join(artifacts, `dashboard-${width}-ready.png`) });
     const lease = page.locator('[data-review-action="lease-dates"]');
     await lease.click();
     await expect(page.locator('[aria-label="End-date window"]')).toHaveValue("review");
@@ -58,7 +59,7 @@ try {
     }
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
     assert.ok(overflow <= 1, `Horizontal page overflow at${width}px: ${overflow}`);
-    await page.screenshot({ path: path.join(artifacts, `dashboard-${width}-ready.png`), fullPage: true });
+    await page.screenshot({ path: path.join(artifacts, `dashboard-${width}-queue.png`) });
     await page.locator('[data-fixture-state="refreshing"]').click();
     await expect(lease).toBeDisabled(); await expect(unit).toBeDisabled();
     await expect(page.locator('a[href^="/card/lease/"],a[href^="/card/unit/"]')).toHaveCount(0);
@@ -66,11 +67,11 @@ try {
     await page.locator('[data-testid="state-denied"]').waitFor();
     await expect(page.locator('[data-testid^="kpi."][data-missing="true"]')).toHaveCount(4);
     await expect(page.locator(".cc-occupancy-history svg.recharts-surface")).toHaveCount(0);
-    await page.screenshot({ path: path.join(artifacts, `dashboard-${width}-denied.png`), fullPage: true });
+    await page.screenshot({ path: path.join(artifacts, `dashboard-${width}-denied.png`) });
     await page.locator('[data-fixture-state="missing"]').click();
     await expect(page.locator('[data-testid^="kpi."][data-missing="true"]')).toHaveCount(4);
     await expect(page.locator(".cc-occupancy-history").getByText("No trend data reported for this period.", { exact: true })).toBeVisible();
-    receipt.viewports.push({ width, height: 1000, chartBox, targets, overflow,
+    receipt.viewports.push({ width, height: 1000, chartBox, targets, overflow, viewportScreenshots: true,
       checks: ["90_vs91_day_records", "unit_status_records", "keyboard_focus", "refresh_suppression", "denied_cache", "unknown_values"] });
   }
   assert.deepEqual(receipt.consoleErrors, []); assert.deepEqual(receipt.pageErrors, []); assert.deepEqual(receipt.rejectedRequests, []);

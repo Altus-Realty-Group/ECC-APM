@@ -14,9 +14,12 @@ Provenance note now uses operator language: Revenue (30d) is reported revenue, n
 - Typecheck pass.
 
 ## Limitations
-- Full DashboardView mounted render is blocked by page-local CSS import under node:test. Pure KpiCard and source assertions are the retained proof.
+- The earlier CSS-loader blocker is resolved: the existing test runner already imports tests/unit/register-css.mjs. Codex added six actual DashboardView mounted tests in dashboard-view-mounted.test.tsx, using the existing renderer, an isolated router and a labelled ResizeObserver/zero-size host-box double.
+- Mounted proof covers reported values/history-table observations, missing versus zero, partial/loading/empty/error states, cached-data suppression on denial, stale/failed refresh and refresh callbacks/disabled state. It does not prove SVG geometry or real browser layout: the zero-size box deliberately supplies no chart measurement.
+- Direct command: node --import tsx --import ./tests/unit/register-css.mjs --test tests/unit/dashboard-view-mounted.test.tsx. The normal npm run test:unit entry already supplies this CSS hook.
 - 390px viewport resize remains unsupported. Source CSS is not measured acceptance.
 - No live data.
+- The requested visual/workflow redesign remains unfinished; these tests resolve a proof gap rather than certify U06 complete.
 
 ## Rollback
 Revert this commit on the branch.

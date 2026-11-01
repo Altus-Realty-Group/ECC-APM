@@ -46,6 +46,7 @@ export function DashboardView({ query, leases, units, today = "Planning date not
     </header>
 
     <div className="cc-source-line" data-testid="dashboard-freshness"><span className={"cc-source-dot " + (showFigures ? "is-ready" : "")} aria-hidden="true" /><strong>{sourceStatus}</strong><span>Source: portfolio summary feed. {showFigures ? updatedText : "Figures are not confirmed."}</span></div>
+    <p className="cc-source-note" data-testid="dashboard-provenance">Revenue (30d) is reported revenue in cents, not NOI or collected cash. Missing occupancy history is unavailable, not a trend. Work, invoice and reconciliation producers are not bound.</p>
 
     {status.mode === "failed" || unbound ? <div className="cc-connection-alert" role="alert" data-testid={status.failure === "denied" ? "state-denied" : "state-error"}>
       <ShieldAlert size={20} aria-hidden="true" /><div><strong>{failureTitle}</strong><p>{unbound ? "The workspace is running, but its protected data connection has not been configured. Retrying or refreshing the browser cannot create that connection. No operating figures are confirmed."

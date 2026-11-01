@@ -1,0 +1,69 @@
+{
+  "date": "2026-11-01 America/Chicago",
+  "project": "ECC APM V1.0",
+  "pr": 190,
+  "validated_parent": "05bd121b4d9cd7a354904e5a25b89a3f766fa0a2",
+  "base": "bbfb876bb9003ca831d07d2f385d158a54283658",
+  "source_only": true,
+  "adapter": "UNBOUND",
+  "route_mounted": false,
+  "tests": {
+    "focused": {
+      "pass": 15,
+      "fail": 0
+    },
+    "mounted": {
+      "pass": 9,
+      "fail": 0,
+      "parent_failures_with_same_test": 5
+    },
+    "full_unit": {
+      "files": 52,
+      "pass": 366,
+      "fail": 0,
+      "skipped": 0
+    },
+    "dependency_compatibility": {
+      "pass": 16,
+      "fail": 0
+    }
+  },
+  "typecheck": "PASS",
+  "build": "PASS_EXISTING_LARGE_CHUNK_ADVISORY",
+  "browser_390px": "NOT_RUN_CHROMIUM_UNAVAILABLE",
+  "live_provider_database_acceptance": false,
+  "changes": {
+    "production_dependencies": 0,
+    "exact_development_dependencies": [
+      "react-test-renderer@18.3.1",
+      "@types/react-test-renderer@18.3.1"
+    ],
+    "new_workflows_jobs_or_triggers": 0
+  },
+  "hashes": [
+    {
+      "path": "package.json",
+      "sha256": "36e5d40d38c9a582281998b7cfdf0355c2899c3d2e61539e5b4bc5cde28719fa"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "8af32820a0fa041ee7f576e92ff0174fbf77a835885bd42d83c4995c731350b2"
+    },
+    {
+      "path": "src/features/owners/company-workspace/CompanyWorkspace.tsx",
+      "sha256": "b15607c158a77e3cad59991b6730e705b15fcba3d572cf647c6f42bea42197e4"
+    },
+    {
+      "path": "tests/unit/owner-company-workspace-mounted.test.tsx",
+      "sha256": "71e72b2d7ab960aa24a9f880e4b8c83e9c66efce769f2c012e89a485db87dfeb"
+    },
+    {
+      "path": "docs/recovery/ECC_U01_COMPANY_WORKSPACE.md",
+      "sha256": "e1ee98bda818f239da1b85f98f13282e0c9199ec5c735edfa31124fd90103748"
+    },
+    {
+      "path": "docs/database/DATABASE_ARCHITECTURE.md",
+      "sha256": "f0cf84ce11b4c937da0d5fdd8a4ff134dc6112297468ce41e39975a543b3d504"
+    }
+  ]
+}

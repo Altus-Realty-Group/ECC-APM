@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import StateNotice from "@/components/ui/StateNotice";
-import { useSessionEpoch } from "@/lib/sessionScope";
+import { getSessionEpoch, useSessionEpoch } from "@/lib/sessionScope";
 import type { CompanyMembership, CompanyWorkspaceState, WorkspaceContext } from "./types";
 import type { CompanyWorkspaceAdapter } from "./adapter";
 import { selectCompany } from "./adapter";
@@ -12,34 +12,51 @@ type Props = {
   customerId?: string | null;
 };
 
+type Snapshot = {
+  adapter: CompanyWorkspaceAdapter;
+  context: WorkspaceContext;
+  state: CompanyWorkspaceState;
+  selectedId: string | null;
+};
+
 export default function CompanyWorkspace({ adapter, customerId = null }: Props) {
   const sessionEpoch = useSessionEpoch();
-  const context: WorkspaceContext = { sessionEpoch, customerId };
-  const [state, setState] = useState<CompanyWorkspaceState>({ kind: "loading" });
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const context = useMemo<WorkspaceContext>(() => ({ sessionEpoch, customerId }), [sessionEpoch, customerId]);
+  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const epoch = useRef(0);
   const controllerRef = useRef<AbortController | null>(null);
 
-  const load = () => {
+  // Suppress old data during render, before the replacement effect can run.
+  const currentSnapshot = snapshot?.adapter === adapter && snapshot.context === context ? snapshot : null;
+  const state: CompanyWorkspaceState = currentSnapshot?.state ?? { kind: "loading" };
+  const selectedId = currentSnapshot?.selectedId ?? null;
+
+  const load = useCallback(() => {
     controllerRef.current?.abort();
     const current = ++epoch.current;
+    if (getSessionEpoch() !== context.sessionEpoch) return;
     const controller = new AbortController();
     controllerRef.current = controller;
-    setState({ kind: "loading" });
-    setSelectedId(null);
-    void adapter.load(context, controller.signal).then((next) => {
-      if (current !== epoch.current) return;
-      setState(next);
+    setSnapshot({ adapter, context, state: { kind: "loading" }, selectedId: null });
+    const isCurrent = () => current === epoch.current && !controller.signal.aborted && getSessionEpoch() === context.sessionEpoch;
+    // Also contain a synchronous throw from a future adapter implementation.
+    void Promise.resolve().then(() => {
+      if (!isCurrent()) return null;
+      return adapter.load(context, controller.signal);
+    }).then((next) => {
+      if (!next || !isCurrent()) return;
+      let nextSelectedId: string | null = null;
       if (next.kind === "ready") {
         const visible = next.memberships.filter((m) => m.role !== "denied");
         const { selected, denied } = selectCompany(visible, next.selectedId ?? "");
-        setSelectedId(denied ? null : selected?.companyId ?? null);
+        nextSelectedId = denied ? null : selected?.companyId ?? null;
       }
+      setSnapshot({ adapter, context, state: next, selectedId: nextSelectedId });
     }).catch(() => {
-      if (current !== epoch.current) return;
-      setState({ kind: "error", message: "Company workspace could not be loaded." });
+      if (!isCurrent()) return;
+      setSnapshot({ adapter, context, state: { kind: "error", message: "Company workspace could not be loaded." }, selectedId: null });
     });
-  };
+  }, [adapter, context]);
 
   useEffect(() => {
     load();
@@ -47,16 +64,14 @@ export default function CompanyWorkspace({ adapter, customerId = null }: Props) 
       controllerRef.current?.abort();
       epoch.current++;
     };
-  }, [adapter, sessionEpoch, customerId]);
+  }, [load]);
 
   const onSelect = (id: string) => {
-    if (state.kind !== "ready") return;
+    if (state.kind !== "ready" || getSessionEpoch() !== context.sessionEpoch) return;
     const { denied } = selectCompany(state.memberships, id);
-    if (denied) {
-      setSelectedId(null);
-      return;
-    }
-    setSelectedId(id);
+    setSnapshot((previous) => previous?.adapter === adapter && previous.context === context
+      ? { ...previous, selectedId: denied ? null : id }
+      : previous);
   };
 
   if (state.kind === "loading") {
@@ -83,7 +98,7 @@ export default function CompanyWorkspace({ adapter, customerId = null }: Props) 
       </div>
     );
   }
-  if (state.kind === "empty" || state.memberships.length === 0) {
+  if (state.kind === "empty" || !state.memberships.some((m) => m.role !== "denied")) {
     return (
       <div className="ecc-company-workspace">
         <StateNotice kind="empty" title="No companies are available." />

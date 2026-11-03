@@ -42,7 +42,7 @@
     "cors": "^2.8.5",
     "cross-env": "^10.0.0",
     "date-fns": "^4.4.0",
-    "dayjs": "^1.11.18",
+    "dayjs": "^1.11.23",
     "dotenv": "^18.0.9",
     "drizzle-kit": "^0.31.4",
     "drizzle-orm": "^0.45.4",

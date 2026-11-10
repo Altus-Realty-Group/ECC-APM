@@ -63,7 +63,8 @@ import DashboardPage from "./features/dashboard/pages/DashboardPage";
 // DataHub Page
 import DataHub from "./pages/DataHub";
 import OperationsRecoveryPage from "./features/recovery/operations/OperationsRecoveryPage";
-import LegalCaseManagerPage from "./features/recovery/operations/LegalCaseManagerPage";
+import LegalCaseManagerPage from "./features/legal/pages/LegalCaseManagerPage";
+import LegalMatterCard from "./features/legal/components/LegalMatterCard";
 import WorkOrdersPage from "./features/recovery/operations/WorkOrdersPage";
 import TenantLedgersPage from "./features/recovery/operations/TenantLedgersPage";
 
@@ -126,6 +127,7 @@ export default function App() {
             <Route path="/ops/ai/vacancy-analytics" component={VacancyReviewPage} />
             <Route path="/ops/ai/renewal-forecasting" component={RenewalPlanningPage} />
             <Route path="/ops/legal/case-manager" component={LegalCaseManagerPage} />
+            <Route path="/ops/legal/matters/:id">{() => <LegalMatterCard matter={null} invalid />}</Route>
             <Route path="/ops/maintenance/work-orders" component={WorkOrdersPage} />
             <Route path="/ops/accounting/tenant-ledgers" component={TenantLedgersPage} />
 

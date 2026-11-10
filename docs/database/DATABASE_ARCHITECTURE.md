@@ -306,3 +306,28 @@ The unmounted company-workspace feature owns only an in-memory display snapshot,
 No database table/view/RPC, schema, provider or DB writer, persistent cache, backend endpoint or new identity authority is introduced (net objects added:0). Reusing component-local state and the existing session seam is sufficient for this unbound frontend slice; a new store/table is not justified. The adapter contract is a proposed frontend view/request model, not an accepted membership producer or server authorization transport. No route is mounted and no live query/access/performance claim is made.
 
 Nine mounted synthetic lifecycle cases plus six existing focused tests pass; the full366-test unit suite, typecheck and build pass locally. react-test-renderer18.3.1 and its types are exact dev-only dependencies. Browser390px/device proof and actual producer/route integration remain separate gates. See docs/recovery/ECC_U01_COMPANY_WORKSPACE.md and ECC_U01_SOURCE_VALIDATION_20261101.json. Rollback is a source/dev-dependency revert, never a database migration.
+
+## ECC-native Legal Operations planning - 2026-11-10
+
+Dion requested ECC-owned legal dashboard/case/collections workflows independent
+of DoorLoop legal feeds. Read-only AltusCommandCenter census found existing
+public.legal_cases, legal_case_events, case_history, case_tags and two staging
+models. Cases/events/history/tags and UUID staging contain zero rows; the distinct
+integer-based legal_cases_import_staging contains216legacy rows. RLS is enabled
+on all six tables, with no policies observed. This is not accepted authorization.
+
+Two case_type CHECK constraints disagree, a global case_number uniqueness lacks
+jurisdiction, and staging/core UUID versus integer IDs need explicit crosswalks.
+Reuse files/file_assets/tasks/audit structures only after grain/consumer review.
+No table, grant, write path, endpoint or producer gate is changed by this PR.
+
+The source-only offline workbook preview reads27preliminary matters and81unique
+requirements; duplicate workbook references retain provenance without162tasks.
+All81money cells stay null;207historical file-count snapshot versus206handoff
+reference remains unresolved. No judgment or document records are created.
+Native legal backend source/runtime placement is an explicit L1/A1 ADR prerequisite
+under the existing frontend ownership boundary, not an inferred reactivation of
+historical handlers. See docs/legal/LEGAL_OPERATIONS_PRODUCT_SPEC_20261110.md and
+docs/work-orders/ECC_LAUNCH_AND_NATIVE_LEGAL_20261110.md for ownership, reuse,
+contracts, actor boundaries, target PRs and acceptance. Source datasets remain
+private and outside the repository. Production adoption remains unverified.

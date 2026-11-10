@@ -56,6 +56,14 @@ Record applicability for existing and future scenarios, zero/null semantics, who
 
 Record retention and dependency proof before retirement. Link larger decisions to existing ADRs or docs/database/decisions/. Preserve financial/legal custody.
 
+## Native legal domain (L1, issue #214) - proposal
+
+Evidence classes are kept separate. **Read-only live metadata (2026-11-10)**: `legal_cases` (uuid PK, FKs to `id_uuid`), two overlapping `case_type` CHECKs, global UNIQUE NOT NULL `case_number`, `legal_case_events`/`case_history`/`case_tags` without FKs, anon/authenticated DML grants relying on RLS default-deny, no company tables. **Source-only (this PR, not applied)**: `docs/legal/schema/001_native_legal_foundation.proposal.sql`, `shared/legal/contracts.ts`, ADR `docs/legal/adr/ADR-0001-native-legal-source-and-runtime-ownership.md`, model `docs/legal/LEGAL_NATIVE_MODEL_20261110.md`; proven only on a local PostgreSQL 16 reconstruction (`npm run test:legal-db`). **Unverified**: installed behaviour, central grant mapping, legacy staging contents.
+
+| Decision / affected objects | Reuse alternatives / rationale | Added / changed / retired | Consumer sequence / compatibility owner and removal trigger | PR / evidence |
+| --- | --- | --- | --- | --- |
+| Native legal model on `legal_cases` | Reuse existing matter root; no parallel UI-card tables | Proposed: parties, property links, awards, obligors, evidence requirements/refs, source links; one case_type union; scope_ref, docket identity, revision; append-only journal; runtime role | Server rewiring and migration apply are separate PRs. Compatibility owner: ECC backend. `case_history` retired only after dependency proof | L1 draft PR; source and local tests only |
+
 ## Verification and open work
 
 - Complete the affected-domain inventory from actual source and verified database evidence when available.

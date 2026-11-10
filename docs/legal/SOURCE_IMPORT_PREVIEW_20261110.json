@@ -1,0 +1,40 @@
+{
+  "format": "ecc.legal-intake.preview.v1",
+  "source_hashes": {
+    "master": "096487a82814bb30c041e77bdc8dcda8742ecfc443ab56b9373e5ab72ccdbf3d",
+    "requirements": "f2d86bb34b6e1af96a65c5cca7d0a73e07b9ca70211f2ce58bf4366d3a43f2c5"
+  },
+  "summary": {
+    "matter_rows": 27,
+    "unique_requirement_rows": 81,
+    "input_requirement_rows": 162,
+    "duplicate_requirement_rows": 81,
+    "requirements_with_multiple_sources": 81,
+    "folder_summary_rows": 27,
+    "document_records_to_create": 0,
+    "matter_file_count_snapshot": 207,
+    "folder_file_count_snapshot": 207,
+    "reference_evidence_count": 206,
+    "missing_monetary_cells": {
+      "Original judgment ($)": 27,
+      "Total payments ($)": 27,
+      "Remaining balance ($)": 27
+    },
+    "source_judgment_verification_counts": {
+      "NO": 27
+    },
+    "source_requirement_status_counts": {
+      "OPEN": 81
+    },
+    "missing_docket_rows": 27,
+    "missing_court_rows": 27,
+    "missing_creditor_rows": 27,
+    "verified_judgments_created": 0,
+    "verified_collectible_balance_cents": null,
+    "database_writes": 0,
+    "provider_calls": 0,
+    "warnings": [
+      "HISTORICAL_SNAPSHOT_DIFFERS_FROM_REFERENCE_INVENTORY"
+    ]
+  }
+}

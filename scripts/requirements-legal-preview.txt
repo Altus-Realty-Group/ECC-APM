@@ -1,0 +1,2 @@
+# Offline operator tooling only; not an ECC browser/runtime dependency.
+openpyxl==3.1.5

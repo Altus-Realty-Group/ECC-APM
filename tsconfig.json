@@ -43,6 +43,7 @@
     "src",
     "src/types",
     "server/**/*",
-    "src/**/*"
+    "src/**/*",
+    "shared/authz"
   ]
 }

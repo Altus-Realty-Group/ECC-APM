@@ -56,6 +56,14 @@ Record applicability for existing and future scenarios, zero/null semantics, who
 
 Record retention and dependency proof before retirement. Link larger decisions to existing ADRs or docs/database/decisions/. Preserve financial/legal custody.
 
+## Protected-read authorization context (A1, issue #211) - source only
+
+Evidence classes are separate. **Read-only source references**: the Control Plane current-session contract (`3d9aaf27`) admits a person, account and application only; company/lane memberships exist only as a *proposed* workforce contract; retained PR #155 (`54e42095`) is evidence, not an activation target. **Source-only (this PR)**: `shared/authz/` (admission, resource-grant validation, explicit `scope_ref` binding registry with an empty default, fail-closed read decision, transaction-local context seam), ADR-0002 and `docs/security/PROTECTED_READ_AND_RESOURCE_AUTHORIZATION_20261111.md`; proven by unit tests, a reusable conformance suite and a local PostgreSQL seam test. **Unverified / not done**: any resource-grant producer, a `scope_ref` registry source, live Control Plane registration, runtime role credentials, and the L1 schema application. Custom `ecc.*` settings filter a trusted server-supplied context and do not authenticate grants; the seam refuses superuser/`BYPASSRLS` connections and never uses session-level settings.
+
+| Decision / affected objects | Reuse alternatives / rationale | Added / changed / retired | Consumer sequence / compatibility owner and removal trigger | PR / evidence |
+| --- | --- | --- | --- | --- |
+| Consumer-side protected-read boundary | Reuses the `ReadActorResolver` seam and `sessionScope` epoch; PR #155 transport not reintroduced | Added `shared/authz/*`; no table, role, grant or config | Server binding and registry source are separate PRs owned by Codex; removal trigger: replaced by an accepted producer wiring that passes the same conformance suite | A1 draft PR; source and local tests only |
+
 ## Verification and open work
 
 - Complete the affected-domain inventory from actual source and verified database evidence when available.

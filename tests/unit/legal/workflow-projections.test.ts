@@ -79,3 +79,27 @@ test("outcomes are returned for unavailable missing denied stale conflict", () =
   ];
   for (const o of outcomes) assert.ok(o.kind);
 });
+
+test("rejects missing collections and null rows", () => {
+  assert.equal(validateProjection({ matter, evidence: null }).kind, "conflict");
+  assert.equal(validateProjection({ matter, evidence: [null], requirements: [], courtEvents: [], awards: [] }).kind, "conflict");
+  assert.equal(validateProjection({ matter, requirements: 42, evidence: [], courtEvents: [], awards: [] }).kind, "conflict");
+});
+
+test("rejects invalid caseType and negative revision", () => {
+  const badType = { ...matter, caseType: "NOT_A_TYPE" };
+  assert.equal(validateProjection({ matter: badType, evidence: [], requirements: [], courtEvents: [], awards: [] }).kind, "conflict");
+  const badRev = { ...matter, revision: -1 };
+  assert.equal(validateProjection({ matter: badRev, evidence: [], requirements: [], courtEvents: [], awards: [] }).kind, "conflict");
+});
+
+test("rejects malformed requirement and negative award cents", () => {
+  const badReq = { id: "r1", matterId: "m1", description: "", assignedActor: 1, sourceDate: "bad", status: "nope" };
+  assert.equal(validateProjection({ matter, evidence: [], requirements: [badReq], courtEvents: [], awards: [] }).kind, "conflict");
+  const badAward = { id: "a1", matterId: "m1", kind: "rent", amountCents: -1, currency: "USD", judgmentVerification: "verified", collectionReadiness: "ready", revision: 1, obligors: [] };
+  assert.equal(validateProjection({ matter, evidence: [], requirements: [], courtEvents: [], awards: [badAward] }).kind, "conflict");
+});
+
+test("rejects court event without id", () => {
+  assert.equal(validateProjection({ matter, evidence: [], requirements: [], courtEvents: [{ matterId: "m1", date: null }], awards: [] }).kind, "conflict");
+});

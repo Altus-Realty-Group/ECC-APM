@@ -1,5 +1,5 @@
 import type { LegalMatter, LegalAward } from "../contracts";
-import { CONFIDENCE, VERIFICATIONS, READINESS, LIFECYCLES } from "../contracts";
+import { parseMatter, parseAward, parseMoney, CONFIDENCE, LegalContractError } from "../contracts";
 
 /** Provisional workflow types. Not an accepted producer contract. */
 
@@ -53,59 +53,111 @@ function isRealIsoDate(v: string | null): boolean {
   return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
 }
 
-/** Validate whole projection against its matter. Reject wrong-matter children, conflicting duplicate IDs and malformed dimensions. */
+function asArray(v: unknown, name: string): unknown[] | null {
+  if (!Array.isArray(v)) return null;
+  return v;
+}
+
+function asObject(v: unknown): Record<string, unknown> | null {
+  if (typeof v !== "object" || v === null || Array.isArray(v)) return null;
+  return v as Record<string, unknown>;
+}
+
+/** Accept unknown input. Validate runtime shapes before dereferencing. Return whitelisted output. */
 export function validateProjection(input: unknown): ProjectionOutcome {
-  if (input === null || typeof input !== "object") return { kind: "conflict", reason: "projection is not an object" };
-  const p = input as WorkflowProjection;
-  if (!p.matter || typeof p.matter.id !== "string") return { kind: "conflict", reason: "matter is missing" };
-  if (!(LIFECYCLES as readonly string[]).includes(p.matter.lifecycle)) return { kind: "conflict", reason: "matter lifecycle is not allowed" };
-  const mid = p.matter.id;
+  const root = asObject(input);
+  if (!root) return { kind: "conflict", reason: "projection is not an object" };
+
+  let matter: LegalMatter;
+  try { matter = parseMatter(root.matter); }
+  catch { return { kind: "conflict", reason: "matter is invalid" }; }
+
+  const evidenceRaw = asArray(root.evidence, "evidence");
+  const requirementsRaw = asArray(root.requirements, "requirements");
+  const courtRaw = asArray(root.courtEvents, "courtEvents");
+  const awardsRaw = asArray(root.awards, "awards");
+  if (!evidenceRaw || !requirementsRaw || !courtRaw || !awardsRaw) return { kind: "conflict", reason: "collection is missing" };
+
   const ids = new Set<string>();
-  for (const child of [...p.evidence, ...p.requirements, ...p.courtEvents, ...p.awards]) {
-    if (child.matterId !== mid) return { kind: "conflict", reason: "wrong-matter child" };
-    if (ids.has(child.id)) return { kind: "conflict", reason: "duplicate id" };
-    ids.add(child.id);
+  const evidence: EvidenceRef[] = [];
+  for (const row of evidenceRaw) {
+    const o = asObject(row);
+    if (!o || typeof o.id !== "string" || o.matterId !== matter.id) return { kind: "conflict", reason: "evidence row is invalid" };
+    if (ids.has(o.id)) return { kind: "conflict", reason: "duplicate id" };
+    ids.add(o.id);
+    if (!(CONFIDENCE as readonly string[]).includes(o.confidence as string)) return { kind: "conflict", reason: "bad confidence" };
+    evidence.push({ id: o.id, matterId: matter.id, filename: typeof o.filename === "string" ? o.filename : null, url: typeof o.url === "string" ? o.url : null, restricted: o.restricted === true, confidence: o.confidence as EvidenceRef["confidence"] });
   }
-  for (const e of p.evidence) {
-    if (!(CONFIDENCE as readonly string[]).includes(e.confidence)) return { kind: "conflict", reason: "bad confidence" };
+
+  const requirements: Requirement[] = [];
+  for (const row of requirementsRaw) {
+    const o = asObject(row);
+    if (!o || typeof o.id !== "string" || o.matterId !== matter.id) return { kind: "conflict", reason: "requirement row is invalid" };
+    if (ids.has(o.id)) return { kind: "conflict", reason: "duplicate id" };
+    ids.add(o.id);
+    if (typeof o.description !== "string" || o.description.trim() === "") return { kind: "conflict", reason: "requirement description is invalid" };
+    if (o.assignedActor !== null && typeof o.assignedActor !== "string") return { kind: "conflict", reason: "requirement actor is invalid" };
+    if (o.sourceDate !== null && !isRealIsoDate(o.sourceDate as string)) return { kind: "conflict", reason: "requirement date is invalid" };
+    if (o.status !== "open" && o.status !== "resolved") return { kind: "conflict", reason: "requirement status is invalid" };
+    requirements.push({ id: o.id, matterId: matter.id, description: o.description, assignedActor: o.assignedActor as string | null, sourceDate: o.sourceDate as string | null, status: o.status });
   }
-  for (const a of p.awards) {
-    if (!(VERIFICATIONS as readonly string[]).includes(a.judgmentVerification)) return { kind: "conflict", reason: "bad verification" };
-    if (!(READINESS as readonly string[]).includes(a.collectionReadiness)) return { kind: "conflict", reason: "bad readiness" };
+
+  const courtEvents: CourtEvent[] = [];
+  for (const row of courtRaw) {
+    const o = asObject(row);
+    if (!o || typeof o.id !== "string" || o.matterId !== matter.id) return { kind: "conflict", reason: "court event is invalid" };
+    if (ids.has(o.id)) return { kind: "conflict", reason: "duplicate id" };
+    ids.add(o.id);
+    if (!isRealIsoDate(o.date as string | null)) return { kind: "conflict", reason: "court date is not a real calendar day" };
+    courtEvents.push({ id: o.id, matterId: matter.id, date: o.date as string | null, source: typeof o.source === "string" ? o.source : null, responsibleActor: typeof o.responsibleActor === "string" ? o.responsibleActor : null });
   }
-  for (const c of p.courtEvents) {
-    if (!isRealIsoDate(c.date)) return { kind: "conflict", reason: "court date is not a real calendar day" };
+
+  const awards: LegalAward[] = [];
+  for (const row of awardsRaw) {
+    const o = asObject(row);
+    if (!o) return { kind: "conflict", reason: "award row is invalid" };
+    // Accept normalized amount or wire amountCents. Do not turn recorded amounts into unknown.
+    const wire = { ...o, amountCents: o.amountCents ?? (o.amount && typeof o.amount === "object" ? (o.amount as { cents?: number }).cents : undefined), currency: o.currency ?? (o.amount && typeof o.amount === "object" ? (o.amount as { currency?: string }).currency : undefined) };
+    try {
+      const award = parseAward(wire);
+      if (award.matterId !== matter.id) return { kind: "conflict", reason: "wrong-matter award" };
+      if (ids.has(award.id)) return { kind: "conflict", reason: "duplicate id" };
+      ids.add(award.id);
+      awards.push(award);
+    } catch (e) {
+      if (e instanceof LegalContractError) return { kind: "conflict", reason: "award is invalid" };
+      return { kind: "conflict", reason: "award is invalid" };
+    }
   }
-  return { kind: "ready", projection: p };
+
+  return { kind: "ready", projection: { matter, evidence, requirements, courtEvents, awards } };
 }
 
-/** Evidence is default-deny unless restricted is explicitly false. Filter before search/count/metadata. */
+/** Validated consumption path. Conflicting input never produces trustworthy counts. */
+export function consumeProjection(input: unknown): ProjectionOutcome {
+  return validateProjection(input);
+}
+
 export function publicEvidence(evidence: EvidenceRef[]): EvidenceRef[] {
-  return evidence.filter((e) => e.restricted === false).map((e) => ({ ...e }));
+  return evidence.filter((e) => e.restricted === false);
 }
 
-/** All open missing requirements, including assigned ones. */
 export function openRequirements(requirements: Requirement[]): Requirement[] {
   return requirements.filter((r) => r.status === "open");
 }
 
-/** Unassigned subset only. Request-recipient wording is not an actor. */
 export function unassignedOpenRequirements(requirements: Requirement[]): Requirement[] {
   return openRequirements(requirements).filter((r) => !r.assignedActor);
 }
 
-/** Deduplicate unknown award counts by identity. Unknown amount remains unknown, not zero. */
 export function unknownAwardCount(awards: LegalAward[]): number {
-  const ids = new Set(awards.filter((a) => a.amount === null).map((a) => a.id));
-  return ids.size;
+  return new Set(awards.filter((a) => a.amount === null).map((a) => a.id)).size;
 }
 
 export function verifiedAwardCount(awards: LegalAward[]): number {
-  const ids = new Set(awards.filter((a) => a.judgmentVerification === "verified" && a.amount !== null).map((a) => a.id));
-  return ids.size;
+  return new Set(awards.filter((a) => a.judgmentVerification === "verified" && a.amount !== null).map((a) => a.id)).size;
 }
 
-/** Court events keep source and actor. Unknown date stays unknown. No deadline is calculated. */
 export function courtEventsWithSource(events: CourtEvent[]): CourtEvent[] {
   return events.map((e) => ({ ...e, date: e.date ?? null, source: e.source ?? null, responsibleActor: e.responsibleActor ?? null }));
 }

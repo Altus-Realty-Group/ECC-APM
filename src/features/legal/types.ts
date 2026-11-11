@@ -3,6 +3,7 @@
 export type LegalLifecycle = "intake" | "assembly" | "attorney-review" | "filed" | "court-activity" | "disposition" | "closed";
 export type JudgmentVerification = "none-known" | "alleged" | "order-located" | "court-verified" | "disputed" | "stayed" | "satisfied";
 export type CollectionReadiness = "missing-evidence" | "accounting" | "legal-review" | "approved-referral" | "enforcement" | "payment-plan" | "collected" | "no-further-action";
+export type EvidenceConfidence = "filename-hint" | "content-reviewed" | "signed-copy" | "docket-validated" | "attorney-confirmed";
 
 export type LegalMatter = {
   id: string;
@@ -15,8 +16,10 @@ export type LegalMatter = {
   creditor: string | null;
   propertyIds: string[];
   partyIds: string[];
+  awardId: string | null;
   awardCents: number | null;
   awardVerified: boolean;
+  evidenceConfidence: EvidenceConfidence;
   nextAction: string | null;
   sourceAsOf: string | null;
 };

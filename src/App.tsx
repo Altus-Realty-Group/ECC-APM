@@ -65,6 +65,7 @@ import DataHub from "./pages/DataHub";
 import OperationsRecoveryPage from "./features/recovery/operations/OperationsRecoveryPage";
 import LegalCaseManagerPage from "./features/legal/pages/LegalCaseManagerPage";
 import LegalMatterCard from "./features/legal/components/LegalMatterCard";
+import { unboundLegalAdapter } from "./features/legal/adapter";
 import WorkOrdersPage from "./features/recovery/operations/WorkOrdersPage";
 import TenantLedgersPage from "./features/recovery/operations/TenantLedgersPage";
 
@@ -127,7 +128,7 @@ export default function App() {
             <Route path="/ops/ai/vacancy-analytics" component={VacancyReviewPage} />
             <Route path="/ops/ai/renewal-forecasting" component={RenewalPlanningPage} />
             <Route path="/ops/legal/case-manager" component={LegalCaseManagerPage} />
-            <Route path="/ops/legal/matters/:id">{() => <LegalMatterCard matter={null} invalid />}</Route>
+            <Route path="/ops/legal/matters/:id" component={LegalMatterRoute} />
             <Route path="/ops/maintenance/work-orders" component={WorkOrdersPage} />
             <Route path="/ops/accounting/tenant-ledgers" component={TenantLedgersPage} />
 
@@ -185,4 +186,23 @@ export default function App() {
       </div>
     </div></EmailDraftProvider>
   );
+}
+
+function LegalMatterRoute() {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("id") ?? window.location.pathname.split("/").pop() ?? "";
+  const [matter, setMatter] = React.useState<import("./features/legal/types").LegalMatter | null>(null);
+  const [status, setStatus] = React.useState<"loading" | "ready" | "missing">("loading");
+  React.useEffect(() => {
+    let cancelled = false;
+    void unboundLegalAdapter().getMatter(id ?? "").then((m) => {
+      if (cancelled) return;
+      setMatter(m);
+      setStatus(m ? "ready" : "missing");
+    });
+    return () => { cancelled = true; };
+  }, [id]);
+  if (status === "loading") return <div className="ecc-legal">Loading matter…</div>;
+  if (status === "missing") return <LegalMatterCard matter={null} invalid />;
+  return <LegalMatterCard matter={matter} />;
 }

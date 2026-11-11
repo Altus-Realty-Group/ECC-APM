@@ -26,7 +26,7 @@ export default function LegalMatterCard({ matter, invalid }: Props) {
       <p className="ecc-legal-note">Award: {matter.awardVerified ? "verified" : "Not verified / Not reported"}. Joint awards counted once.</p>
       <div role="tablist" aria-label="Matter sections">
         {TABS.map((id) => (
-          <button key={id} type="button" role="tab" aria-selected={tab === id} className="ecc-btn ecc-touch" onClick={() => setTab(id)}>{id}</button>
+          <button key={id} type="button" role="tab" aria-selected={tab === id} tabIndex={tab === id ? 0 : -1} className="ecc-btn ecc-touch" onClick={() => setTab(id)}>{id}</button>
         ))}
       </div>
       <section role="tabpanel">

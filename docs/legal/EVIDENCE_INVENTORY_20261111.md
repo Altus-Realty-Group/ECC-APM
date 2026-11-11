@@ -22,16 +22,12 @@ The root directions name the company app-file standard. The reviewed version is
 `890cee159d58a2aaed6dd67385e254b924513962`, blob
 `5d410746937c23828dc3774989105c5c61cc40ad`.
 
-The intended hierarchy is:
-
-`Altus App Folder/ECC/Production/<Collection>/<Record>/<Category>/<Lifecycle>/<Document UUID>/<Filename>`
-
-Record and document identities must be registered before filing. An unresolved
-matter belongs in a registered, restricted Operations intake record until its
-business mapping is reviewed. A physical source folder is not a legal matter
-identity. Originals means unchanged imported bytes, retaining the received name
-as metadata. Delivery uses the standard's immutable revision filename and stores
-the original filename and source location privately in the registry.
+The replacement ECC layout follows Dion's instruction to mirror Assets Under
+Management: ECC/Production/Assets Under Management/<Ownership>/<Property>/
+the five existing property sections. The full linked plan supersedes this
+inventory's earlier canonical-category placement proposal. Source identities
+and provenance remain separate registry metadata; folder labels do not prove
+ownership or legal matter identity.
 
 The ECC app root and its Production folder were created and listed successfully
 on November 11. This proves folder creation, not a private document-delivery

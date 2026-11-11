@@ -13,6 +13,19 @@ using registered identities. Preserve all existing legal and property folders;
 intake is copy-only. No storage exception or live registry authorization is
 created by this document.
 
+## ECC layout correction - November 11, 2026
+
+Dion rejected the expanded canonical-category hierarchy and directed ECC to
+mirror Assets Under Management. ECC uses ownership name / property address /
+the existing five property subfolders, under ECC/Production/Assets Under
+Management. This explicit ECC instruction supersedes conflicting placement
+rules in the reproduced company standard below for ECC only. Preserve all
+original source folders; intake is copy-only. Keep identities, authorization,
+versions and delivery receipts in the registry behind the familiar hierarchy.
+The corrected local plan is [ECC folder layout](docs/legal/ECC_APP_FOLDER_LAYOUT_AND_ROLLOUT_20261111.md).
+The previously proposed canonical path builder is withdrawn; it is not a live
+integration. This does not amend sibling apps or the company standard.
+
 ## Local responsibility
 
 This repository adopts the common file organization specification below for its own applicable file work and locally maintained standards/templates. It records the owner's storage direction without assigning work or implementation authority over sibling projects. Product execution remains with the owning repository. No external project context needs to be loaded for this local adoption.

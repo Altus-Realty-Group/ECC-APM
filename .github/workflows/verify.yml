@@ -38,7 +38,7 @@ jobs:
           else
             echo 'run=false' >> "$GITHUB_OUTPUT"
           fi
-          git diff --name-only "$DASHBOARD_BASE_SHA...HEAD" -- src/features/legal src/App.tsx src/styles src/components/ui/StateNotice.tsx src/lib/dataState.ts src/lib/http.ts src/lib/queryClient.ts src/lib/sessionScope.ts tests/browser/legal-proof scripts/legal-browser-proof.mjs scripts/legal-proof-vite.config.mjs package.json package-lock.json .github/workflows/verify.yml > "$RUNNER_TEMP/legal-proof-changes.txt"
+          git diff --name-only "$DASHBOARD_BASE_SHA...HEAD" -- src/features/legal src/App.tsx src/components/Sidebar.tsx src/components/nav src/components/layout/WorkspaceBar.tsx src/config/navigation.ts public/brand src/styles src/components/ui/StateNotice.tsx src/lib/dataState.ts src/lib/http.ts src/lib/queryClient.ts src/lib/sessionScope.ts tests/browser/legal-proof scripts/legal-browser-proof.mjs scripts/legal-proof-vite.config.mjs package.json package-lock.json .github/workflows/verify.yml > "$RUNNER_TEMP/legal-proof-changes.txt"
           if [ -s "$RUNNER_TEMP/legal-proof-changes.txt" ]; then
             echo 'legal=true' >> "$GITHUB_OUTPUT"
           else

@@ -42,3 +42,7 @@ Rollback: revert the Codex integration changes and, if released together, the or
 | Session boundary or denial | Existing shared session epoch/QueryCache | Drop prior rows, filters and tab state; reject late responses | No grant is inferred or changed |
 
 No chart or editable financial calculation exists in this slice. No persistence claim applies to local filters or tab selection. Live producer, legal ledger, evidence organization and operational writes require their own acceptance.
+
+## Workspace proof correction
+
+Review4541666401 identified that the first harness omitted workspace.css and the mounted shell. The corrected harness imports both production stylesheets, Sidebar and WorkspaceBar and uses #ecc-app / .ecc-shell / .ecc-main / .ecc-workspace-content around the injected legal routes. Synthetic controls remain outside the shell. Only Sidebar's two existing static logos are copied; the same request block still rejects every external/API/BFF call. Each viewport resets the fixture sidebar preference so the production responsive default is exercised. Receipts record actual rail/main/content widths, inner scroll width, padding and inherited font; both document and main overflow must pass. Prior isolated screenshots do not establish this shell-specific acceptance.

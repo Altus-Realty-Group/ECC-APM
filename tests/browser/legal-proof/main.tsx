@@ -1,5 +1,8 @@
 // Isolated synthetic proof entry. Never imported by the operating application.
 import "../../../src/styles/index.css";
+import "../../../src/styles/workspace.css";
+import Sidebar from "../../../src/components/Sidebar";
+import WorkspaceBar from "../../../src/components/layout/WorkspaceBar";
 import React, { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -36,9 +39,10 @@ function Fixture() {
         queryFn: async () => { throw Object.assign(new Error("HTTP 403"), { status: 403 }); } }).catch(() => {});
     }}>Other-domain denial</button></div>
     <Link href="/ops/legal/case-manager">Register fixture</Link>
-  </aside><Switch>
+  </aside><div id="ecc-app"><div className="ecc-shell"><Sidebar /><main className="ecc-main" id="main" tabIndex={-1}>
+    <WorkspaceBar /><div className="ecc-workspace-content"><Switch>
     <Route path="/ops/legal/matters/:id">{() => <LegalMatterRoute adapter={adapter} />}</Route>
     <Route><LegalCommandView adapter={adapter} /></Route>
-  </Switch></QueryClientProvider>;
+  </Switch></div></main></div></div></QueryClientProvider>;
 }
 createRoot(document.getElementById("root")!).render(<Fixture />);

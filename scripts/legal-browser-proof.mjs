@@ -48,7 +48,9 @@ try {
       const b = await el.boundingBox(); assert.ok(b && b.width >= 44 && b.height >= 44); targets.push(b);
     }
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "Register overflow");
-    await page.screenshot({ path: path.join(artifacts, `legal-${width}-register.png`), fullPage: true });
+    await page.screenshot({ path: path.join(artifacts, `legal-${width}-register.png`) });
+    await page.locator('a[href="/ops/legal/matters/joint"]').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: path.join(artifacts, `legal-${width}-register-scrolled.png`) });
     await page.locator('a[href="/ops/legal/matters/zero"]').click();
     await expect(page.getByRole("heading", { name: "EXAMPLE v. DEMO" })).toBeVisible();
     await page.getByRole("tab", { name: "Overview", exact: true }).focus();
@@ -67,7 +69,9 @@ try {
     await page.getByRole("tab", { name: "Judgment", exact: true }).click();
     await expect(page.getByRole("tabpanel")).toContainText("Recorded award amount: Not reported");
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "Matter overflow");
-    await page.screenshot({ path: path.join(artifacts, `legal-${width}-matter.png`), fullPage: true });
+    await page.screenshot({ path: path.join(artifacts, `legal-${width}-matter.png`) });
+    await page.getByRole("tabpanel").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: path.join(artifacts, `legal-${width}-matter-panel.png`) });
     await page.goto("http://127.0.0.1:4181/ops/legal/matters/missing");
     await expect(page.getByText("Matter not found.", { exact: true })).toBeVisible();
     await page.goto("http://127.0.0.1:4181/ops/legal/matters/bad!id");
@@ -82,6 +86,13 @@ try {
     await page.getByLabel("Search legal matters").fill("SYNTHETIC JOINT");
     await page.locator('[data-mode="session"]').click();
     await expect(page.getByLabel("Search legal matters")).toHaveValue("");
+    await page.locator('[data-mode="stale"]').click();
+    await expect(page.getByText("Legal list may be out of date.", { exact: true })).toBeVisible();
+    await page.locator('[data-mode="empty"]').click();
+    await expect(page.getByText("No legal matters are available.", { exact: true })).toBeVisible();
+    await expect(page.locator(".ecc-legal-list li")).toHaveCount(0);
+    await page.locator('[data-mode="ready"]').click();
+    await expect(page.locator(".ecc-legal-list li")).toHaveCount(3);
     await page.locator('[data-mode="other-denial"]').click();
     await expect(page.getByText("Legal records were cleared after an access change.", { exact: true })).toBeVisible();
     await expect(page.locator(".ecc-legal-list li")).toHaveCount(0);

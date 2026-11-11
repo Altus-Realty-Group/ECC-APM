@@ -31,3 +31,14 @@ The card separately presents lifecycle, judgment verification, collection readin
 Local evidence: unit/typecheck/guardrail/build passed. Local Chromium launch is blocked by the workspace socket policy, so local compilation is not measured visual acceptance. Hosted exact-head browser proof and screenshot inspection are required before acceptance. No deployed, installed-database or live-authorization claim is made.
 
 Rollback: revert the Codex integration changes and, if released together, the originating Grok UI commits. There is no database or deployment rollback in this source-only slice.
+
+## Reactive dependencies
+
+| Event/input | Canonical source and state owner | Derived/display effect | Persisted/downstream effect |
+| --- | --- | --- | --- |
+| Search and queue | User input, register-local state | Filter loaded rows and matching count; all-loaded summary stays explicit | None; filters clear with context |
+| Matter link and tab | Wouter path; card-local tab | New record read; independently labelled dimensions and section | No write; reload rereads the route |
+| Typed snapshot | Unbound adapter in operating app; synthetic adapter in tests | Loaded counts, distinct award identities, unknown/zero presentation | Producer not accepted; no database/API mutation |
+| Session boundary or denial | Existing shared session epoch/QueryCache | Drop prior rows, filters and tab state; reject late responses | No grant is inferred or changed |
+
+No chart or editable financial calculation exists in this slice. No persistence claim applies to local filters or tab selection. Live producer, legal ledger, evidence organization and operational writes require their own acceptance.

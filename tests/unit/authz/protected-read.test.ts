@@ -54,6 +54,11 @@ const mutants: Record<string, (i: ConformanceInput) => Promise<{ allowed: boolea
     const first = [...i.registry.byScope.values()];
     return reference({ ...i, registry: { ...i.registry, invalidScopes: new Set<string>(), byScope: new Map(first.map((b) => [b.scopeRef, { ...b, status: "verified" as const }])) } });
   },
+  "counts only fully valid copies when judging duplicate grant ids": async (i) => {
+    const b = (i.grantsBody === "throw" ? i.grantsBody : structuredClone(i.grantsBody)) as { data?: { grants?: Record<string, unknown>[] } };
+    if (b && b !== ("throw" as unknown) && Array.isArray(b.data?.grants)) b.data!.grants = b.data!.grants!.filter((g) => g && typeof g === "object" && "expiresAt" in g && "revokedAt" in g && (g as { revision?: number }).revision! >= 1 && (g as { expiresAt?: unknown }).expiresAt !== "soon");
+    return reference({ ...i, grantsBody: b });
+  },
   "treats developer review as resource authority": async (i) => {
     const s = i.sessionBody as { data?: { decisionMode?: string } };
     return s?.data?.decisionMode === "developer_bypass" ? { allowed: true, scopeRefs: ["scope-a"] } : reference(i);
@@ -149,7 +154,8 @@ test("binding registry: duplicate scope_ref to two companies is rejected entirel
 test("resource grants: strict parse drops doubtful grants and never invents one", () => {
   assert.deepEqual(parseResourceGrants(null), { grants: [], rejected: 0 });
   assert.deepEqual(parseResourceGrants({ data: { grants: "x" }, error: null, meta: { source: "control-plane" } }).grants, []);
-  const mixed = parseResourceGrants(grantsEnvelope(grant(), grant({ resourceType: "property" }), grant({ companyId: "name" }), grant({ revision: 0 }), grant({ expiresAt: "soon" })));
+  const id = (n: number) => `40000000-0000-4000-8000-00000000010${n}`;
+  const mixed = parseResourceGrants(grantsEnvelope(grant(), grant({ grantId: id(1), resourceType: "property" }), grant({ grantId: id(2), companyId: "name" }), grant({ grantId: id(3), revision: 0 }), grant({ grantId: id(4), expiresAt: "soon" })));
   assert.equal(mixed.grants.length, 1);
   assert.equal(mixed.rejected, 4);
   // A missing instant key is malformed (never non-expiring); an explicit null is the producer's declared "none".
@@ -190,4 +196,36 @@ test("context validity is the earliest of session expiry and contributing grant 
   const r = await resolveReadAuthority(depsFor(input), SESSION_ID, "scope-a");
   assert.ok(r.allowed);
   if (r.allowed) assert.equal(r.context.validUntilMs, NOW + 900_000, "the other company's earlier expiry does not bound a scope-a read");
+});
+
+test("duplicate grantId: every copy is invalidated, including when one copy is malformed, in both orders", () => {
+  const valid = grant();
+  const malformed = [
+    ["expiresAt malformed", { ...grant(), expiresAt: "soon" }],
+    ["expiresAt missing", (() => { const g: Record<string, unknown> = { ...grant() }; delete g.expiresAt; return g; })()],
+    ["wrong resourceType", { ...grant(), resourceType: "property" }],
+    ["bad company", { ...grant(), companyId: "not-a-uuid" }],
+    ["revision zero", { ...grant(), revision: 0 }],
+    ["not even an object beyond its id", { grantId: grant().grantId }],
+  ] as const;
+  for (const [name, bad] of malformed) {
+    assert.deepEqual(parseResourceGrants(grantsEnvelope(valid, bad)).grants, [], `valid then malformed: ${name}`);
+    assert.deepEqual(parseResourceGrants(grantsEnvelope(bad, valid)).grants, [], `malformed then valid: ${name}`);
+    assert.equal(parseResourceGrants(grantsEnvelope(valid, bad)).rejected, 2, name);
+  }
+  assert.deepEqual(parseResourceGrants(grantsEnvelope(valid, valid, { ...valid, revision: 2 })).grants, [], "three copies");
+});
+
+test("duplicate grantId identity is normalized: case and surrounding whitespace cannot hide a duplicate", () => {
+  const id = grant().grantId;
+  for (const variant of [id.toUpperCase(), ` ${id}`, `${id} `, `\t${id.toUpperCase()}\n`]) {
+    assert.deepEqual(parseResourceGrants(grantsEnvelope(grant(), { ...grant(), grantId: variant })).grants, [], JSON.stringify(variant));
+    assert.deepEqual(parseResourceGrants(grantsEnvelope({ ...grant(), grantId: variant }, grant())).grants, [], JSON.stringify(variant));
+  }
+});
+
+test("a malformed entry whose grantId is unreadable cannot be linked to a valid grant and does not invalidate it", () => {
+  const parsed = parseResourceGrants(grantsEnvelope(grant(), { ...grant(), grantId: "not-a-uuid" }, { ...grant(), grantId: 7 }, "junk", null));
+  assert.equal(parsed.grants.length, 1);
+  assert.equal(parsed.rejected, 4);
 });

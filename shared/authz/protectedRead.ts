@@ -104,6 +104,8 @@ export async function resolveReadAuthority(deps: ReadDeps, presentedSessionId: s
   // Only grants that actually contribute a selected scope bound the context's lifetime.
   const contributing = usable.filter((g) => selected.some((sc) => registry.byScope.get(sc)?.companyId === g.companyId));
   const validUntilMs = Math.min(session.expiresAtMs, ...contributing.map((g) => g.expiresAtMs ?? Number.POSITIVE_INFINITY));
+  // A context without a finite expiry could never be bounded by the database seam, so it is never issued.
+  if (!Number.isFinite(validUntilMs) || validUntilMs <= nowMs) return denied("AUTHORITY_EXPIRED");
   return {
     allowed: true,
     context: { actor: session.personId, scopeRefs: selected, binding: bindingFingerprint(session, contributing, selected), sessionExpiresAtMs: session.expiresAtMs, validUntilMs },

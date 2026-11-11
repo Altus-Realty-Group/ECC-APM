@@ -1,6 +1,6 @@
 # ADR-0002: Protected-read placement, ownership and resource authorization
 
-Status: Proposed (source only; nothing activated). Assignment ECC-A1-CLAUDE-v1, issue #211; corrected by ECC-A1-CLAUDE-v2 after Codex source review of `7499714`.
+Status: Proposed (source only; nothing activated). Assignment ECC-A1-CLAUDE-v1, issue #211; corrected by ECC-A1-CLAUDE-v2 and v3 after Codex source review of `7499714` and `2089b68`.
 Date: 2026-11-11. Base: `33f06a4b88625d66f61181b21c04bf23f3680508`.
 
 ## Context
@@ -46,19 +46,26 @@ Date: 2026-11-11. Base: `33f06a4b88625d66f61181b21c04bf23f3680508`.
 7a. **Grant contract strictness**: a grant envelope is accepted only with `error: null`, `meta.contractVersion "1.0.0"` and
    `meta.source "control-plane"`; otherwise it yields zero grants. `expiresAt` and `revokedAt` must be present: an explicit `null`
    is the producer's declared "none"; a missing key, empty string, date-only or non-RFC3339 value rejects the grant (it never
-   becomes non-expiring). Any revocation record, even a future-dated one, denies. A repeated `grantId` drops every copy.
+   becomes non-expiring). Any revocation record, even a future-dated one, denies. A repeated `grantId` drops every copy: ambiguity is judged on the readable id of EVERY entry, including malformed ones, after trimming and lower-casing, so a valid grant plus a malformed duplicate (in either order) yields no grant.
 7b. **Scope bindings are order-independent**: a `scope_ref` is usable only with exactly ONE record and that record valid and
    `verified`. Several records (verified+retired, two companies, an identical duplicate) or a malformed record naming the scope
    invalidate the whole scope; no entry is ever picked "first".
 8. **Database seam**: authorization context reaches PostgreSQL only through `withLeasedContext`, which requires an
-   exclusively leased connection (never a shared pool handle) and: refuses a lease that arrives with inherited `ecc.*` session
-   settings, a changed session role or an open transaction (and discards that connection); refuses a superuser/`BYPASSRLS`/wrong
-   role; sets scope and actor with transaction-local `set_config(..., true)` and pins `ecc.restricted_evidence` to `off`
-   (default-deny; A1 models no entitlement); refuses to start or to return results once `validUntilMs` has passed; hands the work a
-   runner that stops working when the transaction ends; then runs `DISCARD ALL` and verifies the connection clean. Any rollback,
-   commit, reset or verification failure DISCARDS the connection instead of returning it to the pool. A pool that hands one
-   connection to two holders is refused. Session-level settings are forbidden. Custom settings filter a trusted context; they do
-   not authenticate grants.
+   exclusively leased connection (never a shared pool handle) and: validates the COMPLETE context before leasing (person-UUID actor,
+   bounded non-empty array of valid scope_refs, and a finite positive `validUntilMs`; a missing, non-numeric, NaN, infinite, zero or
+   negative expiry takes no connection); refuses a lease that arrives with inherited `ecc.*` session settings, a changed session role
+   or an open transaction (and discards that connection); refuses a superuser/`BYPASSRLS`/wrong role; sets scope and actor with
+   transaction-local `set_config(..., true)` and pins `ecc.restricted_evidence` to `off` (default-deny; A1 models no entitlement);
+   hands the work a runner that stops working when the transaction ends; then runs `DISCARD ALL` and verifies the connection clean.
+   Any rollback, commit, reset or verification failure DISCARDS the connection instead of returning it to the pool. A pool that
+   hands one connection to two holders is refused. Session-level settings are forbidden. Custom settings filter a trusted context;
+   they do not authenticate grants.
+8a. **Expiry semantics (exclusive, `validUntilMs`)**: authority is re-checked at the start, after `set_config`, after the work, and
+   once more after COMMIT, reset and verification, immediately before the result is delivered. Expiry before COMMIT rolls back and
+   returns nothing (`committed: false`). Expiry **during or after COMMIT** cannot undo a committed write: the writes are durable,
+   cleanup still completes and the verified-clean connection is returned, and the RESULT IS WITHHELD with `CONTEXT_EXPIRED` whose
+   `committed` is `true` (a bad clock reading after COMMIT is reported the same way). A caller must never read a `committed`
+   error as "nothing happened". The seam withholds delivery; it does not and cannot make a late commit not have happened.
 9. **Service-role exclusion**: no authorization decision uses the service-role client; the seam refuses a bypass-capable role.
 
 ## Consequences

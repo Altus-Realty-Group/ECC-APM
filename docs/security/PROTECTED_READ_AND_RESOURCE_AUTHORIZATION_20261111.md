@@ -1,6 +1,6 @@
 # Protected reads and resource authorization (A1, issue #211)
 
-Assignment ECC-A1-CLAUDE-v1, corrected by ECC-A1-CLAUDE-v2. Source only: nothing is activated, registered, deployed or granted. Placement/ownership decision:
+Assignment ECC-A1-CLAUDE-v1, corrected by ECC-A1-CLAUDE-v2 and v3. Source only: nothing is activated, registered, deployed or granted. Placement/ownership decision:
 [ADR-0002](adr/ADR-0002-protected-read-placement-and-resource-authorization.md). Code: `shared/authz/`.
 
 ## 1. Evidence traced (source references, not live proof)
@@ -56,7 +56,7 @@ Auth: same server-attested client headers + X-Control-Application-Session as GET
 ```
 Required semantics: `error` is exactly `null`, `meta.contractVersion` is `1.0.0`, `meta.source` is `control-plane`; every grant carries
 `expiresAt` and `revokedAt` as RFC3339 instants or an explicit `null` (a missing or malformed value rejects that grant; any revocation
-record denies); `grantId` is unique within a response; evaluated per call against the current session (revocation/expiry/suspension take effect immediately);
+record denies); `grantId` is unique within a response, judged on the readable id (trimmed, lower-cased) of every entry INCLUDING malformed ones, so a valid grant plus a malformed copy drops both; evaluated per call against the current session (revocation/expiry/suspension take effect immediately);
 grants are for that session's person/account/application only; `companyId` is a canonical company identifier distinct from
 `accountId`; unavailable => typed error, never an empty-success. `shared/authz/conformance.ts` is the acceptance suite any binding
 of such a producer must pass.
@@ -74,7 +74,7 @@ of such a producer must pass.
 ## 6. Database seam (`dbContext.ts`, `withLeasedContext`)
 The seam takes a **lease** (`ConnectionLeaser.lease()` -> one connection held exclusively until `release`), never a shared pool handle
 (with a pool, `BEGIN` and the next statement could run on different connections). Order of operations:
-1. validate the context syntax and that `validUntilMs` is still in the future (no connection is taken otherwise);
+1. validate the COMPLETE context (person-UUID actor; bounded non-empty array of valid scope_refs; `validUntilMs` a finite positive number - a missing, non-numeric, NaN, infinite, zero or negative value is refused) and that it is still in the future; no connection is taken otherwise;
 2. lease; refuse a lease id that is already live (a pool handing one connection to two holders);
 3. **clean-lease check**: no inherited `ecc.scope_refs` / `ecc.actor` / `ecc.restricted_evidence`, `session_user = current_user`, and no
    open transaction. A dirty connection is refused, the work never runs, and the connection is **discarded**;
@@ -83,20 +83,25 @@ The seam takes a **lease** (`ConnectionLeaser.lease()` -> one connection held ex
 5. run the work with a runner that stops working when the transaction ends; re-check `validUntilMs` after the work and **roll back and
    return nothing** if the authority ended meanwhile; `COMMIT`;
 6. `DISCARD ALL`, then re-run the clean check. Any rollback, commit, reset or verification failure **discards the connection**
-   (`release(true)`) rather than returning it to the pool.
+   (`release(true)`) rather than returning it to the pool;
+7. a **final liveness reading after COMMIT, reset and verification**, immediately before the result is delivered.
+
+**Expiry during COMMIT, reset or verification** cannot undo a committed write. The writes are durable, cleanup still completes and the
+clean connection is returned, and the result is withheld with `CONTEXT_EXPIRED` whose `committed` is `true`; a caller must not read it as
+"nothing happened". Expiry before COMMIT rolls back (`committed` false). The seam withholds delivery; it never claims to undo a commit.
 Session-level settings are never used. Custom settings filter a trusted context; they do not authenticate grants (a test shows the
 role can set its own value inside its transaction; authorization is the upstream decision).
 
 ## 7. Validation matrix
 | Requirement | Evidence |
 | --- | --- |
-| Allowed; wrong company/resource; wrong application; revoked/expired session; missing/foreign/expired/revoked grants; unverified and conflicting bindings; empty registry; outages (issuer, grants, bindings); review mode; injection | `tests/unit/authz/protected-read.test.ts` (51 reusable cases in `shared/authz/conformance.ts`; 13 deliberately wrong evaluators each caught) |
-| Malformed grant envelope (version/source/error), missing or malformed `expiresAt`/`revokedAt`, date-only/prose instants, future-dated revocation, repeated `grantId` | conformance cases + `resourceGrant` unit tests |
+| Allowed; wrong company/resource; wrong application; revoked/expired session; missing/foreign/expired/revoked grants; unverified and conflicting bindings; empty registry; outages (issuer, grants, bindings); review mode; injection | `tests/unit/authz/protected-read.test.ts` (54 reusable cases in `shared/authz/conformance.ts`; 14 deliberately wrong evaluators each caught) |
+| Malformed grant envelope (version/source/error), missing or malformed `expiresAt`/`revokedAt`, date-only/prose instants, future-dated revocation, repeated `grantId`, valid-plus-malformed duplicates in both orders, case/whitespace-variant duplicates | conformance cases + `resourceGrant` unit tests |
 | Binding order reversal (every permutation), verified/retired/two-company/malformed/identical duplicates | conformance cases + permutation test |
 | Clock advance during the reads, exclusive expiry, clock regression, non-finite clock; reading count | scripted-clock conformance cases + reading-count test |
 | Stale response / revoked between requests / different person on the same server | same file |
-| Lease rules (contaminated, cleanup/rollback/commit/reset failure => discard, expiry during work, leaked runner, double handout, parallel and single-connection contention) - simulation, CI | `tests/unit/authz/db-context.test.ts` (11 fault-injection mutants each caught) |
-| The same on **real PostgreSQL 16 + `pg`**: reused backend, five kinds of inherited contamination (backend destroyed), session writes cleared, rollback/reset/verification failure destroys the backend, expiry mid-work rolls back, superuser/wrong role refusal, parallel leases never overlap on one backend, single-connection serialization, pool double handout, documented hazard and limitation | `tests/authz-db` (`npm run test:authz-db`, 14 tests; private cluster; not run in hosted CI, which has no PostgreSQL service) |
+| Lease rules (contaminated, cleanup/rollback/commit/reset failure => discard, expiry during work, leaked runner, double handout, parallel and single-connection contention) - simulation, CI | `tests/unit/authz/db-context.test.ts` (fault-injection mutants each caught; includes expiry during COMMIT / reset / verification and every invalid expiry form) |
+| The same on **real PostgreSQL 16 + `pg`**: reused backend, five kinds of inherited contamination (backend destroyed), session writes cleared, rollback/reset/verification failure destroys the backend, expiry mid-work rolls back, superuser/wrong role refusal, parallel leases never overlap on one backend, single-connection serialization, pool double handout, documented hazard and limitation | `tests/authz-db` (`npm run test:authz-db`, 17 tests, including expiry during COMMIT / reset / verification with the durable-write proof and refusal of NaN/Infinity/undefined/null/string/non-positive expiry; private cluster; not run in hosted CI, which has no PostgreSQL service) |
 | No service-role/transport/env/cookie dependency in the authorization source; the seam accepts no shared pool handle | static tests in `db-context.test.ts` |
 
 ## 8. Activation gates (not part of this PR)

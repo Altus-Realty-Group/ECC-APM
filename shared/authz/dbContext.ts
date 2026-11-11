@@ -24,7 +24,11 @@ export type SeamErrorCode =
   | "CONTEXT_EXPIRED" | "CLOCK_INVALID";
 
 export class ContextSeamError extends Error {
-  constructor(public readonly code: SeamErrorCode, message: string) {
+  /**
+   * `committed` is true only when the transaction had ALREADY COMMITTED before this error: the writes are durable and are NOT
+   * undone; only the delivery of the result was withheld. A caller must never treat a `committed` error as "nothing happened".
+   */
+  constructor(public readonly code: SeamErrorCode, message: string, public readonly committed = false) {
     super(message);
     this.name = "ContextSeamError";
   }
@@ -48,11 +52,18 @@ export function isCleanRow(row: Record<string, unknown> | undefined): boolean {
   return !!row && blank(row.scope_refs) && blank(row.actor) && blank(row.restricted_evidence) && row.role_unchanged === true && row.idle === true;
 }
 
-/** Reject anything that could add scopes through the comma-separated list or smuggle control characters. */
-export function assertContext(ctx: Pick<ReadContext, "actor" | "scopeRefs">): void {
-  if (!UUID.test(ctx.actor)) throw new ContextSeamError("INVALID_CONTEXT", "actor must be a person UUID");
-  if (ctx.scopeRefs.length === 0) throw new ContextSeamError("INVALID_CONTEXT", "at least one scope is required");
-  for (const s of ctx.scopeRefs) if (!SCOPE_REF.test(s)) throw new ContextSeamError("INVALID_CONTEXT", "invalid scope_ref");
+const MAX_SCOPES = 256;
+
+/**
+ * Validate the COMPLETE context before any connection is taken: a person-UUID actor, a bounded non-empty array of syntactically valid
+ * scope_refs, and a finite positive expiry instant (missing, non-numeric, NaN, +/-Infinity, zero or negative all refuse).
+ * Also rejects anything that could add scopes through the comma-separated list or smuggle control characters.
+ */
+export function assertContext(ctx: { actor: unknown; scopeRefs: unknown; validUntilMs: unknown }): void {
+  if (typeof ctx.actor !== "string" || !UUID.test(ctx.actor)) throw new ContextSeamError("INVALID_CONTEXT", "actor must be a person UUID");
+  if (!Array.isArray(ctx.scopeRefs) || ctx.scopeRefs.length === 0 || ctx.scopeRefs.length > MAX_SCOPES) throw new ContextSeamError("INVALID_CONTEXT", "scopeRefs must be a non-empty bounded array");
+  for (const s of ctx.scopeRefs) if (typeof s !== "string" || !SCOPE_REF.test(s)) throw new ContextSeamError("INVALID_CONTEXT", "invalid scope_ref");
+  if (typeof ctx.validUntilMs !== "number" || !Number.isFinite(ctx.validUntilMs) || ctx.validUntilMs <= 0) throw new ContextSeamError("INVALID_CONTEXT", "validUntilMs must be a finite positive instant");
 }
 
 const liveLeases = new Set<string>();
@@ -62,21 +73,27 @@ export type LeasedContextOptions = { expectedRole: string; now: () => number };
 /**
  * Lease a connection, run `fn` inside one transaction whose authorization context lives only until COMMIT/ROLLBACK, then reset and
  * verify the session. `fn` receives a runner that stops working the moment the transaction ends, so no later async work can reuse it.
- * The result is returned only if the context's authority (`validUntilMs`) still held when the work finished; otherwise the
- * transaction is rolled back and nothing is returned.
+ *
+ * Expiry semantics (`ctx.validUntilMs`, exclusive):
+ *  - at or before the start, or before COMMIT: the transaction is rolled back and nothing is returned (`committed` false);
+ *  - during COMMIT, the reset, or the verification: COMMIT cannot be undone. The writes are durable, the connection is still cleaned
+ *    and released, and the RESULT IS WITHHELD with a `CONTEXT_EXPIRED` error whose `committed` is true.
+ * The result is therefore delivered only if authority still held at the final reading, taken after cleanup.
  */
 export async function withLeasedContext<T>(
   leaser: ConnectionLeaser, ctx: Pick<ReadContext, "actor" | "scopeRefs" | "validUntilMs">, opts: LeasedContextOptions, fn: (run: SqlRunner) => Promise<T>,
 ): Promise<T> {
   assertContext(ctx);
+  if (!opts || typeof opts.expectedRole !== "string" || opts.expectedRole === "" || typeof opts.now !== "function") throw new ContextSeamError("INVALID_CONTEXT", "expectedRole and now are required");
   let last = Number.NEGATIVE_INFINITY;
+  let committed = false;
   const tick = () => {
     const t = opts.now();
-    if (typeof t !== "number" || !Number.isFinite(t) || t < last) throw new ContextSeamError("CLOCK_INVALID", "clock is not finite or moved backwards");
+    if (typeof t !== "number" || !Number.isFinite(t) || t < last) throw new ContextSeamError("CLOCK_INVALID", "clock is not finite or moved backwards", committed);
     last = t;
     return t;
   };
-  const assertLive = () => { if (tick() >= ctx.validUntilMs) throw new ContextSeamError("CONTEXT_EXPIRED", "authority behind this context has ended"); };
+  const assertLive = () => { if (tick() >= ctx.validUntilMs) throw new ContextSeamError("CONTEXT_EXPIRED", committed ? "authority ended after the transaction committed; result withheld" : "authority behind this context has ended", committed); };
   assertLive();
 
   const conn = await leaser.lease();
@@ -84,6 +101,9 @@ export async function withLeasedContext<T>(
   liveLeases.add(conn.leaseId);
   let discard = false;
   let open = false;
+  let failed = false;
+  let failure: unknown;
+  let result!: T;
   const guarded: SqlRunner = {
     query: (text, values) => {
       if (!open) return Promise.reject(new ContextSeamError("LEASE_NOT_EXCLUSIVE", "the leased transaction has ended"));
@@ -100,24 +120,28 @@ export async function withLeasedContext<T>(
     if (role.role_name !== opts.expectedRole) throw new ContextSeamError("WRONG_ROLE", "connection role is not the expected runtime role");
     await conn.query(SET_CONTEXT_SQL, [ctx.scopeRefs.join(","), ctx.actor, RESTRICTED_EVIDENCE_PIN]);
     assertLive();
-    const result = await fn(guarded);
-    assertLive();
+    result = await fn(guarded);
+    assertLive();                                   // last chance to roll back: a stale context never commits
     open = false;
     try { await conn.query("COMMIT"); } catch (e) { discard = true; throw e; }
-    return result;
+    committed = true;
   } catch (err) {
+    failed = true;
+    failure = err;
     open = false;
     try { await conn.query("ROLLBACK"); } catch { discard = true; }
-    throw err;
-  } finally {
-    open = false;
-    if (!discard) {
-      try {
-        await conn.query(RESET_SQL);
-        if (!isCleanRow((await conn.query(CLEAN_CHECK_SQL)).rows[0])) discard = true;
-      } catch { discard = true; }
-    }
-    liveLeases.delete(conn.leaseId);
-    try { await conn.release(discard); } catch { /* the original outcome is what matters; a failed release cannot be retried safely */ }
   }
+  // Cleanup runs on every path. Its own failures only decide whether the connection is destroyed.
+  open = false;
+  if (!discard) {
+    try {
+      await conn.query(RESET_SQL);
+      if (!isCleanRow((await conn.query(CLEAN_CHECK_SQL)).rows[0])) discard = true;
+    } catch { discard = true; }
+  }
+  liveLeases.delete(conn.leaseId);
+  try { await conn.release(discard); } catch { /* the outcome below is what matters; a failed release cannot be retried safely */ }
+  if (failed) throw failure;
+  assertLive();                                     // final reading after COMMIT, reset and verification; committed === true here
+  return result;
 }

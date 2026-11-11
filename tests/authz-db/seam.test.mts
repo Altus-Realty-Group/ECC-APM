@@ -16,7 +16,7 @@ const track = (p: pg.Pool) => (pools.push(p), p);
 const admin = track(mkPool("postgres", 2));
 after(async () => { await Promise.all(pools.map((p) => p.end())); });
 
-type Hooks = { failOn?: Map<string, Error>; swallow?: Set<string>; onRelease?: (discard: boolean, pid: number) => void };
+type Hooks = { failOn?: Map<string, Error>; swallow?: Set<string>; onRelease?: (discard: boolean, pid: number) => void; /** runs after the REAL statement succeeded, e.g. to advance the clock */ after?: Map<string, () => void> };
 /** Adapt a pg.Pool into the seam's exclusive lease. Optional hooks inject faults AROUND the real connection. */
 function leaser(pool: pg.Pool, hooks: Hooks = {}): ConnectionLeaser {
   return { lease: async (): Promise<LeasedConnection> => {
@@ -28,7 +28,9 @@ function leaser(pool: pg.Pool, hooks: Hooks = {}): ConnectionLeaser {
         const fault = hooks.failOn?.get(text);
         if (fault) throw fault;
         if (hooks.swallow?.has(text)) return { rows: [] };
-        return { rows: (await client.query(text, values ? [...values] : undefined)).rows };
+        const rows = (await client.query(text, values ? [...values] : undefined)).rows;
+        hooks.after?.get(text)?.();
+        return { rows };
       },
       release: (discard) => { hooks.onRelease?.(discard, pid); client.release(discard ? (new Error("discarded") as unknown as true) : undefined); },
     };
@@ -215,4 +217,42 @@ test("DOCUMENTED LIMITATION: inside the transaction the role can set its own con
   const pool = track(mkPool(ROLE, 1));
   const self = await seam(leaser(pool), ["scope-a"], async (r) => { await r.query("SELECT set_config('ecc.scope_refs','scope-c',true)"); return labels(r); });
   assert.deepEqual(self, ["c1"], "authorization must come from the verified read decision upstream, not from the database setting");
+});
+
+test("REPRODUCED on real PostgreSQL: authority that expires DURING COMMIT withholds the result and the write is durable (not undone)", async () => {
+  const pool = track(mkPool(ROLE, 1));
+  let now = 100;
+  const seen: { discard: boolean; pid: number }[] = [];
+  const l = leaser(pool, { after: new Map([["COMMIT", () => { now = 1001; }]]), onRelease: (discard, pid) => seen.push({ discard, pid }) });
+  let err: unknown;
+  const out = await seam(l, ["scope-a"], async (r) => { await r.query("INSERT INTO synthetic_scratch VALUES ('commit-expiry')"); return "WORK-RESULT"; }, () => now, 1000).catch((e) => { err = e; return "NOT-RETURNED"; });
+  assert.equal(out, "NOT-RETURNED");
+  assert.ok(err instanceof ContextSeamError && err.code === "CONTEXT_EXPIRED" && err.committed === true);
+  assert.equal((await admin.query("SELECT 1 FROM synthetic_scratch WHERE x = 'commit-expiry'")).rowCount, 1, "COMMIT happened: the row is durable and the seam does not claim otherwise");
+  assert.deepEqual(seen.map((x) => x.discard), [false], "cleanup still ran and the verified-clean connection was returned");
+  assert.deepEqual((await pool.query("SELECT label FROM synthetic_matters")).rows, [], "no context survived");
+});
+
+test("authority that expires during the reset or the verification withholds the result on real PostgreSQL", async () => {
+  for (const [name, trigger, nth] of [["during DISCARD ALL", "DISCARD ALL", 1], ["during the post-reset verification", "SELECT current_setting('ecc.scope_refs', true) AS scope_refs, current_setting('ecc.actor', true) AS actor, current_setting('ecc.restricted_evidence', true) AS restricted_evidence, (session_user::text = current_user::text) AS role_unchanged, (transaction_timestamp() = statement_timestamp()) AS idle", 2]] as const) {
+    const pool = track(mkPool(ROLE, 1));
+    let now = 100; let count = 0;
+    const l = leaser(pool, { after: new Map([[trigger, () => { if (++count === nth) now = 1001; }]]) });
+    let err: unknown;
+    const out = await seam(l, ["scope-a"], async (r) => { await r.query(`INSERT INTO synthetic_scratch VALUES ('${name}')`); return "WORK-RESULT"; }, () => now, 1000).catch((e) => { err = e; return "NOT-RETURNED"; });
+    assert.equal(out, "NOT-RETURNED", name);
+    assert.ok(err instanceof ContextSeamError && err.code === "CONTEXT_EXPIRED" && err.committed === true, name);
+    assert.equal((await admin.query("SELECT 1 FROM synthetic_scratch WHERE x = $1", [name])).rowCount, 1, `${name}: committed before the reset`);
+    assert.deepEqual(await seam(leaser(pool), ["scope-b"], labels), ["b1"], `${name}: the same pool serves the next request cleanly`);
+  }
+});
+
+test("REPRODUCED: NaN, Infinity, undefined, null, string and non-positive expiry never take a connection from the pool", async () => {
+  for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, undefined, null, "1000", 0, -1] as unknown[]) {
+    const pool = track(mkPool(ROLE, 1));
+    let ran = false;
+    await assert.rejects(withLeasedContext(leaser(pool), { actor: PERSON, scopeRefs: ["scope-a"], validUntilMs: bad as number }, { expectedRole: ROLE, now: Date.now }, async () => { ran = true; }), code("INVALID_CONTEXT"), String(bad));
+    assert.equal(ran, false, String(bad));
+    assert.equal(pool.totalCount, 0, `${String(bad)}: no connection was ever opened`);
+  }
 });

@@ -28,17 +28,31 @@ const hasKey = (o: Record<string, unknown>, k: string) => Object.prototype.hasOw
  * `body` is the producer's `{data:{grants:[...]},error:null,meta:{contractVersion:"1.0.0",source:"control-plane"}}` envelope.
  * Any envelope problem (missing/other contract version, wrong source, an error, a non-array) yields ZERO grants, never a partial set.
  * Within a valid envelope a doubtful grant is dropped (dropping only reduces access) and counted. A grantId that appears more
- * than once is ambiguous, so every copy is dropped.
+ * than once in ANY entry (including a malformed one) is ambiguous, so every copy is dropped.
  */
 export function parseResourceGrants(body: unknown): ParsedGrants {
   if (!isRecord(body) || body.error !== null || !isRecord(body.meta)
     || body.meta.contractVersion !== "1.0.0" || body.meta.source !== "control-plane"
     || !isRecord(body.data) || !Array.isArray(body.data.grants)) return { grants: [], rejected: 0 };
-  const parsed: (ResourceGrant | null)[] = body.data.grants.map(parseOne);
+  const raw: unknown[] = body.data.grants;
+  const parsed: (ResourceGrant | null)[] = raw.map(parseOne);
+  // Ambiguity is judged on the READABLE identity of every raw entry, not only on entries that fully validate: a malformed copy that
+  // still carries a readable grantId makes that id ambiguous, so every copy (valid or not) is dropped. Identity is normalized
+  // (trimmed, lower-cased) before comparison so case or padding cannot hide a duplicate.
   const counts = new Map<string, number>();
-  for (const g of parsed) if (g) counts.set(g.grantId, (counts.get(g.grantId) ?? 0) + 1);
+  for (const entry of raw) {
+    const id = readableGrantId(entry);
+    if (id) counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
   const grants = parsed.filter((g): g is ResourceGrant => g !== null && counts.get(g.grantId) === 1);
-  return { grants, rejected: parsed.length - grants.length };
+  return { grants, rejected: raw.length - grants.length };
+}
+
+/** The grant id of a raw entry if it is readable as a UUID after normalization, else null. */
+function readableGrantId(entry: unknown): string | null {
+  if (!isRecord(entry) || typeof entry.grantId !== "string") return null;
+  const id = entry.grantId.trim().toLowerCase();
+  return UUID.test(id) ? id : null;
 }
 
 /**

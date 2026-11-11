@@ -20,11 +20,13 @@ class SimConn {
   local = new Map<string, string>();
   inTx = false;
   roleChanged = false;
+  pending: string[] = [];
+  durable: string[] = [];
   log: string[] = [];
   constructor(public id: string, public role = { name: ROLE, bypass: false }) {}
   setting(k: string) { return this.local.get(k) ?? this.session.get(k) ?? null; }
 }
-type Faults = { failOn?: Map<string, Error>; resetIsNoop?: boolean; applyBeforeFailing?: boolean };
+type Faults = { failOn?: Map<string, Error>; resetIsNoop?: boolean; applyBeforeFailing?: boolean; /** runs AFTER a statement succeeds, e.g. to advance the clock */ after?: Map<string, () => void> };
 class SimPool {
   conns: SimConn[] = [];
   free: SimConn[] = [];
@@ -52,17 +54,9 @@ class SimPool {
         // so only the seam's own rule (not the later reset/verification) can decide to discard the connection.
         if (fault && !faults.applyBeforeFailing) throw fault;
         if (fault && (text === "ROLLBACK" || text === "COMMIT")) { conn.inTx = false; conn.local = new Map(); throw fault; }
-        if (text === "BEGIN") { conn.inTx = true; return { rows: [] }; }
-        if (text === "COMMIT" || text === "ROLLBACK") { conn.inTx = false; conn.local = new Map(); return { rows: [] }; }
-        if (text === CLEAN_CHECK_SQL) return { rows: [{ scope_refs: conn.setting("ecc.scope_refs"), actor: conn.setting("ecc.actor"), restricted_evidence: conn.setting("ecc.restricted_evidence"), role_unchanged: !conn.roleChanged, idle: !conn.inTx }] };
-        if (text === ROLE_CHECK_SQL) return { rows: [{ role_name: conn.role.name, bypass: conn.role.bypass }] };
-        if (text === SET_CONTEXT_SQL) { assert.ok(conn.inTx, "context must be set inside a transaction"); conn.local.set("ecc.scope_refs", String(values[0])); conn.local.set("ecc.actor", String(values[1])); conn.local.set("ecc.restricted_evidence", String(values[2])); return { rows: [{}] }; }
-        if (text === RESET_SQL) { if (conn.inTx) throw new Error("DISCARD ALL cannot run inside a transaction block"); if (!faults.resetIsNoop) { conn.session = new Map(); conn.roleChanged = false; } return { rows: [] }; }
-        if (text === "SELECT scope, v FROM matters") { const allowed = (conn.setting("ecc.scope_refs") ?? "").split(",").filter(Boolean); return { rows: ["scope-a", "scope-b", "scope-c"].filter((s) => allowed.includes(s)).map((s) => ({ scope: s })) }; }
-        if (text.startsWith("SESSION_SET ")) { const [k, v] = text.slice(12).split("="); conn.session.set(k, v); return { rows: [] }; }
-        if (text === "SESSION_SET_ROLE") { conn.roleChanged = true; return { rows: [] }; }
-        if (text === "BOOM") throw new Error("boom");
-        throw new Error("unexpected statement " + text);
+        const res = await this.exec(conn, text, values);
+        faults.after?.get(text)?.();
+        return res;
       },
       release: (discard) => {
         this.releases.push({ id: conn.id, discard });
@@ -72,6 +66,22 @@ class SimPool {
         if (next && this.free.length) next(this.free.shift()!);
       },
     };
+  }
+  private async exec(conn: SimConn, text: string, values: readonly unknown[]): Promise<{ rows: Record<string, unknown>[] }> {
+    const faults = this.faults;
+        if (text === "BEGIN") { conn.inTx = true; return { rows: [] }; }
+        if (text === "COMMIT") { conn.durable.push(...conn.pending); conn.pending = []; conn.inTx = false; conn.local = new Map(); return { rows: [] }; }
+        if (text === "ROLLBACK") { conn.pending = []; conn.inTx = false; conn.local = new Map(); return { rows: [] }; }
+        if (text.startsWith("WRITE ")) { conn.pending.push(text.slice(6)); return { rows: [] }; }
+        if (text === CLEAN_CHECK_SQL) return { rows: [{ scope_refs: conn.setting("ecc.scope_refs"), actor: conn.setting("ecc.actor"), restricted_evidence: conn.setting("ecc.restricted_evidence"), role_unchanged: !conn.roleChanged, idle: !conn.inTx }] };
+        if (text === ROLE_CHECK_SQL) return { rows: [{ role_name: conn.role.name, bypass: conn.role.bypass }] };
+        if (text === SET_CONTEXT_SQL) { assert.ok(conn.inTx, "context must be set inside a transaction"); conn.local.set("ecc.scope_refs", String(values[0])); conn.local.set("ecc.actor", String(values[1])); conn.local.set("ecc.restricted_evidence", String(values[2])); return { rows: [{}] }; }
+        if (text === RESET_SQL) { if (conn.inTx) throw new Error("DISCARD ALL cannot run inside a transaction block"); if (!faults.resetIsNoop) { conn.session = new Map(); conn.roleChanged = false; } return { rows: [] }; }
+        if (text === "SELECT scope, v FROM matters") { const allowed = (conn.setting("ecc.scope_refs") ?? "").split(",").filter(Boolean); return { rows: ["scope-a", "scope-b", "scope-c"].filter((s) => allowed.includes(s)).map((s) => ({ scope: s })) }; }
+        if (text.startsWith("SESSION_SET ")) { const [k, v] = text.slice(12).split("="); conn.session.set(k, v); return { rows: [] }; }
+        if (text === "SESSION_SET_ROLE") { conn.roleChanged = true; return { rows: [] }; }
+        if (text === "BOOM") throw new Error("boom");
+        throw new Error("unexpected statement " + text);
   }
 }
 const ctx = (scopeRefs: string[], validUntilMs = T0 + 10_000) => ({ actor: PERSON, scopeRefs, validUntilMs });
@@ -153,6 +163,84 @@ test("[simulation] rollback, commit or reset failure DISCARDS the connection ins
     assert.deepEqual(pool.releases, [{ id: "conn-1", discard: true }], name);
     assert.equal(pool.conns[0].id, "conn-2", `${name}: a fresh connection replaced it`);
   }
+});
+
+
+test("[simulation] REPRODUCED: authority that expires DURING COMMIT withholds the result, and states that the write is durable", async () => {
+  // Codex reproduction: validUntilMs = 1000, now 100 -> 1001 inside COMMIT must not return the work result.
+  let now = 100;
+  const pool = new SimPool(1, { after: new Map([["COMMIT", () => { now = 1001; }]]) });
+  let err: unknown;
+  const result = await withLeasedContext(pool.leaser(), ctx(["scope-a"], 1000), opts(() => now), async (run) => { await run.query("WRITE w1"); return "WORK-RESULT"; }).catch((e) => { err = e; return "NOT-RETURNED"; });
+  assert.equal(result, "NOT-RETURNED");
+  assert.ok(err instanceof ContextSeamError && err.code === "CONTEXT_EXPIRED" && err.committed === true, "the error says the transaction had already committed");
+  assert.deepEqual(pool.conns[0].durable, ["w1"], "COMMIT cannot be undone: the write is durable and the seam does not claim otherwise");
+  assert.deepEqual(pool.releases, [{ id: "conn-1", discard: false }], "the connection is still reset, verified and returned clean");
+  assert.equal(pool.conns[0].setting("ecc.scope_refs"), null);
+});
+
+test("[simulation] authority that expires during the reset or the verification also withholds the result (committed)", async () => {
+  for (const [name, trigger, nth] of [["during DISCARD ALL", RESET_SQL, 1], ["during the post-reset verification", CLEAN_CHECK_SQL, 2]] as const) {
+    let now = 100; let seen = 0;
+    const pool = new SimPool(1, { after: new Map([[trigger, () => { if (++seen === nth) now = 1001; }]]) });
+    let err: unknown;
+    const out = await withLeasedContext(pool.leaser(), ctx(["scope-a"], 1000), opts(() => now), async (run) => { await run.query("WRITE w2"); return "WORK-RESULT"; }).catch((e) => { err = e; return "NOT-RETURNED"; });
+    assert.equal(out, "NOT-RETURNED", name);
+    assert.ok(err instanceof ContextSeamError && err.code === "CONTEXT_EXPIRED" && err.committed === true, name);
+    assert.deepEqual(pool.conns[0].durable, ["w2"], name);
+    assert.deepEqual(pool.releases, [{ id: "conn-1", discard: false }], `${name}: cleanup still completed and the clean connection was returned`);
+  }
+});
+
+test("[simulation] expiry before COMMIT rolls back (committed false); expiry exactly at the final reading is exclusive", async () => {
+  let now = 100;
+  const pool = new SimPool(1);
+  let err: unknown;
+  await withLeasedContext(pool.leaser(), ctx(["scope-a"], 1000), opts(() => now), async (run) => { await run.query("WRITE w3"); now = 1000; return "x"; }).catch((e) => { err = e; });
+  assert.ok(err instanceof ContextSeamError && err.code === "CONTEXT_EXPIRED" && err.committed === false);
+  assert.deepEqual(pool.conns[0].durable, [], "nothing committed");
+  assert.ok(!pool.conns[0].log.includes("COMMIT"));
+  // Valid through the very end: delivered.
+  now = 100;
+  assert.equal(await withLeasedContext(pool.leaser(), ctx(["scope-a"], 1000), opts(() => now), async () => "OK"), "OK");
+});
+
+test("[simulation] a bad clock reading after COMMIT is reported as committed", async () => {
+  let n = 0; const readings = [100, 100, 100, Number.NaN]; // pre-lease, after set_config, after the work, then the final reading
+  const pool = new SimPool(1);
+  let err: unknown;
+  await withLeasedContext(pool.leaser(), ctx(["scope-a"], 1000), opts(() => readings[Math.min(n++, readings.length - 1)]), async (run) => { await run.query("WRITE w4"); return 1; }).catch((e) => { err = e; });
+  assert.ok(err instanceof ContextSeamError && err.code === "CLOCK_INVALID" && err.committed === true);
+});
+
+test("[simulation] REPRODUCED: a missing, non-numeric or non-finite expiry (NaN, Infinity, undefined, null, string, zero, negative) never leases a connection or runs the work", async () => {
+  for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, undefined, null, "1000", 0, -5, {}, [], true, 10n] as unknown[]) {
+    const pool = new SimPool(1);
+    let ran = false;
+    await assert.rejects(withLeasedContext(pool.leaser(), { actor: PERSON, scopeRefs: ["scope-a"], validUntilMs: bad as number }, opts(), async () => { ran = true; return 1; }), code("INVALID_CONTEXT"), String(bad));
+    assert.equal(ran, false, String(bad));
+    assert.equal(pool.leases, 0, `${String(bad)}: refused before any connection is taken`);
+  }
+  // A context object with no validUntilMs key at all is also refused.
+  const pool = new SimPool(1);
+  await assert.rejects(withLeasedContext(pool.leaser(), { actor: PERSON, scopeRefs: ["scope-a"] } as never, opts(), async () => 1), code("INVALID_CONTEXT"));
+  assert.equal(pool.leases, 0);
+});
+
+test("[simulation] the complete context is validated before leasing: actor, scope array shape and size, options", async () => {
+  const pool = new SimPool(1);
+  const good = ctx(["scope-a"]);
+  const bads: [string, unknown, unknown][] = [
+    ["scopeRefs not an array", { ...good, scopeRefs: "scope-a" }, opts()],
+    ["scopeRefs member not a string", { ...good, scopeRefs: [7] }, opts()],
+    ["too many scopes", { ...good, scopeRefs: Array.from({ length: 257 }, (_, i) => `s${i}`) }, opts()],
+    ["missing expectedRole", good, { now: () => T0 }],
+    ["missing clock", good, { expectedRole: ROLE }],
+  ];
+  for (const [name, c, o] of bads) {
+    await assert.rejects(withLeasedContext(pool.leaser(), c as never, o as never, async () => 1), code("INVALID_CONTEXT"), name);
+  }
+  assert.equal(pool.leases, 0);
 });
 
 test("[simulation] a bypass-capable or wrong role is refused before any context is set", async () => {

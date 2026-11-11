@@ -31,3 +31,11 @@ export type LegalDashboardState =
   | { kind: "denied" }
   | { kind: "error"; message: string }
   | { kind: "ready"; matters: LegalMatter[]; stale?: boolean };
+
+export type LegalMatterState =
+  | { kind: "loading" }
+  | { kind: "unavailable"; reason: string }
+  | { kind: "denied" }
+  | { kind: "missing" }
+  | { kind: "error"; message: string }
+  | { kind: "ready"; matter: LegalMatter; stale?: boolean };

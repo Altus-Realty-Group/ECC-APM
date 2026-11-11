@@ -1,7 +1,7 @@
 import React from "react";
 import LegalCommandView from "../components/LegalCommandView";
-import { unboundLegalAdapter } from "../adapter";
+import { LEGAL_ADAPTER } from "../adapter";
 
 export default function LegalCaseManagerPage() {
-  return <LegalCommandView adapter={unboundLegalAdapter()} />;
+  return <LegalCommandView adapter={LEGAL_ADAPTER} />;
 }

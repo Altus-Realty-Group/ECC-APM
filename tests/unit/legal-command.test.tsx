@@ -3,6 +3,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { create, act } from "react-test-renderer";
 import { Router } from "wouter";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { createQueryClient } from "../../src/lib/queryClient";
+
+function Fixture({ children }: { children: React.ReactNode }) {
+  const [client] = React.useState(createQueryClient);
+  return <QueryClientProvider client={client}><Router hook={useLoc}>{children}</Router></QueryClientProvider>;
+}
 import LegalCommandView from "../../src/features/legal/components/LegalCommandView";
 import { fixtureLegalAdapter, unboundLegalAdapter, SYNTHETIC_MATTERS } from "../../src/features/legal/adapter";
 
@@ -24,7 +31,7 @@ test("synthetic matters keep awards unknown, not zero", () => {
 test("command view loads and filters by queue", async () => {
   const adapter = fixtureLegalAdapter({ kind: "ready", matters: SYNTHETIC_MATTERS });
   let tree: any;
-  await act(async () => { tree = create(<Router hook={useLoc}><LegalCommandView adapter={adapter} /></Router>); });
+  await act(async () => { tree = create(<Fixture><LegalCommandView adapter={adapter} /></Fixture>); });
   await act(async () => { await new Promise(r => setTimeout(r, 10)); });
   const json = JSON.stringify(tree.toJSON());
   assert.match(json, /EXAMPLE v. SAMPLE/);
@@ -39,7 +46,7 @@ test("command view loads and filters by queue", async () => {
 test("command view search filters captions", async () => {
   const adapter = fixtureLegalAdapter({ kind: "ready", matters: SYNTHETIC_MATTERS });
   let tree: any;
-  await act(async () => { tree = create(<Router hook={useLoc}><LegalCommandView adapter={adapter} /></Router>); });
+  await act(async () => { tree = create(<Fixture><LegalCommandView adapter={adapter} /></Fixture>); });
   await act(async () => { await new Promise(r => setTimeout(r, 10)); });
   const input = tree.root.findByProps({ "aria-label": "Search legal matters" });
   await act(async () => { input.props.onChange({ target: { value: "DEMO" } }); });
@@ -51,11 +58,13 @@ test("command view search filters captions", async () => {
 test("session key clears search", async () => {
   const adapter = fixtureLegalAdapter({ kind: "ready", matters: SYNTHETIC_MATTERS });
   let tree: any;
-  await act(async () => { tree = create(<Router hook={useLoc}><LegalCommandView adapter={adapter} sessionKey="a" /></Router>); });
+  await act(async () => { tree = create(<Fixture><LegalCommandView adapter={adapter} sessionKey="a" /></Fixture>); });
   await act(async () => { await new Promise(r => setTimeout(r, 10)); });
   const input = tree.root.findByProps({ "aria-label": "Search legal matters" });
   await act(async () => { input.props.onChange({ target: { value: "DEMO" } }); });
-  await act(async () => { tree.update(<Router hook={useLoc}><LegalCommandView adapter={adapter} sessionKey="b" /></Router>); });
+  await act(async () => { tree.update(<Fixture><LegalCommandView adapter={adapter} sessionKey="b" /></Fixture>); });
+  await act(async () => { await new Promise(r => setTimeout(r, 10)); });
   const cleared = tree.root.findByProps({ "aria-label": "Search legal matters" });
   assert.equal(cleared.props.value, "");
+  await act(async () => { tree.unmount(); });
 });

@@ -1,9 +1,36 @@
-.ecc-legal { color: #f5f5f5; max-width: 960px; margin: 0 auto; padding: 24px 16px; }
-.ecc-legal-header h1 { font-size: 28px; margin: 0 0 8px; }
-.ecc-legal-note { font-size: 13px; opacity: 0.85; }
-.ecc-legal-search { display: flex; flex-direction: column; gap: 4px; margin: 12px 0; }
-.ecc-legal-search input { min-height: 44px; padding: 8px 12px; background: #111; color: #f5f5f5; border: 1px solid #d4af37; }
-.ecc-legal-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
-.ecc-legal-row { width: 100%; min-height: 44px; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border: 1px solid #d4af37; background: #111; color: #f5f5f5; text-decoration: none; }
-.ecc-legal-row:focus { outline: 2px solid #d4af37; outline-offset: 2px; }
-@media (max-width: 420px) { .ecc-legal { padding: 16px 12px; } .ecc-legal-header h1 { font-size: 22px; } }
+.ecc-legal { color: #f5f5f5; max-width: 1120px; margin: 0 auto; padding: 24px 16px; min-width: 0; overflow-wrap: anywhere; }
+.ecc-legal * { box-sizing: border-box; }
+.ecc-legal-header { margin: 20px 0; }
+.ecc-legal-header h1 { font-size: 28px; line-height: 1.2; margin: 0 0 12px; }
+.ecc-legal h2 { font-size: 20px; margin: 0 0 16px; }
+.ecc-legal-eyebrow { color: #d4af37; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.ecc-legal-note { font-size: 14px; line-height: 1.6; color: #c9c9c9; }
+.ecc-legal .ecc-btn, .ecc-legal input { min-height: 44px; min-width: 44px; font: inherit; }
+.ecc-legal .ecc-btn { border: 1px solid #777; border-radius: 6px; background: #111; color: #f5f5f5; padding: 10px 14px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+.ecc-legal button[aria-pressed="true"], .ecc-legal button[aria-selected="true"] { border-color: #d4af37; color: #d4af37; background: #202020; box-shadow: inset 0 -2px #d4af37; }
+.ecc-legal :focus-visible { outline: 2px solid #d4af37; outline-offset: 3px; }
+.ecc-legal-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid #555; border-radius: 8px; margin: 24px 0 12px; background: #111; }
+.ecc-legal-metrics > div { padding: 18px; display: flex; flex-direction: column; gap: 8px; }
+.ecc-legal-metrics > div + div { border-left: 1px solid #555; }
+.ecc-legal-metrics span { color: #ccc; font-size: 14px; }
+.ecc-legal-metrics strong { font-size: 28px; font-variant-numeric: tabular-nums; }
+.ecc-legal-queues, .ecc-legal-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; }
+.ecc-legal-search { display: flex; flex-direction: column; gap: 6px; margin: 20px 0 12px; }
+.ecc-legal-search input { width: 100%; padding: 10px 12px; border-radius: 6px; background: #111; color: #f5f5f5; border: 1px solid #777; }
+.ecc-legal-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.ecc-legal .ecc-legal-row { width: 100%; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 16px; border-color: #555; }
+.ecc-legal-row > span:first-child { min-width: 0; flex: 1; }
+.ecc-legal-row-detail { display: block; margin-top: 8px; color: #ccc; font-size: 14px; line-height: 1.5; }
+.ecc-legal-badge { flex-shrink: 0; color: #d4af37; border: 1px solid #777; padding: 4px 8px; border-radius: 4px; font-size: 13px; }
+.ecc-legal-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px; margin: 24px 0; }
+.ecc-legal-facts dt { color: #bdbdbd; font-size: 14px; margin-bottom: 6px; }
+.ecc-legal-facts dd { margin: 0; line-height: 1.5; }
+.ecc-legal-panel { padding: 20px; border: 1px solid #555; border-radius: 8px; background: #111; }
+@media (max-width: 540px) {
+  .ecc-legal { padding: 16px 12px; }
+  .ecc-legal-header h1 { font-size: 24px; }
+  .ecc-legal-metrics, .ecc-legal-facts { grid-template-columns: 1fr; }
+  .ecc-legal-metrics > div + div { border-left: 0; border-top: 1px solid #555; }
+  .ecc-legal .ecc-legal-row { flex-direction: column; }
+  .ecc-legal-badge { flex-shrink: 1; }
+}

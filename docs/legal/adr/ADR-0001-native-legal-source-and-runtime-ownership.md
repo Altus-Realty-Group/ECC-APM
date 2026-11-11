@@ -70,6 +70,8 @@ bypasses RLS. Read-only metadata at 2026-11-10 shows:
   runtime privileges and role, but keeps added columns, the union `case_type` check, nullable `case_number` (global unique
   not recreated), the NOT VALID journal FK, enabled RLS and the revoked anon/authenticated/PUBLIC grants. Restoring those
   grants is a separate security decision. See the header of the rollback proposal for the exact list.
+* Role custody is fail-closed: the proposal refuses a preexisting `ecc_legal_runtime`; the rollback uses bounded revokes (no
+  `DROP OWNED`) and refuses, changing nothing, if the role owns or holds anything beyond the known legal objects.
 * Until the scope-to-grant mapping exists, runtime reads must return nothing rather than everything.
 * Server code does not change in this PR; no handler is reactivated.
 

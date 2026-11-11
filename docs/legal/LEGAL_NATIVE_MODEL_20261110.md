@@ -40,8 +40,10 @@ compatibility; new readiness lives on the award.
 table holds rows. It removes the new tables, view, triggers, functions, runtime policies, runtime privileges and the role.
 It retains: added columns and indexes, the union `case_type` check (the original conflicting pair is not recreated),
 nullable `case_number` (global unique not recreated), the NOT VALID journal FK, enabled RLS, and the revoked
-anon/authenticated/PUBLIC grants (not restored). The result is not the original schema or permissions. Role removal also needs
-the role to hold no grants in other databases of the cluster.
+anon/authenticated/PUBLIC grants (not restored). The result is not the original schema or permissions. Role custody fails closed: the proposal
+refuses to run if `ecc_legal_runtime` already exists (it never adopts a role), and the rollback uses explicit revokes on the
+known legal objects only (no `DROP OWNED`). If the role owns anything, holds any other privilege, or has dependencies in
+another database, the rollback raises and, run with `ON_ERROR_STOP`, changes nothing. Removing such a role is a human decision.
 
 ## Open blockers
 1. scope_ref to central-grant mapping (needs Control Plane contract).

@@ -1,13 +1,17 @@
 -- PROPOSAL ONLY (ECC-LEGAL-CLAUDE-v1 / issue #214). NOT APPLIED to any database.
 -- Additive native legal model. See docs/legal/adr/ADR-0001-*.md. Applying needs a separate reviewed migration.
--- Idempotent where practical; the whole file runs in one transaction.
+-- Runs in one transaction: run with ON_ERROR_STOP so a failure leaves no partial change.
 BEGIN;
 
 -- 0. Runtime role: dedicated, non-bypass, no login here (login/credentials are an ops decision).
+--    FAIL CLOSED on a preexisting role: this file never adopts a role it did not create, because the rollback
+--    removes the role and must be able to assume nothing else depends on it. Resolve the name clash first.
+--    (One-time apply: this file is not re-runnable once it has created the role.)
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ecc_legal_runtime') THEN
-    CREATE ROLE ecc_legal_runtime NOLOGIN NOBYPASSRLS;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ecc_legal_runtime') THEN
+    RAISE EXCEPTION 'ecc_legal_runtime already exists; refusing to adopt a preexisting role (no changes made)';
   END IF;
+  CREATE ROLE ecc_legal_runtime NOLOGIN NOBYPASSRLS;
 END $$;
 
 -- 1. Authorization context (fail closed). PRECISE SCOPE OF THIS MECHANISM: these policies only FILTER rows by a

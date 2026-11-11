@@ -51,3 +51,14 @@ test("rollback states its partial nature", () => {
   assert.match(rollback, /NOT AN EXACT RESTORE/);
   assert.match(rollback, /RESIDUAL STATE/);
 });
+
+test("proposal refuses a preexisting runtime role instead of adopting it", () => {
+  assert.match(sql, /refusing to adopt a preexisting role/);
+  assert.doesNotMatch(sql, /IF NOT EXISTS \(SELECT 1 FROM pg_roles WHERE rolname = 'ecc_legal_runtime'\)/);
+});
+test("rollback never uses DROP OWNED and fails closed on role custody", () => {
+  const rb = rollback.replace(/--[^\n]*/g, "");
+  assert.doesNotMatch(rb, /DROP\s+OWNED/i);
+  assert.match(rb, /rollback refused: ecc_legal_runtime owns/);
+  assert.match(rb, /DROP ROLE ecc_legal_runtime;/);
+});

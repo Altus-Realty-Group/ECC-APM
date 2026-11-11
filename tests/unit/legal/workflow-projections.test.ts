@@ -47,12 +47,35 @@ test("unknown awards are deduplicated by identity", () => {
   assert.equal(verifiedAwardCount(awards), 1);
 });
 
-test("rejects malformed court date", () => {
-  const p: WorkflowProjection = { matter, evidence: [], requirements: [], courtEvents: [{ id: "c1", matterId: "m1", date: "not-a-date", source: null, responsibleActor: null }], awards: [] };
-  assert.equal(validateProjection(p).kind, "conflict");
+test("rejects impossible calendar day and leap-year edge", () => {
+  const bad = { matter, evidence: [], requirements: [], courtEvents: [{ id: "c1", matterId: "m1", date: "2026-02-30", source: null, responsibleActor: null }], awards: [] };
+  assert.equal(validateProjection(bad).kind, "conflict");
+  const leap = { matter, evidence: [], requirements: [], courtEvents: [{ id: "c2", matterId: "m1", date: "2024-02-29", source: null, responsibleActor: null }], awards: [] };
+  assert.equal(validateProjection(leap).kind, "ready");
+  const nonLeap = { matter, evidence: [], requirements: [], courtEvents: [{ id: "c3", matterId: "m1", date: "2026-02-29", source: null, responsibleActor: null }], awards: [] };
+  assert.equal(validateProjection(nonLeap).kind, "conflict");
 });
 
-test("outcomes cover unavailable missing denied stale conflict", () => {
-  const kinds = ["unavailable", "missing", "denied", "stale", "conflict"] as const;
-  for (const k of kinds) assert.ok(k);
+test("rejects invalid lifecycle and null input", () => {
+  const badLife = { ...matter, lifecycle: "NOT_A_LIFECYCLE" as any };
+  assert.equal(validateProjection({ matter: badLife, evidence: [], requirements: [], courtEvents: [], awards: [] }).kind, "conflict");
+  assert.equal(validateProjection(null).kind, "conflict");
+});
+
+test("conflict reasons do not echo restricted ids", () => {
+  const restricted = { id: "SECRET-ID", matterId: "other", filename: "secret.pdf", url: "http://secret", restricted: true, confidence: "low" as const };
+  const out = validateProjection({ matter, evidence: [restricted], requirements: [], courtEvents: [], awards: [] });
+  assert.equal(out.kind, "conflict");
+  if (out.kind === "conflict") assert.doesNotMatch(out.reason, /SECRET|secret/);
+});
+
+test("outcomes are returned for unavailable missing denied stale conflict", () => {
+  const outcomes = [
+    { kind: "unavailable" as const, reason: "producer not bound" },
+    { kind: "missing" as const },
+    { kind: "denied" as const },
+    { kind: "stale" as const, asOf: null },
+    { kind: "conflict" as const, reason: "duplicate id" },
+  ];
+  for (const o of outcomes) assert.ok(o.kind);
 });

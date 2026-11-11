@@ -1,5 +1,5 @@
 import type { LegalMatter, LegalAward } from "../contracts";
-import { CONFIDENCE, VERIFICATIONS, READINESS } from "../contracts";
+import { CONFIDENCE, VERIFICATIONS, READINESS, LIFECYCLES } from "../contracts";
 
 /** Provisional workflow types. Not an accepted producer contract. */
 
@@ -45,29 +45,36 @@ export type ProjectionOutcome =
   | { kind: "stale"; asOf: string | null }
   | { kind: "conflict"; reason: string };
 
-function isIsoDate(v: string | null): boolean {
+function isRealIsoDate(v: string | null): boolean {
   if (v === null) return true;
-  return /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const [y, m, d] = v.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
 }
 
 /** Validate whole projection against its matter. Reject wrong-matter children, conflicting duplicate IDs and malformed dimensions. */
-export function validateProjection(p: WorkflowProjection): ProjectionOutcome {
+export function validateProjection(input: unknown): ProjectionOutcome {
+  if (input === null || typeof input !== "object") return { kind: "conflict", reason: "projection is not an object" };
+  const p = input as WorkflowProjection;
+  if (!p.matter || typeof p.matter.id !== "string") return { kind: "conflict", reason: "matter is missing" };
+  if (!(LIFECYCLES as readonly string[]).includes(p.matter.lifecycle)) return { kind: "conflict", reason: "matter lifecycle is not allowed" };
   const mid = p.matter.id;
   const ids = new Set<string>();
   for (const child of [...p.evidence, ...p.requirements, ...p.courtEvents, ...p.awards]) {
-    if (child.matterId !== mid) return { kind: "conflict", reason: `wrong-matter child ${child.id}` };
-    if (ids.has(child.id)) return { kind: "conflict", reason: `duplicate id ${child.id}` };
+    if (child.matterId !== mid) return { kind: "conflict", reason: "wrong-matter child" };
+    if (ids.has(child.id)) return { kind: "conflict", reason: "duplicate id" };
     ids.add(child.id);
   }
   for (const e of p.evidence) {
-    if (!(CONFIDENCE as readonly string[]).includes(e.confidence)) return { kind: "conflict", reason: `bad confidence ${e.id}` };
+    if (!(CONFIDENCE as readonly string[]).includes(e.confidence)) return { kind: "conflict", reason: "bad confidence" };
   }
   for (const a of p.awards) {
-    if (!(VERIFICATIONS as readonly string[]).includes(a.judgmentVerification)) return { kind: "conflict", reason: `bad verification ${a.id}` };
-    if (!(READINESS as readonly string[]).includes(a.collectionReadiness)) return { kind: "conflict", reason: `bad readiness ${a.id}` };
+    if (!(VERIFICATIONS as readonly string[]).includes(a.judgmentVerification)) return { kind: "conflict", reason: "bad verification" };
+    if (!(READINESS as readonly string[]).includes(a.collectionReadiness)) return { kind: "conflict", reason: "bad readiness" };
   }
   for (const c of p.courtEvents) {
-    if (!isIsoDate(c.date)) return { kind: "conflict", reason: `bad date ${c.id}` };
+    if (!isRealIsoDate(c.date)) return { kind: "conflict", reason: "court date is not a real calendar day" };
   }
   return { kind: "ready", projection: p };
 }

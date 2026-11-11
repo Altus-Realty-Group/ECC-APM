@@ -10,7 +10,7 @@ const scratch = await mkdtemp(path.join(tmpdir(), "ecc-documents-proof-"));
 const artifacts = process.env.PROOF_ARTIFACT_DIR || path.join(scratch, "artifacts");
 await mkdir(artifacts, { recursive: true });
 process.env.ECC_DOCUMENTS_PROOF_OUT = path.join(scratch, "dist");
-const receipt = { kind: "SYNTHETIC_EXACT_SOURCE_NOT_LIVE", head: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
+const receipt = { kind: "SYNTHETIC_EXACT_SOURCE_NOT_LIVE", sourceHead: process.env.SOURCE_HEAD_SHA || null, head: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
   worktree: execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim(), viewports: [], consoleErrors: [], pageErrors: [], rejectedRequests: [] };
 let browser, server;
 try {

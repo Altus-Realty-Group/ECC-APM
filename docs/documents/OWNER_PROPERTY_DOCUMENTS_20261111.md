@@ -92,10 +92,33 @@ target changes. Net new database objects:0.
   WorkspaceBar and styles, with synthetic adapters only. It specifies 390/1440,
   filtering, pending download denial, downloaded bytes, session reset, linked
   owner records, all error states, cross-domain denial, geometry and 44px targets.
-- Browser proof is NOT PASSED: local Chromium failed at socket creation under
+- Local browser proof did not pass: Chromium failed at socket creation under
   host policy; remote browser could not reach the local preview. No screenshot,
   mobile-fit, measured accessibility, live producer or live download acceptance
   claim is made. The proof script is ready for a supported browser runner.
+
+## Scoped CI proof follow-up
+
+The existing Verify job now runs the document browser harness when document
+code, its card wrappers, relevant shared shell/session/styles/dependencies or
+the proof/workflow changes. An unrelated authorization-only change does not
+select this harness. Its browser installation is shared with the existing
+proofs; no additional install, job, matrix, workflow or trigger is introduced.
+Main pushes retain the existing browser-proof skip, avoiding a duplicate run.
+
+CI impact: same one job, same ten-minute job ceiling, same read-only permission
+and required verify check. The new proof has a two-minute step ceiling and
+one-day artifact retention. Added proof time is expected below one minute on
+a ready runner, with a two-minute bound per selected PR; browser setup is
+shared and only needed if a selected proof requires it. For N selected PR
+runs/month, the new proof adds at most 2N step-minutes within the existing job
+ceiling, and zero for unselected runs. First workflow-change validation also
+selects the existing dashboard/legal proofs. Actual billing is not measured.
+No provider/production calls, deployment, migration, secret or service changes.
+Revert the document-scope/step changes to restore prior CI behavior.
+
+Hosted execution and artifact review are required before changing the browser
+acceptance status above. A passing unit/build step alone is insufficient.
 
 Rollback: revert source changes. This PR performs no live migration. Removing
 newly created empty Dropbox folders is a separate explicitly requested action;

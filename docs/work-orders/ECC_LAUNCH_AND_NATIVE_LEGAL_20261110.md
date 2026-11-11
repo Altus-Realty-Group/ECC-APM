@@ -138,3 +138,29 @@ appropriate internal/counsel review drive the legal states.
 All UI follows ECC black/white/gold and its shared shell. A persisted authorized
 case journey, role-scoped document retrieval and a subsequent real source refresh
 are acceptance; fixture appearance, row counts and function health are not.
+
+
+## Active next tranche - 2026-11-11
+
+Dion assigned final ECC UI design, implementation and visual acceptance to Codex.
+Claude and Grok may advise on design and prepare structures; they do not own final
+UI release decisions. Source UI PR227 is merged at33f06a4b88625d66f61181b21c04bf23f3680508,
+with real-shell390/1440 browser proof. It remains unbound; source acceptance is not live legal acceptance.
+
+| Lane | Owner | Concrete next PR outcome | Current delivery |
+| --- | --- | --- | --- |
+| A1 / issue211 | Claude Code | Current-session/resource authorization boundary and legal scope mapping; placement ADR before source; narrow protected-read successor to retained PR155 | New prompt required; not externally started |
+| L6 structures / issue219 | Grok | Typed evidence/task/court read projections and source-backed workflow invariants; no rendered UI or provider binding | New prompt required; not externally started |
+| L2 revision review / issue215 | Codex | Offline comparison of successive previews, identity quarantine, replay and provenance review; separate from canonical commit | Current-chat implementation and synthetic tests |
+| Final workflow UI / issue219 +221 | Codex | Consume reviewed structures and accepted scoped read producer; finalize evidence/task/court sections in bounded source PRs | Awaiting A1/structures/manifest producer acceptance |
+
+The L2 comparison never approves a baseline, assigns a canonical case ID, posts
+an award, sends a request, or enables database commit. A1's live issuer/runtime
+proof and L1's migration remain separate activation gates. L5 judgment accounting
+and L7 packets remain separate downstream PRs, not silently included in A1.
+
+Do not manufacture empty PRs for the external workers. Issues211/219 remain the
+existing target work orders; each worker must open its actual implementation PR
+with a scoped source/test diff and return the PR/head for Codex review. Posting
+these directions does not dispatch either external account. No new paid service,
+API jobs, infrastructure or CI fan-out is admitted; retain existing cost bounds.

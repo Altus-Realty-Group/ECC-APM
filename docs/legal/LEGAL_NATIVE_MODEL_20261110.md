@@ -35,6 +35,16 @@ compatibility; new readiness lives on the award.
 * **UUID/integer crosswalks**: legal FKs use `id_uuid`; integer ids only in legacy staging and `legal_source_links.legacy_int_id`.
 * **Legacy rows**: existing matters keep `scope_ref` NULL (invisible to the runtime role until a reviewed backfill). The 216 staging rows are not read or modified.
 
+## Write protocol and journal visibility
+* **Revisions**: a caller that read revision r writes revision r + 1. A write that omits the column or carries a stale value is
+  rejected (SQLSTATE 40001). Direct table UPDATE remains the write path in this proposal; sanctioned write functions are a
+  possible later hardening, not part of this PR.
+* **Birth values**: awards are created `unverified` / `not_ready` and evidence references `unreviewed`, at revision 1; any later
+  move is a guarded, journalled UPDATE. Initial matter lifecycle on INSERT is not journalled in this proposal.
+* **Journal reads**: `evidence_confidence` journal rows are visible only to callers who can see the evidence reference itself, so
+  restricted evidence changes are not exposed to unentitled callers in the same scope.
+* **Property links** are unique on (matter, property, unit, lease) with NULLs treated as equal (PostgreSQL 15+).
+
 ## Rollback limits
 `docs/legal/schema/001_native_legal_foundation.rollback.proposal.sql` is a guarded, PARTIAL cleanup. It refuses while any new
 table holds rows. It removes the new tables, view, triggers, functions, runtime policies, runtime privileges and the role.
@@ -42,7 +52,7 @@ It retains: added columns and indexes, the union `case_type` check (the original
 nullable `case_number` (global unique not recreated), the NOT VALID journal FK, enabled RLS, and the revoked
 anon/authenticated/PUBLIC grants (not restored). The result is not the original schema or permissions. Role custody fails closed: the proposal
 refuses to run if `ecc_legal_runtime` already exists (it never adopts a role), and the rollback uses explicit revokes on the
-known legal objects only (no `DROP OWNED`). If the role owns anything, holds any other privilege, or has dependencies in
+known legal objects only (no `DROP OWNED`). The rollback locks the new tables ACCESS EXCLUSIVE before counting rows and holds the locks through the drop. If the role owns anything, holds any other privilege, or has dependencies in
 another database, the rollback raises and, run with `ON_ERROR_STOP`, changes nothing. Removing such a role is a human decision.
 
 ## Open blockers

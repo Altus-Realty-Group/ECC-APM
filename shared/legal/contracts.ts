@@ -140,6 +140,15 @@ export function totalAwards(awards: readonly LegalAward[]): { byCurrency: Record
   return { byCurrency, unknownCount };
 }
 
+/**
+ * Write protocol: a caller that read revision r writes revision r + 1. The database rejects a write whose revision is not
+ * current + 1, including one that omits the column, so a stale or revision-less write cannot succeed.
+ */
+export function nextRevision(read: number): number {
+  if (!Number.isSafeInteger(read) || read < 1 || read >= Number.MAX_SAFE_INTEGER) throw new LegalContractError("revision must be a positive safe integer");
+  return read + 1;
+}
+
 /** Optimistic concurrency: a write carries the revision it read. */
 export function assertRevision(read: number, current: number): void {
   if (read !== current) throw new LegalContractError(`stale revision (read ${read}, current ${current})`);

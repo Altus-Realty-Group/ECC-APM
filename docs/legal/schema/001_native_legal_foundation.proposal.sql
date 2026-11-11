@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS legal_matter_properties (
   unit_id uuid REFERENCES units(id_uuid) ON DELETE SET NULL,
   lease_id uuid REFERENCES leases(id_uuid) ON DELETE SET NULL,
   is_primary boolean NOT NULL DEFAULT false,
-  UNIQUE (matter_id, property_id, unit_id, lease_id)
+  UNIQUE NULLS NOT DISTINCT (matter_id, property_id, unit_id, lease_id)   -- PostgreSQL 15+; NULL unit/lease still one link
 );
 CREATE TABLE IF NOT EXISTS legal_awards (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -146,10 +146,11 @@ CREATE TRIGGER legal_events_no_mutate BEFORE UPDATE OR DELETE ON legal_case_even
 -- 5. Revision compare-and-set + journalling of each dimension change.
 CREATE OR REPLACE FUNCTION legal_matter_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  IF NEW.revision IS DISTINCT FROM OLD.revision THEN
-    RAISE EXCEPTION 'legal: stale revision (read %, current %)', NEW.revision, OLD.revision USING ERRCODE = '40001';
+  -- Explicit protocol: the caller reads revision r and writes revision = r + 1. A write that omits revision (NEW = OLD)
+  -- or carries a stale one is rejected, so optimistic concurrency cannot be bypassed by leaving the column out.
+  IF NEW.revision IS DISTINCT FROM OLD.revision + 1 THEN
+    RAISE EXCEPTION 'legal: stale or omitted revision (expected %, got %)', OLD.revision + 1, NEW.revision USING ERRCODE = '40001';
   END IF;
-  NEW.revision := OLD.revision + 1;
   IF NEW.status IS DISTINCT FROM OLD.status THEN
     INSERT INTO legal_case_events (legal_case_id, event_type, from_status, to_status, dimension, actor, subject_id, source, created_at)
     VALUES (OLD.id, 'lifecycle_changed', OLD.status, NEW.status, 'lifecycle', legal_actor(), OLD.id, 'legal_matter_guard', now());
@@ -161,10 +162,11 @@ CREATE TRIGGER legal_cases_guard BEFORE UPDATE ON legal_cases FOR EACH ROW EXECU
 
 CREATE OR REPLACE FUNCTION legal_award_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  IF NEW.revision IS DISTINCT FROM OLD.revision THEN
-    RAISE EXCEPTION 'legal: stale revision (read %, current %)', NEW.revision, OLD.revision USING ERRCODE = '40001';
+  -- Explicit protocol: the caller reads revision r and writes revision = r + 1. A write that omits revision (NEW = OLD)
+  -- or carries a stale one is rejected, so optimistic concurrency cannot be bypassed by leaving the column out.
+  IF NEW.revision IS DISTINCT FROM OLD.revision + 1 THEN
+    RAISE EXCEPTION 'legal: stale or omitted revision (expected %, got %)', OLD.revision + 1, NEW.revision USING ERRCODE = '40001';
   END IF;
-  NEW.revision := OLD.revision + 1;
   IF NEW.judgment_verification IS DISTINCT FROM OLD.judgment_verification THEN
     INSERT INTO legal_case_events (legal_case_id, event_type, from_status, to_status, dimension, actor, subject_id, source, created_at)
     VALUES (OLD.matter_id, 'judgment_verification_changed', OLD.judgment_verification, NEW.judgment_verification,
@@ -201,10 +203,11 @@ END $$;
 -- 5c. Evidence confidence: revision compare-and-set + actor + journal row (dimension evidence_confidence).
 CREATE OR REPLACE FUNCTION legal_evidence_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  IF NEW.revision IS DISTINCT FROM OLD.revision THEN
-    RAISE EXCEPTION 'legal: stale revision (read %, current %)', NEW.revision, OLD.revision USING ERRCODE = '40001';
+  -- Explicit protocol: the caller reads revision r and writes revision = r + 1. A write that omits revision (NEW = OLD)
+  -- or carries a stale one is rejected, so optimistic concurrency cannot be bypassed by leaving the column out.
+  IF NEW.revision IS DISTINCT FROM OLD.revision + 1 THEN
+    RAISE EXCEPTION 'legal: stale or omitted revision (expected %, got %)', OLD.revision + 1, NEW.revision USING ERRCODE = '40001';
   END IF;
-  NEW.revision := OLD.revision + 1;
   IF NEW.confidence IS DISTINCT FROM OLD.confidence THEN
     INSERT INTO legal_case_events (legal_case_id, event_type, from_status, to_status, dimension, actor, subject_id, source, created_at)
     VALUES (OLD.matter_id, 'evidence_confidence_changed', OLD.confidence, NEW.confidence,
@@ -215,6 +218,26 @@ END $$;
 DROP TRIGGER IF EXISTS legal_evidence_refs_guard ON legal_evidence_refs;
 CREATE TRIGGER legal_evidence_refs_guard BEFORE UPDATE ON legal_evidence_refs
   FOR EACH ROW EXECUTE FUNCTION legal_evidence_guard();
+
+-- 5d. Initial dimension values: rows are born at the defaults (unverified / not_ready / unreviewed, revision 1); every
+--     later move goes through the guarded, journalled UPDATE path. Closes the INSERT-with-final-value bypass.
+CREATE OR REPLACE FUNCTION legal_initial_dimensions() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_TABLE_NAME = 'legal_awards' THEN
+    IF NEW.judgment_verification <> 'unverified' OR NEW.collection_readiness <> 'not_ready' OR NEW.revision <> 1 THEN
+      RAISE EXCEPTION 'legal: new awards must start unverified / not_ready at revision 1' USING ERRCODE = '23514';
+    END IF;
+  ELSIF TG_TABLE_NAME = 'legal_evidence_refs' THEN
+    IF NEW.confidence <> 'unreviewed' OR NEW.revision <> 1 THEN
+      RAISE EXCEPTION 'legal: new evidence references must start unreviewed at revision 1' USING ERRCODE = '23514';
+    END IF;
+  END IF;
+  RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS legal_awards_initial ON legal_awards;
+CREATE TRIGGER legal_awards_initial BEFORE INSERT ON legal_awards FOR EACH ROW EXECUTE FUNCTION legal_initial_dimensions();
+DROP TRIGGER IF EXISTS legal_evidence_refs_initial ON legal_evidence_refs;
+CREATE TRIGGER legal_evidence_refs_initial BEFORE INSERT ON legal_evidence_refs FOR EACH ROW EXECUTE FUNCTION legal_initial_dimensions();
 
 -- 6. Grants: remove anon/authenticated/PUBLIC DML; runtime gets the minimum.
 DO $$
@@ -241,7 +264,7 @@ DO $$
 DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY['legal_parties','legal_matter_properties','legal_awards','legal_evidence_requirements',
-    'legal_source_links','legal_case_events'] LOOP
+    'legal_source_links'] LOOP
     EXECUTE format($f$CREATE POLICY %I ON %I FOR ALL TO ecc_legal_runtime
       USING (EXISTS (SELECT 1 FROM legal_cases m WHERE m.id = %I AND legal_scope_ok(m.scope_ref)))
       WITH CHECK (EXISTS (SELECT 1 FROM legal_cases m WHERE m.id = %I AND legal_scope_ok(m.scope_ref)))$f$,
@@ -249,6 +272,13 @@ BEGIN
       CASE WHEN t IN ('legal_awards','legal_parties','legal_matter_properties','legal_evidence_requirements','legal_source_links') THEN 'matter_id' ELSE 'legal_case_id' END);
   END LOOP;
 END $$;
+-- Journal: scope-filtered, and evidence_confidence rows are visible only if the evidence reference itself is visible
+-- to the caller (the subquery runs under the caller's own RLS, so restricted evidence stays masked in the journal too).
+CREATE POLICY legal_case_events_rt ON legal_case_events FOR ALL TO ecc_legal_runtime
+  USING (EXISTS (SELECT 1 FROM legal_cases m WHERE m.id = legal_case_id AND legal_scope_ok(m.scope_ref))
+         AND (dimension IS DISTINCT FROM 'evidence_confidence'
+              OR EXISTS (SELECT 1 FROM legal_evidence_refs e WHERE e.id = subject_id)))
+  WITH CHECK (EXISTS (SELECT 1 FROM legal_cases m WHERE m.id = legal_case_id AND legal_scope_ok(m.scope_ref)));
 CREATE POLICY legal_evidence_refs_rt ON legal_evidence_refs FOR ALL TO ecc_legal_runtime
   USING (EXISTS (SELECT 1 FROM legal_cases m WHERE m.id = matter_id AND legal_scope_ok(m.scope_ref))
          AND (NOT restricted OR current_setting('ecc.restricted_evidence', true) = 'on'))

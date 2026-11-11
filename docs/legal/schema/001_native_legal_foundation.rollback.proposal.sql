@@ -19,6 +19,10 @@
 -- Consequence: after this script no role but the owner/service role can use the legal tables; legacy callers that relied on
 -- anon/authenticated DML stay blocked. The result is NOT the original schema or the original permissions.
 BEGIN;
+-- Block concurrent writers BEFORE counting and hold the locks through the DROP, so the emptiness check cannot race a
+-- runtime insert (the locks release at COMMIT/ROLLBACK).
+LOCK TABLE legal_source_links, legal_evidence_refs, legal_evidence_requirements, legal_award_obligors,
+  legal_awards, legal_matter_properties, legal_parties IN ACCESS EXCLUSIVE MODE;
 DO $$
 DECLARE t text; n bigint;
 BEGIN
@@ -28,6 +32,8 @@ BEGIN
     IF n > 0 THEN RAISE EXCEPTION 'rollback refused: % holds % rows (legal custody)', t, n; END IF;
   END LOOP;
 END $$;
+-- the journal policy references legal_evidence_refs, so it must go before the tables
+DROP POLICY IF EXISTS legal_case_events_rt ON legal_case_events;
 DROP VIEW IF EXISTS legal_matter_award_totals;
 DROP TABLE legal_source_links, legal_evidence_refs, legal_evidence_requirements, legal_award_obligors,
   legal_awards, legal_matter_properties, legal_parties;
@@ -35,7 +41,7 @@ DROP TRIGGER IF EXISTS legal_cases_guard ON legal_cases;
 DROP TRIGGER IF EXISTS legal_events_no_mutate ON legal_case_events;
 DROP POLICY IF EXISTS legal_cases_rt ON legal_cases;
 DROP POLICY IF EXISTS legal_case_events_rt ON legal_case_events;
-DROP FUNCTION IF EXISTS legal_matter_guard(), legal_award_guard(), legal_evidence_guard(), legal_matter_id_immutable(),
+DROP FUNCTION IF EXISTS legal_matter_guard(), legal_award_guard(), legal_evidence_guard(), legal_initial_dimensions(), legal_matter_id_immutable(),
   legal_events_append_only(), legal_scope_ok(text), legal_actor();
 REVOKE ALL ON legal_cases, legal_case_events, case_history, case_tags FROM ecc_legal_runtime;
 DO $$

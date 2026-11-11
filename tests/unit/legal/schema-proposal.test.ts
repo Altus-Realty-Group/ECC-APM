@@ -62,3 +62,21 @@ test("rollback never uses DROP OWNED and fails closed on role custody", () => {
   assert.match(rb, /rollback refused: ecc_legal_runtime owns/);
   assert.match(rb, /DROP ROLE ecc_legal_runtime;/);
 });
+
+test("rollback takes ACCESS EXCLUSIVE locks before it counts rows (no check-then-drop race)", () => {
+  const rb = rollback.replace(/--[^\n]*/g, "");
+  const lock = rb.search(/LOCK TABLE[\s\S]*?IN ACCESS EXCLUSIVE MODE/);
+  const count = rb.search(/SELECT count\(\*\) FROM %I/);
+  assert.ok(lock >= 0 && count > lock, "LOCK TABLE must precede the emptiness count");
+  assert.ok(rb.indexOf("DROP TABLE") > count);
+  assert.ok(rb.indexOf("DROP POLICY IF EXISTS legal_case_events_rt") < rb.indexOf("DROP TABLE"));
+});
+test("revision protocol is explicit (read r, write r + 1) and initial dimensions are enforced", () => {
+  assert.match(sql, /NEW\.revision IS DISTINCT FROM OLD\.revision \+ 1/);
+  assert.doesNotMatch(sql, /NEW\.revision := OLD\.revision \+ 1/);
+  assert.match(sql, /legal_initial_dimensions/);
+});
+test("journal policy hides restricted evidence changes and property links are NULL-safe unique", () => {
+  assert.match(sql, /CREATE POLICY legal_case_events_rt[\s\S]*dimension IS DISTINCT FROM 'evidence_confidence'[\s\S]*legal_evidence_refs e WHERE e\.id = subject_id/);
+  assert.match(sql, /UNIQUE NULLS NOT DISTINCT \(matter_id, property_id, unit_id, lease_id\)/);
+});

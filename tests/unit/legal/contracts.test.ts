@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { assertRevision, docketKey, LegalContractError, MAX_MONEY_CENTS, moneyToWire, parseAward, parseMatter, parseMoney, scopeAllows, totalAwards, CASE_TYPES } from "../../../shared/legal/contracts.ts";
+import { assertRevision, nextRevision, docketKey, LegalContractError, MAX_MONEY_CENTS, moneyToWire, parseAward, parseMatter, parseMoney, scopeAllows, totalAwards, CASE_TYPES } from "../../../shared/legal/contracts.ts";
 
 const award = (over: Record<string, unknown> = {}) => parseAward({
   id: "a1", matterId: "m1", kind: "damages", amountCents: 100000, currency: "USD", judgmentVerification: "unverified",
@@ -91,4 +91,9 @@ test("nullable money round trips and matches the SQL both-or-neither rule", () =
   }
   assert.throws(() => parseMoney(null, "USD"), LegalContractError);   // SQL rejects the same state
   assert.throws(() => parseMoney(5, null), LegalContractError);
+});
+
+test("next revision is read + 1 and rejects unusable input", () => {
+  assert.equal(nextRevision(1), 2);
+  for (const bad of [0, -1, 1.5, NaN, Number.MAX_SAFE_INTEGER]) assert.throws(() => nextRevision(bad), LegalContractError);
 });

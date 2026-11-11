@@ -46,7 +46,7 @@ bypasses RLS. Read-only metadata at 2026-11-10 shows:
    composite foreign keys to the award, party and requirement, so a cross-matter (or cross-scope) link cannot be stored;
    `matter_id` is immutable on every child table, so reassigning a parent is rejected as well as inserting a bad link.
 7. **Audit**: `legal_case_events` is the single append-only journal (no UPDATE/DELETE for runtime role).
-   `case_history` is frozen as legacy read-only. Revisions use optimistic concurrency (`revision` column, compare-and-set).
+   `case_history` is frozen as legacy read-only. Revisions use optimistic concurrency: the caller writes revision = read + 1 and the database rejects stale or omitted revisions. New awards and evidence references can only be created at the default dimension values; evidence-confidence journal rows follow the evidence reference's own visibility.
    All four dimensions are guarded and journalled with actor, source and time by triggers: lifecycle (matter), judgment
    verification and collection readiness (award), evidence confidence (evidence reference). A change without a verified
    actor context, or with a stale revision, is refused and not applied. Scope of the claim: this is source-level, proven on

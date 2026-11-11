@@ -17,7 +17,7 @@ created by this document.
 
 Dion rejected the expanded canonical-category hierarchy and directed ECC to
 mirror Assets Under Management. ECC uses ownership name / property address /
-the existing five property subfolders, under ECC/Production/Assets Under
+the existing five property subfolders plus owner-level Ownership Documents, under ECC/Production/Assets Under
 Management. This explicit ECC instruction supersedes conflicting placement
 rules in the reproduced company standard below for ECC only. Preserve all
 original source folders; intake is copy-only. Keep identities, authorization,

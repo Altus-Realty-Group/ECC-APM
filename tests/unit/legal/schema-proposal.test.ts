@@ -32,3 +32,22 @@ test("journal grants exclude UPDATE and DELETE", () => {
 test("rollback refuses to drop populated tables", () => {
   assert.match(rollback, /rollback refused/);
 });
+
+test("SQL and contract money rules are aligned", () => {
+  assert.match(sql, /CHECK \(\(amount_cents IS NULL\) = \(currency IS NULL\)\)/);
+  assert.match(sql, /amount_cents <= 9007199254740991/);
+});
+test("matter integrity is enforced by composite foreign keys and immutability triggers", () => {
+  assert.match(sql, /FOREIGN KEY \(award_id, matter_id\) REFERENCES legal_awards\(id, matter_id\)/);
+  assert.match(sql, /FOREIGN KEY \(party_id, matter_id\) REFERENCES legal_parties\(id, matter_id\)/);
+  assert.match(sql, /FOREIGN KEY \(requirement_id, matter_id\) REFERENCES legal_evidence_requirements\(id, matter_id\)/);
+  assert.match(sql, /legal_matter_id_immutable/);
+});
+test("evidence confidence is guarded and journalled", () => {
+  assert.match(sql, /legal_evidence_guard/);
+  assert.match(sql, /'evidence_confidence_changed'/);
+});
+test("rollback states its partial nature", () => {
+  assert.match(rollback, /NOT AN EXACT RESTORE/);
+  assert.match(rollback, /RESIDUAL STATE/);
+});

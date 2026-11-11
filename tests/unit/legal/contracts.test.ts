@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { assertRevision, docketKey, LegalContractError, parseAward, parseMatter, parseMoney, scopeAllows, totalAwards, CASE_TYPES } from "../../../shared/legal/contracts.ts";
+import { assertRevision, docketKey, LegalContractError, MAX_MONEY_CENTS, moneyToWire, parseAward, parseMatter, parseMoney, scopeAllows, totalAwards, CASE_TYPES } from "../../../shared/legal/contracts.ts";
 
 const award = (over: Record<string, unknown> = {}) => parseAward({
   id: "a1", matterId: "m1", kind: "damages", amountCents: 100000, currency: "USD", judgmentVerification: "unverified",
@@ -60,4 +60,35 @@ test("scope check fails closed", () => {
   assert.equal(scopeAllows(["A"], null), false);
   assert.equal(scopeAllows(["A"], "B"), false);
   assert.equal(scopeAllows(["A"], "A"), true);
+});
+
+test("duplicate award ids are rejected, identical or conflicting", () => {
+  assert.throws(() => totalAwards([award(), award()]), LegalContractError);
+  assert.throws(() => totalAwards([award(), award({ amountCents: 5 })]), LegalContractError);
+});
+test("unsafe aggregation is rejected; safe individual values can overflow in total", () => {
+  const big = (id: string) => award({ id, amountCents: MAX_MONEY_CENTS });
+  assert.deepEqual(totalAwards([big("a")]).byCurrency, { USD: MAX_MONEY_CENTS });
+  assert.throws(() => totalAwards([big("a"), big("b")]), LegalContractError);
+});
+test("unknown stays unknown and explicit zero stays zero through totals", () => {
+  const t = totalAwards([award({ id: "z", amountCents: 0 }), award({ id: "u", amountCents: null, currency: null })]);
+  assert.deepEqual(t.byCurrency, { USD: 0 });
+  assert.equal(t.unknownCount, 1);
+});
+test("amounts beyond the JS safe range are rejected in every representation", () => {
+  const over = MAX_MONEY_CENTS + 1;
+  for (const v of [over, 2 ** 63, "9007199254740992", 9007199254740992n, Number.MAX_VALUE, NaN, Infinity])
+    assert.throws(() => parseMoney(v, "USD"), LegalContractError);
+  assert.deepEqual(parseMoney(MAX_MONEY_CENTS, "USD"), { cents: MAX_MONEY_CENTS, currency: "USD" });
+});
+test("nullable money round trips and matches the SQL both-or-neither rule", () => {
+  for (const [c, cur] of [[null, null], [0, "USD"], [1, "USD"], [MAX_MONEY_CENTS, "EUR"]] as const) {
+    const m = parseMoney(c, cur);
+    const w = moneyToWire(m);
+    assert.deepEqual(parseMoney(w.amountCents, w.currency), m);
+    assert.equal(w.amountCents === null, w.currency === null);
+  }
+  assert.throws(() => parseMoney(null, "USD"), LegalContractError);   // SQL rejects the same state
+  assert.throws(() => parseMoney(5, null), LegalContractError);
 });

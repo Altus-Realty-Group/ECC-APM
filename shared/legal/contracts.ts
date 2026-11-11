@@ -14,6 +14,13 @@ export class LegalContractError extends Error {
   constructor(message: string) { super(message); this.name = "LegalContractError"; }
 }
 
+/**
+ * Largest cents value the contract can carry exactly. The SQL proposal caps amount_cents at the same value
+ * (CHECK amount_cents <= 9007199254740991), so the database cannot hold a bigint the contract would have to round.
+ * A reader that receives a larger bigint (as a number, string or bigint) must reject it, never truncate it.
+ */
+export const MAX_MONEY_CENTS = Number.MAX_SAFE_INTEGER;
+
 export type Money = { cents: number; currency: string } | null;
 
 export type LegalAward = {
@@ -64,7 +71,11 @@ const revision = (o: Record<string, unknown>): number => {
   return v;
 };
 
-/** Absent/null amount => null (unknown). Zero is a real recorded zero. Currency is required with an amount. */
+/**
+ * Absent/null amount => null (unknown). Zero is a real recorded zero. Amount and currency are both present or both
+ * absent, exactly as the SQL CHECK ((amount_cents IS NULL) = (currency IS NULL)). Only a JS safe integer is accepted,
+ * so a bigint, string or unsafe number beyond MAX_MONEY_CENTS is rejected rather than rounded.
+ */
 export function parseMoney(cents: unknown, currency: unknown): Money {
   if (cents === undefined || cents === null) {
     if (currency !== undefined && currency !== null) throw new LegalContractError("currency without amount");
@@ -105,13 +116,26 @@ export function parseAward(v: unknown): LegalAward {
   };
 }
 
-/** Sum each award once per currency. Unknown amounts are counted, never treated as 0. Obligor count is irrelevant. */
-export function totalAwards(awards: LegalAward[]): { byCurrency: Record<string, number>; unknownCount: number } {
+/** Wire form used for database/API round trips: both fields null, or both present. */
+export function moneyToWire(m: Money): { amountCents: number | null; currency: string | null } {
+  return m === null ? { amountCents: null, currency: null } : { amountCents: m.cents, currency: m.currency };
+}
+
+/**
+ * Sum each award once per currency. Unknown amounts are counted, never treated as 0. Obligor count is irrelevant.
+ * Rejects a repeated award id (identical or conflicting) and any total that is not a safe integer.
+ */
+export function totalAwards(awards: readonly LegalAward[]): { byCurrency: Record<string, number>; unknownCount: number } {
   const byCurrency: Record<string, number> = {};
+  const seen = new Set<string>();
   let unknownCount = 0;
   for (const a of awards) {
+    if (seen.has(a.id)) throw new LegalContractError(`duplicate award id ${a.id}`);
+    seen.add(a.id);
     if (a.amount === null) { unknownCount++; continue; }
-    byCurrency[a.amount.currency] = (byCurrency[a.amount.currency] ?? 0) + a.amount.cents;
+    const next = (byCurrency[a.amount.currency] ?? 0) + a.amount.cents;
+    if (!Number.isSafeInteger(next)) throw new LegalContractError(`total for ${a.amount.currency} exceeds the safe integer range`);
+    byCurrency[a.amount.currency] = next;
   }
   return { byCurrency, unknownCount };
 }

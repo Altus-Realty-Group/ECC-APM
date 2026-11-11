@@ -10,7 +10,10 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- 1. Verified authorization context (fail closed): set per transaction by the server after central identity checks.
+-- 1. Authorization context (fail closed). PRECISE SCOPE OF THIS MECHANISM: these policies only FILTER rows by a
+--    trusted, server-supplied custom setting. They do not verify the caller: the runtime role can set its own custom
+--    settings, so NOBYPASSRLS is not independent grant verification. Activation gates (not installed here): real
+--    issuer/scope mapping (#211/#221) and per-transaction reset / pool isolation (set_config(..., true) only).
 --    SELECT set_config('ecc.scope_refs','scopeA,scopeB',true); set_config('ecc.actor','<actor-ref>',true);
 CREATE OR REPLACE FUNCTION legal_scope_ok(p_scope text) RETURNS boolean
 LANGUAGE sql STABLE AS $$
@@ -50,7 +53,8 @@ CREATE TABLE IF NOT EXISTS legal_parties (
   role text NOT NULL CHECK (role IN ('plaintiff','defendant','tenant','guarantor','occupant','attorney','other')),
   display_name text NOT NULL CHECK (btrim(display_name) <> ''),
   tenant_id uuid REFERENCES tenants(id_uuid) ON DELETE SET NULL,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (id, matter_id)                          -- anchor for same-matter composite FKs
 );
 CREATE TABLE IF NOT EXISTS legal_matter_properties (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -73,30 +77,42 @@ CREATE TABLE IF NOT EXISTS legal_awards (
     CHECK (collection_readiness IN ('not_ready','ready','in_collection','closed')),
   revision integer NOT NULL DEFAULT 1,
   created_at timestamptz NOT NULL DEFAULT now(),
-  CHECK (amount_cents IS NULL OR currency IS NOT NULL),
-  CHECK (currency IS NULL OR currency ~ '^[A-Z]{3}$')
+  UNIQUE (id, matter_id),                          -- anchor for same-matter composite FKs
+  -- amount and currency are both present or both absent (matches shared/legal/contracts.ts parseMoney)
+  CHECK ((amount_cents IS NULL) = (currency IS NULL)),
+  CHECK (currency IS NULL OR currency ~ '^[A-Z]{3}$'),
+  -- bigint cap = JS Number.MAX_SAFE_INTEGER: the database cannot hold a value the contract could not represent exactly
+  CHECK (amount_cents IS NULL OR amount_cents <= 9007199254740991)
 );
 CREATE TABLE IF NOT EXISTS legal_award_obligors (   -- no amount columns by design: joint liability cannot multiply an award
-  award_id uuid NOT NULL REFERENCES legal_awards(id) ON DELETE RESTRICT,
-  party_id uuid NOT NULL REFERENCES legal_parties(id) ON DELETE RESTRICT,
+  matter_id uuid NOT NULL,
+  award_id uuid NOT NULL,
+  party_id uuid NOT NULL,
   liability text NOT NULL CHECK (liability IN ('sole','joint','several')),
-  PRIMARY KEY (award_id, party_id)
+  PRIMARY KEY (award_id, party_id),
+  -- award and party must belong to the SAME matter as this row (database-level matter integrity, not RLS)
+  FOREIGN KEY (award_id, matter_id) REFERENCES legal_awards(id, matter_id) ON DELETE RESTRICT,
+  FOREIGN KEY (party_id, matter_id) REFERENCES legal_parties(id, matter_id) ON DELETE RESTRICT
 );
 CREATE TABLE IF NOT EXISTS legal_evidence_requirements (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   matter_id uuid NOT NULL REFERENCES legal_cases(id) ON DELETE RESTRICT,
   requirement_key text NOT NULL CHECK (btrim(requirement_key) <> ''),
   status text NOT NULL DEFAULT 'open' CHECK (status IN ('open','satisfied','waived')),
-  UNIQUE (matter_id, requirement_key)
+  UNIQUE (matter_id, requirement_key),
+  UNIQUE (id, matter_id)
 );
 CREATE TABLE IF NOT EXISTS legal_evidence_refs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   matter_id uuid NOT NULL REFERENCES legal_cases(id) ON DELETE RESTRICT,
-  requirement_id uuid REFERENCES legal_evidence_requirements(id) ON DELETE SET NULL,
+  requirement_id uuid,
   ref_kind text NOT NULL,
   storage_ref text NOT NULL,                       -- opaque pointer; documents themselves never live here
   confidence text NOT NULL DEFAULT 'unreviewed' CHECK (confidence IN ('unreviewed','low','medium','high')),
-  restricted boolean NOT NULL DEFAULT false
+  restricted boolean NOT NULL DEFAULT false,
+  revision integer NOT NULL DEFAULT 1,
+  -- a requirement, when linked, must belong to the same matter (MATCH SIMPLE: NULL requirement_id = unlinked)
+  FOREIGN KEY (requirement_id, matter_id) REFERENCES legal_evidence_requirements(id, matter_id) ON DELETE RESTRICT
 );
 CREATE TABLE IF NOT EXISTS legal_source_links (   -- crosswalk: external/legacy identifiers, never the matter key
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -160,6 +176,42 @@ END $$;
 DROP TRIGGER IF EXISTS legal_awards_guard ON legal_awards;
 CREATE TRIGGER legal_awards_guard BEFORE UPDATE ON legal_awards FOR EACH ROW EXECUTE FUNCTION legal_award_guard();
 
+-- 5b. matter_id is immutable on every child table (updates to parent/matter association are rejected).
+CREATE OR REPLACE FUNCTION legal_matter_id_immutable() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.matter_id IS DISTINCT FROM OLD.matter_id THEN
+    RAISE EXCEPTION 'legal: matter_id is immutable on %', TG_TABLE_NAME USING ERRCODE = '23514';
+  END IF;
+  RETURN NEW;
+END $$;
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['legal_parties','legal_matter_properties','legal_awards','legal_award_obligors',
+    'legal_evidence_requirements','legal_evidence_refs','legal_source_links'] LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS legal_matter_id_immutable ON %I', t);
+    EXECUTE format('CREATE TRIGGER legal_matter_id_immutable BEFORE UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION legal_matter_id_immutable()', t);
+  END LOOP;
+END $$;
+
+-- 5c. Evidence confidence: revision compare-and-set + actor + journal row (dimension evidence_confidence).
+CREATE OR REPLACE FUNCTION legal_evidence_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.revision IS DISTINCT FROM OLD.revision THEN
+    RAISE EXCEPTION 'legal: stale revision (read %, current %)', NEW.revision, OLD.revision USING ERRCODE = '40001';
+  END IF;
+  NEW.revision := OLD.revision + 1;
+  IF NEW.confidence IS DISTINCT FROM OLD.confidence THEN
+    INSERT INTO legal_case_events (legal_case_id, event_type, from_status, to_status, dimension, actor, subject_id, source, created_at)
+    VALUES (OLD.matter_id, 'evidence_confidence_changed', OLD.confidence, NEW.confidence,
+            'evidence_confidence', legal_actor(), OLD.id, 'legal_evidence_guard', now());
+  END IF;
+  RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS legal_evidence_refs_guard ON legal_evidence_refs;
+CREATE TRIGGER legal_evidence_refs_guard BEFORE UPDATE ON legal_evidence_refs
+  FOR EACH ROW EXECUTE FUNCTION legal_evidence_guard();
+
 -- 6. Grants: remove anon/authenticated/PUBLIC DML; runtime gets the minimum.
 DO $$
 DECLARE t text;
@@ -198,10 +250,8 @@ CREATE POLICY legal_evidence_refs_rt ON legal_evidence_refs FOR ALL TO ecc_legal
          AND (NOT restricted OR current_setting('ecc.restricted_evidence', true) = 'on'))
   WITH CHECK (EXISTS (SELECT 1 FROM legal_cases m WHERE m.id = matter_id AND legal_scope_ok(m.scope_ref)));
 CREATE POLICY legal_award_obligors_rt ON legal_award_obligors FOR ALL TO ecc_legal_runtime
-  USING (EXISTS (SELECT 1 FROM legal_awards a JOIN legal_cases m ON m.id = a.matter_id
-                 WHERE a.id = award_id AND legal_scope_ok(m.scope_ref)))
-  WITH CHECK (EXISTS (SELECT 1 FROM legal_awards a JOIN legal_cases m ON m.id = a.matter_id
-                 WHERE a.id = award_id AND legal_scope_ok(m.scope_ref)));
+  USING (EXISTS (SELECT 1 FROM legal_cases m WHERE m.id = matter_id AND legal_scope_ok(m.scope_ref)))
+  WITH CHECK (EXISTS (SELECT 1 FROM legal_cases m WHERE m.id = matter_id AND legal_scope_ok(m.scope_ref)));
 -- case_history / case_tags: RLS on with no runtime policy => legacy rows stay unreadable until reviewed.
 
 -- 8. Sanctioned aggregate: sums awards only (obligors carry no amounts, so no multiplication).

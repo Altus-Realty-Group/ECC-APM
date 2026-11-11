@@ -1,6 +1,6 @@
 # ADR-0001: Native Supabase legal source and runtime ownership
 
-Status: Proposed (source only; nothing applied to any database)
+Status: Proposed (source only; nothing applied to any database). Revised 2026-11-11 after Codex source review of 73737d6 (ECC-LEGAL-CLAUDE-v2).
 Date: 2026-11-10
 Assignment: ECC-LEGAL-CLAUDE-v1, issue #214 (L1)
 Base: `8ccab7082b9dbf81f08209c95675f9f9c728a47d`
@@ -36,13 +36,29 @@ bypasses RLS. Read-only metadata at 2026-11-10 shows:
    nullable. The internal matter UUID is never a workbook or court identifier.
 5. **Four independent dimensions**: matter lifecycle (matter), judgment verification (per award), collection readiness
    (per award), evidence confidence (per evidence reference). Each changes only through the journal with actor, source, time.
-6. **Money**: integer cents, `NULL` = unknown, never defaulted to 0; currency required with an amount. An award is stored
-   once; obligor rows carry no amounts, so joint liability cannot multiply it.
+6. **Money**: integer cents, `NULL` = unknown, never defaulted to 0. Amount and currency are both present or both absent,
+   in SQL (`CHECK ((amount_cents IS NULL) = (currency IS NULL))`) and in `parseMoney`. SQL caps `amount_cents` at
+   9007199254740991 (JS `Number.MAX_SAFE_INTEGER`), so the database cannot hold a value the contract would have to round;
+   a reader receiving anything larger (number, string or bigint) rejects it rather than truncating. An award is stored
+   once; obligor rows carry no amounts, so joint liability cannot multiply it. `totalAwards` rejects repeated award ids
+   and any non-safe-integer total.
+6a. **Matter integrity** is enforced by the database, not by RLS: obligors and evidence references carry `matter_id` and
+   composite foreign keys to the award, party and requirement, so a cross-matter (or cross-scope) link cannot be stored;
+   `matter_id` is immutable on every child table, so reassigning a parent is rejected as well as inserting a bad link.
 7. **Audit**: `legal_case_events` is the single append-only journal (no UPDATE/DELETE for runtime role).
    `case_history` is frozen as legacy read-only. Revisions use optimistic concurrency (`revision` column, compare-and-set).
-8. **Runtime ownership**: the Express server is the only caller. It must use a dedicated non-bypass database role
-   (`ecc_legal_runtime`), set a transaction-local verified authorization context (`ecc.scope_refs`, `ecc.actor`), and
-   fail closed when absent. anon/authenticated DML on legal tables is revoked (proposal only).
+   All four dimensions are guarded and journalled with actor, source and time by triggers: lifecycle (matter), judgment
+   verification and collection readiness (award), evidence confidence (evidence reference). A change without a verified
+   actor context, or with a stale revision, is refused and not applied. Scope of the claim: this is source-level, proven on
+   a synthetic local database only.
+8. **Runtime ownership**: the Express server is the only caller. It uses a dedicated non-bypass database role
+   (`ecc_legal_runtime`) and supplies a transaction-local context (`ecc.scope_refs`, `ecc.actor`); policies fail closed when
+   it is absent. anon/authenticated DML on legal tables is revoked (proposal only).
+   **What the custom-setting policies are**: they FILTER rows by a trusted, server-supplied context. They do not
+   authenticate anyone or verify grants. The runtime role can set its own custom settings (a documented limitation, proven
+   in the local tests), so `NOBYPASSRLS` is not independent grant verification. **Activation gates** (not installed here):
+   (a) real issuer verification and `scope_ref` to central-grant mapping, owned by Codex under #211/#221; (b) per-transaction
+   context with reset and pool isolation (`set_config(..., true)` only; never session-level on a pooled connection).
 9. **Company authorization**: `scope_ref` is an opaque reference mapped to central identity grants. The mapping is an
    OPEN BLOCKER; `accountId` is a person, not a company. No authority is inferred from names.
 10. **Crosswalks**: legal FKs use `id_uuid`; integer ids appear only in legacy staging and in `legal_source_links`.
@@ -50,6 +66,10 @@ bypasses RLS. Read-only metadata at 2026-11-10 shows:
 ## Consequences
 
 * Nothing here is installed. Applying requires a separate reviewed migration owned by Codex/Dion.
+* The rollback proposal is a PARTIAL cleanup, not a restore. It removes the new tables, triggers, functions, runtime policies,
+  runtime privileges and role, but keeps added columns, the union `case_type` check, nullable `case_number` (global unique
+  not recreated), the NOT VALID journal FK, enabled RLS and the revoked anon/authenticated/PUBLIC grants. Restoring those
+  grants is a separate security decision. See the header of the rollback proposal for the exact list.
 * Until the scope-to-grant mapping exists, runtime reads must return nothing rather than everything.
 * Server code does not change in this PR; no handler is reactivated.
 

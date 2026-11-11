@@ -9,8 +9,10 @@ Current main source was read November 11, 2026. `FilesTab.tsx` already scopes
 requests by entity, refId, source and session epoch. `fileReader.ts` accepts
 `{items}` with names, sizes, dates and optional HTTPS links. A valid link is
 not proof of document identity, authorized delivery or download access.
-`server/routes/files.ts` returns 501 for Dropbox and 503 for DoorLoop. Owner
-and property card Files components still show unavailable notices.
+`server/routes/files.ts` declares Dropbox 501 and DoorLoop 503 placeholders,
+but server/index.ts does not mount that router. These are source declarations,
+not verified runtime responses. PR #232 replaces owner/property Files notices
+with the scoped document UI and an explicitly unbound adapter.
 
 Reuse existing FilesTab/session patterns after the producer is accepted. Do
 not activate a placeholder reader to populate folders. An unavailable registry

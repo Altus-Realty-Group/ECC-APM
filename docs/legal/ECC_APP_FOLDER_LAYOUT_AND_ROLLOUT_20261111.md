@@ -93,13 +93,19 @@ Properties/Organizations category-tree proposal. It does not change other
 apps or amend the shared company standard. Registry, access, versioning and
 verified delivery requirements continue behind this simple hierarchy.
 
-## Verified implementation status
-Created: ECC/Production/Assets Under Management plus 44 empty ownership folders.
-Not yet created: Ownership Documents subfolders, property folders and contents.
+## Verified implementation status - updated after provisioning
+Created and verified: ECC/Production/Assets Under Management plus 44 ownership folders,
+44 Ownership Documents roots and 220 numbered section folders. A fresh complete
+listing confirms 308 total folders and zero files. The 43-entry empty-folder
+copy job completed with 43 successes and no failures.
+Not yet created: property folders and document contents.
 No files have been copied, moved, deleted or shared by this work.
 
-Current main source review: the Dropbox list handler returns 501 not configured.
-The owner and property card Files components show unavailable notices. The
+Source review: the old file router declares a Dropbox 501 placeholder, but it
+is not mounted in server/index.ts; that declaration is not runtime proof.
+PR #232 now implements the actual owner/property Files UI, with an explicitly
+unbound production adapter. Its 405 local unit tests pass; browser acceptance
+and live registry/authorization/delivery binding remain open. The
 generic FilesTab sends record table/ref_id to the unbound file readers; its
 current list fields do not carry the complete registry/authorization contract.
 Documenting this plan does not make those readers operational.

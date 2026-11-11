@@ -331,3 +331,26 @@ historical handlers. See docs/legal/LEGAL_OPERATIONS_PRODUCT_SPEC_20261110.md an
 docs/work-orders/ECC_LAUNCH_AND_NATIVE_LEGAL_20261110.md for ownership, reuse,
 contracts, actor boundaries, target PRs and acceptance. Source datasets remain
 private and outside the repository. Production adoption remains unverified.
+
+
+## Owner/property document filing and retrieval - 2026-11-11 proposal
+
+ECC's corrected folder plan includes owner-level management contracts, entity
+records, financial/tax records, owner statements/reports and correspondence
+beside each owner's property folders. Record IDs and explicit document links,
+not folder names, drive retrieval. One owner agreement may link several
+properties without duplicating bytes or granting all owner-document access.
+
+Current main source review: Dropbox list returns501, DoorLoop list503, owner
+and property Files tabs remain unavailable. Generic FilesTab/session patterns
+are reuse candidates, not a bound document registry. No query, cache, schema,
+grant, writer or installed endpoint changes are made here; net new database
+objects:0. Inspect existing document/file tables and policies and accept the
+producer/scope contract before persistence. The earlier files_new policy finding
+is historical evidence only, requiring a fresh read before any binding.
+
+See [folder layout](../legal/ECC_APP_FOLDER_LAYOUT_AND_ROLLOUT_20261111.md) and
+[document retrieval proposal](../contracts/ECC_OWNER_PROPERTY_DOCUMENTS_V1.proposal.md)
+for ownership/property association, confidentiality, delivery/version state,
+session invalidation, write/reread and future operational acceptance.
+No live access, delivery, performance or migration claim is established.

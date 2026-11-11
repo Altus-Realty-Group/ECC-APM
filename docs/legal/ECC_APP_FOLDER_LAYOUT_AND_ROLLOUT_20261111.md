@@ -130,4 +130,24 @@ Legal intake coverage remains all 211 discovered files, including four workbooks
 ## 10. Concrete current status
 Created and verified: /Altus App Folder/ECC and /Altus App Folder/ECC/Production.
 Read-only source survey: complete at owner and immediate child levels; five template/property samples inspected. No exhaustive descendant inventory, current ownership verification, registry registration, document copy, access change, or gateway activation has been performed.
-Next provisioning uses verified registered identities, not generated placeholder owner/property IDs. The source-name appendix below is an intake checklist, not a list of current legal owners or unique managed assets.
+Next provisioning uses verified registered identities, not generated placeholder owner/property IDs. The separate private source-label appendix is an intake checklist, not a list of current legal owners or unique managed assets.
+
+## 11. Implemented source policy and remaining integration
+
+`scripts/ecc_document_paths.py` prepares deterministic canonical paths without
+I/O. It validates fixed environments, collections, categories and lifecycles;
+canonical full non-nil UUID syntax; safe labels and lengths; calendar dates;
+positive integer revisions; explicitly supported media/extension pairs;
+subfolder components; and the 400-character relative path limit. Unsupported
+media types require a reviewed policy extension, not an unchecked extension.
+
+The helper neither proves registry membership nor allocates an ID or revision.
+It does not inspect file bytes, authorize a caller, check existing destination
+collisions, verify UTC date provenance, copy files, or issue a delivery receipt.
+Those remain caller/registry/transport acceptance gates. Atomic revisions,
+case-insensitive collision detection, checksum validation and idempotency must
+be enforced by the accepted live integration before any delivery.
+
+Local validation: 10 path-policy tests plus 17 evidence inventory and nine
+workbook preview tests, 36/36. This Python suite is local-only; hosted CI does
+not run it. No workflow or runtime wiring was added.

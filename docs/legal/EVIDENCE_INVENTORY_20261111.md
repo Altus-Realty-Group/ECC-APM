@@ -1,7 +1,11 @@
 # Legal evidence inventory and copy-only ECC gateway plan
 
-Status: source-only preparation. No files have been copied, moved, deleted,
-shared, or registered in a database by this work.
+Status: source preparation plus verified creation of the ECC app root and its
+Production folder. No files have been copied, moved, deleted, shared, or
+registered in a database by this work.
+
+The full ownership/property layout and rollout sequence are documented in
+[ECC app-folder layout](ECC_APP_FOLDER_LAYOUT_AND_ROLLOUT_20261111.md).
 
 ## Storage decision
 
@@ -29,9 +33,10 @@ identity. Originals means unchanged imported bytes, retaining the received name
 as metadata. Delivery uses the standard's immutable revision filename and stores
 the original filename and source location privately in the registry.
 
-ECC is the intended app-owned destination, but no ECC folder or writable/private
-destination binding has been verified. A team-view master link is not proof that
-confidential legal evidence is protected. Folder paths never confer authority.
+The ECC app root and its Production folder were created and listed successfully
+on November 11. This proves folder creation, not a private document-delivery
+binding or confidential access controls. A team-view master link is not proof
+that confidential legal evidence is protected. Folder paths never confer authority.
 
 ## Read-only discovery receipt
 
@@ -101,9 +106,11 @@ metadata and must never be committed or attached to public PRs.
 7. Prove authorized, denied, revoked, missing, stale, and failed-delivery journeys.
    Confirm the original source IDs, locations, and bytes remain intact.
 
-These gates are not satisfied by this source-only inventory. There is no live
-copy, registry write, access change, producer activation, or gateway acceptance.
-Rollback is reverting the source PR; no provider state needs restoration.
+These gates are not satisfied by this inventory or by creating empty folders.
+There is no live copy, registry write, access change, producer activation, or
+gateway acceptance. Source rollback is reverting the PR. Removing the newly
+created empty folders is a separate action requiring an explicit request; do
+not delete them or any original folders automatically.
 
 ## Validation
 

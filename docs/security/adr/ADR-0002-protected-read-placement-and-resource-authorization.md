@@ -1,6 +1,6 @@
 # ADR-0002: Protected-read placement, ownership and resource authorization
 
-Status: Proposed (source only; nothing activated). Assignment ECC-A1-CLAUDE-v1, issue #211.
+Status: Proposed (source only; nothing activated). Assignment ECC-A1-CLAUDE-v1, issue #211; corrected by ECC-A1-CLAUDE-v2 after Codex source review of `7499714`.
 Date: 2026-11-11. Base: `33f06a4b88625d66f61181b21c04bf23f3680508`.
 
 ## Context
@@ -37,11 +37,28 @@ Date: 2026-11-11. Base: `33f06a4b88625d66f61181b21c04bf23f3680508`.
    query strings or request bodies.
 6. **Explicit `scope_ref` mapping**: an ECC-governed registry entry maps one `scope_ref` to exactly one central company
    identifier with a reviewed status. A `scope_ref` with no verified entry is denied even if a grant exists for some company.
-7. **Fresh authority every request**: the session and grants are resolved per request; no allow is cached or reused across
-   requests. Responses carry a binding fingerprint so a late response from an earlier session/grant set is rejected.
-8. **Database seam**: authorization context reaches PostgreSQL only through transaction-local `set_config(..., true)` inside an
-   explicit transaction, after a check that the connection role is neither superuser nor `BYPASSRLS`. Session-level settings are
-   forbidden (they survive on pooled connections). Custom settings filter a trusted context; they do not authenticate grants.
+7. **Fresh authority every request**: the session, grants and bindings are resolved per request; no allow is cached or reused across
+   requests. The clock is read again after the issuer read, after the grant read, after the binding read and immediately before the
+   allow, and every validity test uses the latest reading, so a session or grant that expires during the reads denies (expiry is
+   exclusive). A clock that is not finite or moves backwards denies. A returned context carries `validUntilMs` (the earliest of the
+   session expiry and every contributing grant's expiry). Responses carry a binding fingerprint so a late response from an earlier
+   session/grant set is rejected.
+7a. **Grant contract strictness**: a grant envelope is accepted only with `error: null`, `meta.contractVersion "1.0.0"` and
+   `meta.source "control-plane"`; otherwise it yields zero grants. `expiresAt` and `revokedAt` must be present: an explicit `null`
+   is the producer's declared "none"; a missing key, empty string, date-only or non-RFC3339 value rejects the grant (it never
+   becomes non-expiring). Any revocation record, even a future-dated one, denies. A repeated `grantId` drops every copy.
+7b. **Scope bindings are order-independent**: a `scope_ref` is usable only with exactly ONE record and that record valid and
+   `verified`. Several records (verified+retired, two companies, an identical duplicate) or a malformed record naming the scope
+   invalidate the whole scope; no entry is ever picked "first".
+8. **Database seam**: authorization context reaches PostgreSQL only through `withLeasedContext`, which requires an
+   exclusively leased connection (never a shared pool handle) and: refuses a lease that arrives with inherited `ecc.*` session
+   settings, a changed session role or an open transaction (and discards that connection); refuses a superuser/`BYPASSRLS`/wrong
+   role; sets scope and actor with transaction-local `set_config(..., true)` and pins `ecc.restricted_evidence` to `off`
+   (default-deny; A1 models no entitlement); refuses to start or to return results once `validUntilMs` has passed; hands the work a
+   runner that stops working when the transaction ends; then runs `DISCARD ALL` and verifies the connection clean. Any rollback,
+   commit, reset or verification failure DISCARDS the connection instead of returning it to the pool. A pool that hands one
+   connection to two holders is refused. Session-level settings are forbidden. Custom settings filter a trusted context; they do
+   not authenticate grants.
 9. **Service-role exclusion**: no authorization decision uses the service-role client; the seam refuses a bypass-capable role.
 
 ## Consequences

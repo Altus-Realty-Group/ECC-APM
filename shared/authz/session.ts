@@ -5,6 +5,8 @@
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export const OPAQUE = /^[A-Za-z0-9._~-]{1,512}$/;
+import { parseRfc3339 } from "./time";
+
 const REVIEW_ENVIRONMENTS: ReadonlySet<string> = new Set(["development", "test", "preview"]);
 
 export type Environment = "production" | "staging" | "preview" | "test" | "development";
@@ -42,7 +44,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "obj
  */
 export function admitSession(body: unknown, presentedSessionId: string | null, policy: AdmissionPolicy, nowMs: number): Admission {
   if (!presentedSessionId || !OPAQUE.test(presentedSessionId)) return deny("SESSION_REQUIRED");
-  if (!isRecord(body) || body.error != null || !isRecord(body.meta)
+  if (!isRecord(body) || body.error !== null || !isRecord(body.meta)
     || body.meta.contractVersion !== "1.0.0" || body.meta.source !== "control-plane" || !isRecord(body.data)) return deny("ENVELOPE_INVALID");
   const d = body.data;
   if (d.allowed !== true) return deny("NOT_ALLOWED");
@@ -50,8 +52,9 @@ export function admitSession(body: unknown, presentedSessionId: string | null, p
   if (d.applicationId !== policy.applicationId) return deny("WRONG_APPLICATION");
   if (policy.pin && (d.personId !== policy.pin.personId || d.accountId !== policy.pin.accountId)) return deny("WRONG_PRINCIPAL");
   if (d.applicationSessionId !== presentedSessionId) return deny("SESSION_MISMATCH");
-  const expiresAtMs = typeof d.expiresAt === "string" ? Date.parse(d.expiresAt) : NaN;
-  if (!Number.isFinite(expiresAtMs) || expiresAtMs <= nowMs) return deny("SESSION_EXPIRED");
+  const expiresAtMs = parseRfc3339(d.expiresAt);
+  if (expiresAtMs === null) return deny("ENVELOPE_INVALID");
+  if (expiresAtMs <= nowMs) return deny("SESSION_EXPIRED");
   const capabilities = d.capabilities === undefined ? [] : d.capabilities;
   if (!Array.isArray(capabilities) || !capabilities.every((c) => typeof c === "string")) return deny("ENVELOPE_INVALID");
   if (d.decisionMode === "canonical") {

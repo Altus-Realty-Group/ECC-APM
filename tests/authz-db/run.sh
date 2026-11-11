@@ -13,5 +13,5 @@ as "$bin/pg_ctl" -D "$tmp/d" -o "-k $tmp -c listen_addresses='' -c unix_socket_p
 trap 'as "$bin/pg_ctl" -D "$tmp/d" -m immediate stop >/dev/null || true; rm -rf "$tmp"' EXIT
 as "$bin/psql" -h "$tmp" -d postgres -X -q -v ON_ERROR_STOP=1 -f "$tmp/setup.sql" >/dev/null
 cd "$root"
-AUTHZ_DB_SOCKET="$tmp" node --import tsx --test tests/authz-db/seam.test.mts 2>&1 | tee "$tmp/out.txt" | grep -E "^not ok|^# (tests|pass|fail)|^\s+(error|message):" || true
+AUTHZ_DB_SOCKET="$tmp" timeout --kill-after=10 240 node --import tsx --test --test-force-exit tests/authz-db/seam.test.mts 2>&1 | tee "$tmp/out.txt" | grep -E "^not ok|^# (tests|pass|fail)|^\s+(error|message):" || true
 grep -q "^# fail 0" "$tmp/out.txt" && grep -q "^# pass [1-9]" "$tmp/out.txt" && echo "[authz-db] PASS $(grep '^# pass' "$tmp/out.txt")" || { echo "[authz-db] FAIL"; exit 1; }

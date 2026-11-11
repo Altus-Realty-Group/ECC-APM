@@ -1,6 +1,6 @@
 # Protected reads and resource authorization (A1, issue #211)
 
-Assignment ECC-A1-CLAUDE-v1. Source only: nothing is activated, registered, deployed or granted. Placement/ownership decision:
+Assignment ECC-A1-CLAUDE-v1, corrected by ECC-A1-CLAUDE-v2. Source only: nothing is activated, registered, deployed or granted. Placement/ownership decision:
 [ADR-0002](adr/ADR-0002-protected-read-placement-and-resource-authorization.md). Code: `shared/authz/`.
 
 ## 1. Evidence traced (source references, not live proof)
@@ -18,8 +18,8 @@ Assignment ECC-A1-CLAUDE-v1. Source only: nothing is activated, registered, depl
 
 * **Admission** (`shared/authz/session.ts`): person + account + application. Mirrors the retained bridge's validation and the
   central contract: boolean `allowed === true`, UUID person/account, exact application, presented session id equals the one in
-  the response, unexpired, strict canonical or developer-review mode, strict envelope (`contractVersion 1.0.0`, `source control-plane`,
-  `error` null). Anything else denies. Developer review mode is accepted only in `development|test|preview`, with exactly
+  the response, unexpired (strict RFC3339 expiry), strict canonical or developer-review mode, strict envelope (`contractVersion 1.0.0`,
+  `source control-plane`, `error` exactly null). Anything else denies. Developer review mode is accepted only in `development|test|preview`, with exactly
   `["ui.review.read"]`, and is **never** resource authority.
 * **Resource authorization** (`resourceGrant.ts`, `scopeBinding.ts`, `protectedRead.ts`): may this admitted person/account read
   this company's legal scope? Requires a resource grant for that exact person, account and application inside its effective
@@ -33,8 +33,10 @@ Never used as authority: `accountId` alone, company or matter display names, wor
 A `scope_ref` is an opaque ECC label (`[A-Za-z0-9._:-]{1,128}`; a comma is invalid because it is the database list separator).
 It means something only through a registry entry `{scopeRef, companyId, status, reviewRef}`:
 
-* `companyId` is the central company UUID and must be a UUID; one `scope_ref` binds to at most one company (a conflict removes
-  the `scope_ref` entirely); malformed entries are rejected and never authorize.
+* `companyId` is the central company UUID and must be a UUID.
+* **Order-independent**: a `scope_ref` is usable only with exactly one record, valid and `verified`. Two or more records for it
+  (verified+retired, verified+proposed, two companies, an identical duplicate) or a malformed record naming it invalidate the
+  whole scope; nothing is selected "first". Tested over every permutation of conflicting records.
 * Only `status: verified` authorizes; `proposed` and `retired` never do. `reviewRef` names the review that verified it.
 * The default registry is **empty**, so every legal scope is denied. The registry's governed source (who may add entries) is an
   integration decision for Codex under #211/#221; this PR defines only the shape and the rules.
@@ -52,32 +54,50 @@ Auth: same server-attested client headers + X-Control-Application-Session as GET
       "resourceType":"company","companyId":"uuid","effectiveAt":"RFC3339","expiresAt":"RFC3339|null",
       "revokedAt":"RFC3339|null","revision":1}]},"error":null,"meta":{"contractVersion":"1.0.0","source":"control-plane"}}
 ```
-Required semantics: evaluated per call against the current session (revocation/expiry/suspension take effect immediately);
+Required semantics: `error` is exactly `null`, `meta.contractVersion` is `1.0.0`, `meta.source` is `control-plane`; every grant carries
+`expiresAt` and `revokedAt` as RFC3339 instants or an explicit `null` (a missing or malformed value rejects that grant; any revocation
+record denies); `grantId` is unique within a response; evaluated per call against the current session (revocation/expiry/suspension take effect immediately);
 grants are for that session's person/account/application only; `companyId` is a canonical company identifier distinct from
 `accountId`; unavailable => typed error, never an empty-success. `shared/authz/conformance.ts` is the acceptance suite any binding
 of such a producer must pass.
 
 ## 5. Decision order (all deny unless every step passes)
-1. requested scope syntax valid -> 2. session presented and well-formed -> 3. central check succeeds (outage denies) -> 4. admission
-   valid -> 5. not developer-review mode -> 6. grant producer succeeds (outage denies) -> 7. at least one grant applies to this
-   exact person/account/application/time -> 8. at least one verified binding for a granted company -> 9. requested scope, if any, is
-   among those. Authority is resolved afresh per request; `ReadContext.binding` (person|account|grant@revision|scopes; no session
+1. requested scope syntax valid -> 2. clock reading valid -> 3. session presented and well-formed -> 4. central check succeeds
+   (outage denies) -> 5. clock re-read; admission valid at that reading -> 6. not developer-review mode -> 7. grant producer
+   succeeds (outage denies) -> 8. clock re-read -> 9. binding source loads (outage denies) -> 10. clock re-read -> 11. a **final
+   clock reading immediately before allowing**; at that reading the session is unexpired and at least one grant applies to this exact
+   person/account/application/time -> 12. at least one verified, single-record binding for a granted company -> 13. the requested
+   scope, if any, is among those. The clock must be finite and never move backwards. Authority is resolved afresh per request;
+   `ReadContext.validUntilMs` bounds the context's life and `ReadContext.binding` (person|account|grant@revision|scopes; no session
    credential) lets a caller reject a response produced under a binding that is no longer current (`acceptResponse`).
 
-## 6. Database seam (`dbContext.ts`)
-`withTransactionContext` opens a transaction, verifies the connection role is not superuser/`BYPASSRLS` and is the expected runtime
-role, then sets `ecc.scope_refs`/`ecc.actor` with `set_config(..., true)` (transaction-local). It never uses a session-level
-setting, validates scope/actor syntax before any statement, and rolls back on failure. **Custom settings filter a trusted context;
-they do not authenticate grants** (a test shows the runtime role can set its own value; authorization is the upstream decision).
+## 6. Database seam (`dbContext.ts`, `withLeasedContext`)
+The seam takes a **lease** (`ConnectionLeaser.lease()` -> one connection held exclusively until `release`), never a shared pool handle
+(with a pool, `BEGIN` and the next statement could run on different connections). Order of operations:
+1. validate the context syntax and that `validUntilMs` is still in the future (no connection is taken otherwise);
+2. lease; refuse a lease id that is already live (a pool handing one connection to two holders);
+3. **clean-lease check**: no inherited `ecc.scope_refs` / `ecc.actor` / `ecc.restricted_evidence`, `session_user = current_user`, and no
+   open transaction. A dirty connection is refused, the work never runs, and the connection is **discarded**;
+4. `BEGIN`; verify the role is not superuser/`BYPASSRLS` and is the expected runtime role; set scope and actor with
+   `set_config(..., true)` and **pin `ecc.restricted_evidence` to `off`** (default-deny; A1 models no entitlement);
+5. run the work with a runner that stops working when the transaction ends; re-check `validUntilMs` after the work and **roll back and
+   return nothing** if the authority ended meanwhile; `COMMIT`;
+6. `DISCARD ALL`, then re-run the clean check. Any rollback, commit, reset or verification failure **discards the connection**
+   (`release(true)`) rather than returning it to the pool.
+Session-level settings are never used. Custom settings filter a trusted context; they do not authenticate grants (a test shows the
+role can set its own value inside its transaction; authorization is the upstream decision).
 
 ## 7. Validation matrix
 | Requirement | Evidence |
 | --- | --- |
-| Allowed; wrong company/resource; wrong application; revoked/expired session; missing/foreign/expired/revoked grants; unverified binding; empty registry; outages; review mode; injection | `tests/unit/authz/protected-read.test.ts` (27 reusable cases in `shared/authz/conformance.ts`; 9 mutants each caught) |
-| Stale response / revoked between requests / different person on same server | same file |
-| Transaction reset and pool isolation (simulation, CI) | `tests/unit/authz/db-context.test.ts` |
-| Transaction reset, reused pooled connection, concurrent interleaving, bypass-role refusal, session-level hazard | `tests/authz-db` (`npm run test:authz-db`, real PostgreSQL 16 + `pg`, private cluster; not run in hosted CI, which has no PostgreSQL service) |
-| No service-role/transport/env/cookie dependency in the authorization source | static test in `db-context.test.ts` |
+| Allowed; wrong company/resource; wrong application; revoked/expired session; missing/foreign/expired/revoked grants; unverified and conflicting bindings; empty registry; outages (issuer, grants, bindings); review mode; injection | `tests/unit/authz/protected-read.test.ts` (51 reusable cases in `shared/authz/conformance.ts`; 13 deliberately wrong evaluators each caught) |
+| Malformed grant envelope (version/source/error), missing or malformed `expiresAt`/`revokedAt`, date-only/prose instants, future-dated revocation, repeated `grantId` | conformance cases + `resourceGrant` unit tests |
+| Binding order reversal (every permutation), verified/retired/two-company/malformed/identical duplicates | conformance cases + permutation test |
+| Clock advance during the reads, exclusive expiry, clock regression, non-finite clock; reading count | scripted-clock conformance cases + reading-count test |
+| Stale response / revoked between requests / different person on the same server | same file |
+| Lease rules (contaminated, cleanup/rollback/commit/reset failure => discard, expiry during work, leaked runner, double handout, parallel and single-connection contention) - simulation, CI | `tests/unit/authz/db-context.test.ts` (11 fault-injection mutants each caught) |
+| The same on **real PostgreSQL 16 + `pg`**: reused backend, five kinds of inherited contamination (backend destroyed), session writes cleared, rollback/reset/verification failure destroys the backend, expiry mid-work rolls back, superuser/wrong role refusal, parallel leases never overlap on one backend, single-connection serialization, pool double handout, documented hazard and limitation | `tests/authz-db` (`npm run test:authz-db`, 14 tests; private cluster; not run in hosted CI, which has no PostgreSQL service) |
+| No service-role/transport/env/cookie dependency in the authorization source; the seam accepts no shared pool handle | static tests in `db-context.test.ts` |
 
 ## 8. Activation gates (not part of this PR)
 Accepted resource-grant producer and the governed `scope_ref` registry source; Control Plane client registration and live readiness;

@@ -21,9 +21,23 @@ export type ConformanceInput = {
   grantsBody: unknown | "throw";
   requestedScope: string | null;
   registry: BindingRegistry;
+  /** When true the (asynchronous) binding source fails. */
+  registryOutage?: boolean;
   nowMs: number;
+  /**
+   * Scripted clock: successive now() readings. A binding must read its clock after each asynchronous read and immediately before
+   * allowing, so these readings (the last one repeats) let a case advance time DURING the reads. Falls back to `nowMs`.
+   */
+  nowSequenceMs?: readonly number[];
   environment: "production" | "preview";
 };
+
+/** The clock a binding under test must use for this input. */
+export function inputClock(input: ConformanceInput): () => number {
+  const seq = input.nowSequenceMs ?? [input.nowMs];
+  let i = 0;
+  return () => seq[Math.min(i++, seq.length - 1)];
+}
 export type ConformanceDecision = { allowed: boolean; scopeRefs?: readonly string[] };
 export type ConformanceCase = { name: string; input: ConformanceInput; expect: { allowed: boolean; scopeRefs?: readonly string[] } };
 
@@ -38,6 +52,8 @@ export const grant = (patch: Record<string, unknown> = {}) => ({
   companyId: COMPANY_A, effectiveAt: iso(NOW - 86400_000), expiresAt: iso(NOW + 86400_000), revokedAt: null, revision: 1, ...patch,
 });
 export const grantsEnvelope = (...grants: unknown[]) => ({ data: { grants }, error: null, meta });
+const without = <T extends Record<string, unknown>>(o: T, ...keys: string[]) => { const c: Record<string, unknown> = { ...o }; for (const k of keys) delete c[k]; return c; };
+const bind = (scopeRef: string, companyId: string, status: string) => ({ scopeRef, companyId, status, reviewRef: "synthetic-review-1" });
 export const REGISTRY = buildBindingRegistry([
   { scopeRef: "scope-a", companyId: COMPANY_A, status: "verified", reviewRef: "synthetic-review-1" },
   { scopeRef: "scope-b", companyId: COMPANY_B, status: "verified", reviewRef: "synthetic-review-1" },
@@ -78,6 +94,33 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = [
   { name: "developer review session is not resource authority", input: base({ environment: "preview", sessionBody: sessionEnvelope({ decisionMode: "developer_bypass", billingMode: "not_applicable_developer", banner: "DEV BYPASS · READ ONLY", capabilities: ["ui.review.read"] }) }), expect: DENY },
   { name: "central outage denies", input: base({ sessionBody: "throw" }), expect: DENY },
   { name: "grant producer outage denies", input: base({ grantsBody: "throw" }), expect: DENY },
+  { name: "binding source outage denies", input: base({ registryOutage: true }), expect: DENY },
+  // --- grant contract envelope and instants (A1 v2) ---
+  { name: "grant envelope with the wrong contract version yields no grants", input: base({ grantsBody: { ...grantsEnvelope(grant()), meta: { ...meta, contractVersion: "2.0.0" } } }), expect: DENY },
+  { name: "grant envelope without a contract version yields no grants", input: base({ grantsBody: { ...grantsEnvelope(grant()), meta: { source: "control-plane" } } }), expect: DENY },
+  { name: "grant envelope from another source yields no grants", input: base({ grantsBody: { ...grantsEnvelope(grant()), meta: { ...meta, source: "other" } } }), expect: DENY },
+  { name: "grant envelope with the error field missing is not a success envelope", input: base({ grantsBody: without(grantsEnvelope(grant()), "error") }), expect: DENY },
+  { name: "grant envelope carrying an error yields no grants", input: base({ grantsBody: { ...grantsEnvelope(grant()), error: { code: "X" } } }), expect: DENY },
+  { name: "missing expiresAt is malformed, never a non-expiring grant", input: base({ grantsBody: grantsEnvelope(without(grant(), "expiresAt")) }), expect: DENY },
+  { name: "missing revokedAt is malformed, never 'not revoked'", input: base({ grantsBody: grantsEnvelope(without(grant(), "revokedAt")) }), expect: DENY },
+  { name: "undefined, empty, date-only and prose expiry values are malformed", input: base({ grantsBody: grantsEnvelope(grant({ expiresAt: undefined }), grant({ grantId: "40000000-0000-4000-8000-000000000003", expiresAt: "" }), grant({ grantId: "40000000-0000-4000-8000-000000000004", expiresAt: "2027-01-01" }), grant({ grantId: "40000000-0000-4000-8000-000000000005", expiresAt: "soon" }), grant({ grantId: "40000000-0000-4000-8000-000000000006", expiresAt: "2027-02-31T00:00:00Z" })) }), expect: DENY },
+  { name: "explicit null expiresAt and revokedAt is a declared non-expiring, unrevoked grant", input: base({ grantsBody: grantsEnvelope(grant({ expiresAt: null, revokedAt: null })) }), expect: allow("scope-a") },
+  { name: "a revocation record dated in the future still denies", input: base({ grantsBody: grantsEnvelope(grant({ revokedAt: iso(NOW + 86400_000) })) }), expect: DENY },
+  { name: "a repeated grantId is ambiguous and drops every copy", input: base({ grantsBody: grantsEnvelope(grant(), grant({ revision: 2 })) }), expect: DENY },
+  // --- explicit scope bindings are order-independent; conflict invalidates the whole scope (A1 v2) ---
+  { name: "binding: verified then retired record for one scope invalidates the scope", input: base({ registry: buildBindingRegistry([bind("scope-a", COMPANY_A, "verified"), bind("scope-a", COMPANY_A, "retired")]) }), expect: DENY },
+  { name: "binding: retired then verified record for one scope invalidates the scope (order reversed)", input: base({ registry: buildBindingRegistry([bind("scope-a", COMPANY_A, "retired"), bind("scope-a", COMPANY_A, "verified")]) }), expect: DENY },
+  { name: "binding: verified for two companies invalidates the scope, in either order", input: base({ registry: buildBindingRegistry([bind("scope-a", COMPANY_B, "verified"), bind("scope-a", COMPANY_A, "verified")]) }), expect: DENY },
+  { name: "binding: a malformed record naming a scope invalidates it even beside a verified one", input: base({ registry: buildBindingRegistry([bind("scope-a", COMPANY_A, "verified"), { scopeRef: "scope-a", companyId: "not-a-uuid", status: "verified", reviewRef: "x" }]) }), expect: DENY },
+  { name: "binding: invalidating one scope does not disturb another", input: base({ grantsBody: grantsEnvelope(grant(), grant({ grantId: "40000000-0000-4000-8000-000000000002", companyId: COMPANY_B })), registry: buildBindingRegistry([bind("scope-a", COMPANY_A, "verified"), bind("scope-a", COMPANY_A, "retired"), bind("scope-b", COMPANY_B, "verified")]) }), expect: allow("scope-b") },
+  // --- the clock is read again after each asynchronous read and immediately before allow (A1 v2) ---
+  { name: "clock: still inside every window after the reads allows", input: base({ nowSequenceMs: [NOW, NOW + 100, NOW + 200] }), expect: allow("scope-a") },
+  { name: "clock: session expires while the issuer read is in flight", input: base({ nowSequenceMs: [NOW, NOW + 3600_000 + 1] }), expect: DENY },
+  { name: "clock: session expires exactly at the final reading (exclusive)", input: base({ nowSequenceMs: [NOW, NOW + 10, NOW + 3600_000] }), expect: DENY },
+  { name: "clock: grant expires while the grant read is in flight", input: base({ grantsBody: grantsEnvelope(grant({ expiresAt: iso(NOW + 500) })), nowSequenceMs: [NOW, NOW + 100, NOW + 500] }), expect: DENY },
+  { name: "clock: grant not yet expired at the final reading still allows", input: base({ grantsBody: grantsEnvelope(grant({ expiresAt: iso(NOW + 500) })), nowSequenceMs: [NOW, NOW + 100, NOW + 499] }), expect: allow("scope-a") },
+  { name: "clock: moving backwards is a denial", input: base({ nowSequenceMs: [NOW, NOW - 1, NOW] }), expect: DENY },
+  { name: "clock: a non-finite reading is a denial", input: base({ nowSequenceMs: [NOW, Number.NaN] }), expect: DENY },
 ];
 
 export async function runConformance(decide: (input: ConformanceInput) => Promise<ConformanceDecision>): Promise<{ passed: number; failures: string[] }> {

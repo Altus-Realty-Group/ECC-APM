@@ -2,6 +2,7 @@
 // docs/security/PROTECTED_READ_AND_RESOURCE_AUTHORIZATION_20261111.md). Nothing here fabricates or fetches grants;
 // it only validates whatever an accepted producer eventually returns, and drops anything doubtful (dropping only reduces access).
 import { UUID } from "./session";
+import { parseRfc3339 } from "./time";
 
 export type ResourceGrant = {
   grantId: string;
@@ -21,19 +22,35 @@ export type ResourceGrant = {
 export type ParsedGrants = { grants: ResourceGrant[]; rejected: number };
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
-const time = (v: unknown): number | null => (typeof v === "string" && Number.isFinite(Date.parse(v)) ? Date.parse(v) : null);
+const hasKey = (o: Record<string, unknown>, k: string) => Object.prototype.hasOwnProperty.call(o, k);
 
-/** `body` is the producer's `{data:{grants:[...]},error:null,meta}` envelope. A malformed envelope yields zero grants. */
+/**
+ * `body` is the producer's `{data:{grants:[...]},error:null,meta:{contractVersion:"1.0.0",source:"control-plane"}}` envelope.
+ * Any envelope problem (missing/other contract version, wrong source, an error, a non-array) yields ZERO grants, never a partial set.
+ * Within a valid envelope a doubtful grant is dropped (dropping only reduces access) and counted. A grantId that appears more
+ * than once is ambiguous, so every copy is dropped.
+ */
 export function parseResourceGrants(body: unknown): ParsedGrants {
-  if (!isRecord(body) || body.error != null || !isRecord(body.meta) || body.meta.source !== "control-plane"
+  if (!isRecord(body) || body.error !== null || !isRecord(body.meta)
+    || body.meta.contractVersion !== "1.0.0" || body.meta.source !== "control-plane"
     || !isRecord(body.data) || !Array.isArray(body.data.grants)) return { grants: [], rejected: 0 };
-  const grants: ResourceGrant[] = [];
-  let rejected = 0;
-  for (const raw of body.data.grants) {
-    const g = parseOne(raw);
-    if (g) grants.push(g); else rejected++;
-  }
-  return { grants, rejected };
+  const parsed: (ResourceGrant | null)[] = body.data.grants.map(parseOne);
+  const counts = new Map<string, number>();
+  for (const g of parsed) if (g) counts.set(g.grantId, (counts.get(g.grantId) ?? 0) + 1);
+  const grants = parsed.filter((g): g is ResourceGrant => g !== null && counts.get(g.grantId) === 1);
+  return { grants, rejected: parsed.length - grants.length };
+}
+
+/**
+ * `expiresAt` and `revokedAt` must be PRESENT: an explicit `null` is the producer's statement "no expiry" / "not revoked";
+ * an absent key, `undefined`, an empty string or a non-RFC3339 value is malformed and rejects the grant (never non-expiring).
+ */
+function nullableInstant(o: Record<string, unknown>, key: string): { ok: true; ms: number | null } | { ok: false } {
+  if (!hasKey(o, key)) return { ok: false };
+  const v = o[key];
+  if (v === null) return { ok: true, ms: null };
+  const ms = parseRfc3339(v);
+  return ms === null ? { ok: false } : { ok: true, ms };
 }
 
 function parseOne(raw: unknown): ResourceGrant | null {
@@ -43,15 +60,13 @@ function parseOne(raw: unknown): ResourceGrant | null {
     || typeof accountId !== "string" || !UUID.test(accountId) || typeof applicationId !== "string" || applicationId === ""
     || resourceType !== "company" || typeof companyId !== "string" || !UUID.test(companyId)
     || typeof revision !== "number" || !Number.isSafeInteger(revision) || revision < 1) return null;
-  const effectiveAtMs = time(raw.effectiveAt);
-  if (effectiveAtMs === null) return null;
-  const expiresAtMs = raw.expiresAt === null || raw.expiresAt === undefined ? null : time(raw.expiresAt);
-  if (raw.expiresAt != null && expiresAtMs === null) return null;
-  const revokedAtMs = raw.revokedAt === null || raw.revokedAt === undefined ? null : time(raw.revokedAt);
-  if (raw.revokedAt != null && revokedAtMs === null) return null;
+  const effectiveAtMs = parseRfc3339(raw.effectiveAt);
+  const expires = nullableInstant(raw, "expiresAt");
+  const revoked = nullableInstant(raw, "revokedAt");
+  if (effectiveAtMs === null || !expires.ok || !revoked.ok) return null;
   return {
     grantId: grantId.toLowerCase(), personId: personId.toLowerCase(), accountId: accountId.toLowerCase(), applicationId,
-    resourceType, companyId: companyId.toLowerCase(), effectiveAtMs, expiresAtMs, revokedAtMs, revision,
+    resourceType, companyId: companyId.toLowerCase(), effectiveAtMs, expiresAtMs: expires.ms, revokedAtMs: revoked.ms, revision,
   };
 }
 
@@ -59,5 +74,7 @@ function parseOne(raw: unknown): ResourceGrant | null {
 export function grantApplies(g: ResourceGrant, s: { personId: string; accountId: string; applicationId: string }, nowMs: number): boolean {
   return g.personId === s.personId && g.accountId === s.accountId && g.applicationId === s.applicationId
     && g.resourceType === "company" && g.effectiveAtMs <= nowMs
-    && (g.expiresAtMs === null || g.expiresAtMs > nowMs) && (g.revokedAtMs === null || g.revokedAtMs > nowMs);
+    && (g.expiresAtMs === null || g.expiresAtMs > nowMs)
+    // Any revocation record denies, including one dated in the future: its meaning is ambiguous, so it fails closed.
+    && g.revokedAtMs === null;
 }

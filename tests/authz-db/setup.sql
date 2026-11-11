@@ -8,3 +8,15 @@ CREATE FUNCTION synthetic_scope_ok(s text) RETURNS boolean LANGUAGE sql STABLE A
 ALTER TABLE synthetic_matters ENABLE ROW LEVEL SECURITY;
 GRANT SELECT ON synthetic_matters TO synthetic_runtime;
 CREATE POLICY rt ON synthetic_matters FOR SELECT TO synthetic_runtime USING (synthetic_scope_ok(scope_ref));
+
+-- A1 v2 additions: restricted evidence, a second role (to detect an inherited SET ROLE) and a scratch table (to prove rollback).
+CREATE ROLE synthetic_other NOLOGIN;
+GRANT synthetic_other TO synthetic_runtime;
+CREATE TABLE synthetic_evidence (id serial PRIMARY KEY, scope_ref text NOT NULL, restricted boolean NOT NULL, label text NOT NULL);
+INSERT INTO synthetic_evidence (scope_ref, restricted, label) VALUES ('scope-a', false, 'open-a'), ('scope-a', true, 'restricted-a'), ('scope-b', false, 'open-b');
+ALTER TABLE synthetic_evidence ENABLE ROW LEVEL SECURITY;
+GRANT SELECT ON synthetic_evidence TO synthetic_runtime;
+CREATE POLICY rt ON synthetic_evidence FOR SELECT TO synthetic_runtime
+  USING (synthetic_scope_ok(scope_ref) AND (NOT restricted OR current_setting('ecc.restricted_evidence', true) = 'on'));
+CREATE TABLE synthetic_scratch (x text);
+GRANT SELECT, INSERT ON synthetic_scratch TO synthetic_runtime;

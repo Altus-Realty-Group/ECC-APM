@@ -101,23 +101,25 @@ try {
     await page.goto("http://127.0.0.1:4181/ops/legal/matters/bad!id");
     await expect(page.getByText("That matter link is not valid.", { exact: true })).toBeVisible();
     await page.goto("http://127.0.0.1:4181/ops/legal/matters/zero");
+    // These buttons only drive fixture states. Keyboard activation avoids collision
+    // with the real shell's fixed skip link; operating controls still use real clicks.
     for (const [mode, expected] of [["unavailable", "Legal workspace is not available."], ["denied", "You don't have access to this legal matter."], ["error", "Synthetic load failure"], ["loading", "Loading legal matter…"]]) {
-      await page.locator(`[data-mode="${mode}"]`).click();
+      await page.locator(`[data-mode="${mode}"]`).press("Enter");
       await expect(page.getByText(expected, { exact: true })).toBeVisible();
       await expect(page.getByRole("heading", { name: "EXAMPLE v. DEMO" })).toHaveCount(0);
     }
     await page.goto("http://127.0.0.1:4181/ops/legal/case-manager");
     await page.getByLabel("Search legal matters").fill("SYNTHETIC JOINT");
-    await page.locator('[data-mode="session"]').click();
+    await page.locator('[data-mode="session"]').press("Enter");
     await expect(page.getByLabel("Search legal matters")).toHaveValue("");
-    await page.locator('[data-mode="stale"]').click();
+    await page.locator('[data-mode="stale"]').press("Enter");
     await expect(page.getByText("Legal list may be out of date.", { exact: true })).toBeVisible();
-    await page.locator('[data-mode="empty"]').click();
+    await page.locator('[data-mode="empty"]').press("Enter");
     await expect(page.getByText("No legal matters are available.", { exact: true })).toBeVisible();
     await expect(page.locator(".ecc-legal-list li")).toHaveCount(0);
-    await page.locator('[data-mode="ready"]').click();
+    await page.locator('[data-mode="ready"]').press("Enter");
     await expect(page.locator(".ecc-legal-list li")).toHaveCount(3);
-    await page.locator('[data-mode="other-denial"]').click();
+    await page.locator('[data-mode="other-denial"]').press("Enter");
     await expect(page.getByText("Legal records were cleared after an access change.", { exact: true })).toBeVisible();
     await expect(page.locator(".ecc-legal-list li")).toHaveCount(0);
     await page.getByRole("button", { name: "Retry", exact: true }).click();

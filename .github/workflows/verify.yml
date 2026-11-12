@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { fetch-depth: 0 }
-      - name: Determine dashboard browser proof scope
+      - name: Determine browser proof scope
         id: dashboard-scope
         shell: bash
         env:
@@ -28,6 +28,7 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
             echo 'run=false' >> "$GITHUB_OUTPUT"
             echo 'legal=false' >> "$GITHUB_OUTPUT"
+            echo 'documents=false' >> "$GITHUB_OUTPUT"
             exit 0
           fi
           [[ "$DASHBOARD_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
@@ -44,6 +45,12 @@ jobs:
           else
             echo 'legal=false' >> "$GITHUB_OUTPUT"
           fi
+          git diff --name-only "$DASHBOARD_BASE_SHA...HEAD" -- src/features/documents src/pages/card/owner/Files.tsx src/pages/card/property/Files.tsx src/components/cardkit/CardShell.tsx src/components/Sidebar.tsx src/components/nav src/components/layout/WorkspaceBar.tsx src/config/navigation.ts public/brand src/styles src/components/ui/StateNotice.tsx src/lib/dataState.ts src/lib/http.ts src/lib/queryClient.ts src/lib/sessionScope.ts tests/browser/documents-proof scripts/documents-browser-proof.mjs scripts/documents-proof-vite.config.mjs package.json package-lock.json .github/workflows/verify.yml > "$RUNNER_TEMP/documents-proof-changes.txt"
+          if [ -s "$RUNNER_TEMP/documents-proof-changes.txt" ]; then
+            echo 'documents=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'documents=false' >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: 20, package-manager-cache: false }
       - run: npm ci
@@ -58,7 +65,7 @@ jobs:
       - name: Dependency compatibility
         run: npm run test:dependencies
       - name: Install scoped browser
-        if: steps.dashboard-scope.outputs.run == 'true' || steps.dashboard-scope.outputs.legal == 'true'
+        if: steps.dashboard-scope.outputs.run == 'true' || steps.dashboard-scope.outputs.legal == 'true' || steps.dashboard-scope.outputs.documents == 'true'
         run: npx playwright install --with-deps chromium --only-shell
       - name: Dashboard exact-source browser proof
         if: steps.dashboard-scope.outputs.run == 'true'
@@ -75,6 +82,21 @@ jobs:
           path: ${{ runner.temp }}/ecc-dashboard-proof-artifacts
           if-no-files-found: warn
           retention-days: 7
+      - name: Documents exact-source browser proof
+        if: steps.dashboard-scope.outputs.documents == 'true'
+        timeout-minutes: 2
+        env:
+          SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PROOF_ARTIFACT_DIR: ${{ runner.temp }}/ecc-documents-proof-artifacts
+        run: node scripts/documents-browser-proof.mjs
+      - name: Upload document browser receipt and images
+        if: always() && steps.dashboard-scope.outputs.documents == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: documents-browser-proof
+          path: ${{ runner.temp }}/ecc-documents-proof-artifacts
+          if-no-files-found: warn
+          retention-days: 1
       - name: Legal exact-source browser proof
         if: steps.dashboard-scope.outputs.legal == 'true'
         timeout-minutes: 3

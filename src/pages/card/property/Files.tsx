@@ -1,17 +1,7 @@
-import {} from '@/lib/ecc-resolvers';
-import React from 'react';
-
-let FileButtons: any;
-try { 
-  FileButtons = require('@/components/FileButtons').default; 
-} catch {
-  // FileButtons component not available
-}
-
-export default function Files() {
-  return (
-    <div className="space-y-3" data-testid="tab-files">
-      <div className="text-sm opacity-70">File listing is not available on this card yet.</div>
-    </div>
-  );
+import React from "react";
+import RecordDocuments from "@/features/documents/RecordDocuments";
+import type { DocumentAdapter } from "@/features/documents/documentAdapter";
+export default function Files({ data, adapter }: { data?: { property: { id: number } }; adapter?: DocumentAdapter }) {
+  if (!data?.property) return <div data-testid="tab-files">File listing is not available on this card yet.</div>;
+  return <div data-testid="tab-files"><RecordDocuments context={{ kind: "property", id: data.property.id }} adapter={adapter} /></div>;
 }

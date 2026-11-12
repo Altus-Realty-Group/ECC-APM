@@ -312,3 +312,26 @@ Nine mounted synthetic lifecycle cases plus six existing focused tests pass; the
 The legal register and matter cards reuse the existing shared QueryClient and session epoch. Keys include epoch, adapter identity, optional test context and resource/matter ID. No placeholder rows survive a key change or refetch; 401/403 and typed denied results participate in the shared purge. A response finishing under an earlier epoch is rejected. Register filters and matter tabs remount with their record/context. Missing, invalid, denied and unconnected detail states are distinct.
 
 This is an unbound frontend projection, not an accepted legal API or authorization issuer. No endpoint, database object, schema, grant or operational writer is added. Native legal contracts remain separately reviewed; the provisional card's single-award fields cannot bind a multi-award producer without explicit mapping. The UI displays unknown cents as unreported and explicit zero as zero cents; it does not infer currency, balance, interest or court deadlines. Source/unit/browser fixtures are synthetic; installed authorization and populated runtime acceptance remain separate gates. No database or provider performance claim is made.
+
+## Owner/property document cards - source implementation 2026-11-11
+
+The actual owner/property Files tabs now mount a shared document view, with
+existing native integer record IDs, five owner sections and five property
+sections. Explicit linked-owner documents are frontend associations, never
+resource grants. No document/version/location registry is declared by the
+current shared/schema.ts source; no table, RPC, grant or persistence is added.
+The default frontend adapter remains unbound with no network/provider access.
+
+The shared QueryClient/session epoch is reused, with keys containing epoch,
+adapter and record kind/ID; no separate persistent cache exists. Metadata
+validation rejects wrong-record, duplicate identity and unknown section/state
+responses. Denials purge existing private data before search/count display.
+Downloads require verified delivery and an adapter-supplied reauthorized Blob
+matching document/version identity. Old-context results cannot start downloads.
+
+The old file router is not mounted, despite defining placeholder file routes.
+Legacy overwrite/share-link helpers and caller-path listing/temp-link helpers
+remain unused. Service-role card reads do not grant document authority. Reuse
+decisions for actual registry candidates and live protected transport remain
+separate acceptance work; no live query, performance or authorization proof.
+See [document implementation record](../documents/OWNER_PROPERTY_DOCUMENTS_20261111.md).

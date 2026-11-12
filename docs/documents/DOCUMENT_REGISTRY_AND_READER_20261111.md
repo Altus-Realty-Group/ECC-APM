@@ -32,7 +32,7 @@ object reference and revision, never a path or URL. Views `document_current_vers
 ## Reader
 `createDocumentReader(deps)` takes only injected ports (`authority`, `scopes`, `store`, `content`, `classificationPolicy`, `now`). Defaults deny.
 * **Authority boundary**: an allowed A1 decision is validated and snapshotted (A1's `assertContext` plus a non-empty binding and a finite session
-  expiry) and the reader works from a frozen copy; a missing, non-finite or malformed context field is `unavailable` with no registry, scope or
+  expiry, with authority expiry no later than session expiry) and the reader works from a frozen copy; a missing, non-finite or malformed context field is `unavailable` with no registry, scope or
   provider call, on list and download, at the first and the final decision.
 * **Effective authorization state**: A1 binding + the target's `scope_ref` mapping + the allowed classifications + the authorized linked owners.
   It binds every cursor. **Final delivery order**: provider read, final registry read, the final authorization decision (the LAST asynchronous

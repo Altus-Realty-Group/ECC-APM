@@ -221,7 +221,7 @@ test("expiry is read AGAIN immediately before returning: authority that expires 
   const mk = (docs: Doc[], validUntilMs: number) => {
     let reads = 0;
     const { store } = memoryStore(docs); const { content } = memoryContent(docs);
-    const reader = createDocumentReader({ authority: async () => ({ allowed: true, context: goodContext({ validUntilMs }) }) as never, scopes: scopeResolver(), store, content,
+    const reader = createDocumentReader({ authority: async () => ({ allowed: true, context: goodContext({ validUntilMs, sessionExpiresAtMs: validUntilMs }) }) as never, scopes: scopeResolver(), store, content,
       classificationPolicy: DENY_ALL_CLASSIFICATIONS, now: () => T0 + reads++ });
     return { reader, reads: () => reads };
   };
@@ -299,3 +299,27 @@ test("the row from the FINAL registry read is validated against the fresh author
 type StoreRowLike = import("../../../server/lib/documents/ports.ts").StoreRow;
 
 export { OWNER_B };
+
+
+test("authority cannot outlive the session expiry at either authorization boundary", async () => {
+  for (const overrides of [
+    { sessionExpiresAtMs: T0 - 1, validUntilMs: T0 + 10_000 },
+    { sessionExpiresAtMs: T0 + 5_000, validUntilMs: T0 + 10_000 },
+  ]) {
+    for (const op of ["list", "download"] as const) {
+      const w = wired(standardDocs(), { context: () => goodContext(overrides) });
+      const result = op === "list" ? await w.reader.read({ sessionId: SESSION_ID, context: ownerCtx(OWNER_A) }) : await dl(w.reader);
+      assert.deepEqual(result, { kind: "unavailable" });
+      assert.deepEqual(w.log, ["authority"], "inconsistent authority is refused before other ports");
+    }
+  }
+  for (const op of ["list", "download"] as const) {
+    let decisions = 0;
+    const w = wired(standardDocs(), { context: () => ++decisions === 1 ? goodContext() : goodContext({ sessionExpiresAtMs: T0 - 1 }) });
+    const result = op === "list" ? await w.reader.read({ sessionId: SESSION_ID, context: ownerCtx(OWNER_A) }) : await dl(w.reader);
+    assert.deepEqual(result, { kind: "unavailable" }, "the fresh decision is checked too");
+    assert.equal(decisions, 2);
+  }
+  const control = wired(standardDocs());
+  assert.equal((await dl(control.reader)).kind, "ready", "authority ending with its session remains valid");
+});

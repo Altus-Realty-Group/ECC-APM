@@ -53,6 +53,7 @@ export function snapshotContext(raw: unknown): ReadContext | null {
   try { assertContext({ actor: raw.actor, scopeRefs: raw.scopeRefs, validUntilMs: raw.validUntilMs }); } catch { return null; }
   if (typeof raw.binding !== "string" || raw.binding === "" || raw.binding.length > 2048) return null;
   if (typeof raw.sessionExpiresAtMs !== "number" || !Number.isFinite(raw.sessionExpiresAtMs) || raw.sessionExpiresAtMs <= 0) return null;
+  if ((raw.validUntilMs as number) > raw.sessionExpiresAtMs) return null;
   return Object.freeze({
     actor: raw.actor as string, scopeRefs: Object.freeze([...(raw.scopeRefs as string[])]), binding: raw.binding,
     sessionExpiresAtMs: raw.sessionExpiresAtMs, validUntilMs: raw.validUntilMs as number,

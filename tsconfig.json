@@ -43,6 +43,9 @@
     "src",
     "src/types",
     "server/**/*",
-    "src/**/*"
+    "src/**/*",
+    "shared/authz",
+    "shared/documents",
+    "shared/legal/ledger"
   ]
 }

@@ -20,7 +20,9 @@ PR #231 at `6aa7ac40927dd185e49cf9324dc3d517ca2a8af5`. The historical task-promp
 file and workbook/import payloads are not added by this integration.
 
 The package conflict is resolved by retaining all three isolated database test
-scripts. TypeScript includes retain authz, document and ledger source. The
+scripts. TypeScript includes retain authz and documents and cover the entire
+shared legal domain, including workflow/queue source that previously had no
+application import to pull it into the typecheck. The
 architecture record preserves all domain sections. No consumer contract or
 algorithm is changed during those conflict resolutions.
 

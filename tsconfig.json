@@ -46,6 +46,6 @@
     "src/**/*",
     "shared/authz",
     "shared/documents",
-    "shared/legal/ledger"
+    "shared/legal"
   ]
 }

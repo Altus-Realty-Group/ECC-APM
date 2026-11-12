@@ -12,6 +12,7 @@
     "guardrail": "node scripts/guardrail-check.mjs",
     "ecc:smoke": "node scripts/ecc_route_smoke.mjs",
     "test:authz-db": "bash tests/authz-db/run.sh",
+    "test:documents-db": "bash tests/documents-db/run.sh",
     "test:dependencies": "node --import tsx --test tests/dependencies/compatibility.test.mjs",
     "test:unit": "node scripts/run-unit-tests.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",

@@ -64,6 +64,14 @@ Evidence classes are separate. **Read-only source references**: the Control Plan
 | --- | --- | --- | --- | --- |
 | Consumer-side protected-read boundary | Reuses the `ReadActorResolver` seam and `sessionScope` epoch; PR #155 transport not reintroduced | Added `shared/authz/*`; no table, role, grant or config | Server binding and registry source are separate PRs owned by Codex; removal trigger: replaced by an accepted producer wiring that passes the same conformance suite | A1 draft PR; source and local tests only |
 
+## Document registry and protected reader (D1) - proposal
+
+Evidence classes are separate. **Read-only live metadata (2026-11-11)**: no document/version/delivery registry exists; candidates `files_new` (0 rows, one association, raw path, permissive authenticated SELECT `true`), `file_assets` (0 rows, raw path and shared link), `file_sync_audit` (0 rows, path-based), `files` (50), `doorloop_raw_files` (3,666), `work_order_files` (0); native `owners.id` integer, `properties.id` bigint, `property_owners` PK `(property_id, owner_id)`. **Source-only (this PR, not applied)**: `docs/documents/schema/001_document_registry.proposal.sql`, `shared/documents/`, `server/lib/documents/` (injected, default-unbound reader built on A1; effective-authorization-state revalidation as the last asynchronous step before delivery, with an A1 authority-context snapshot; exact link evidence; validated port responses), ADR-0003; proven on a private local PostgreSQL reconstruction (`npm run test:documents-db`) and unit tests. **Unverified**: the owner/property to `scope_ref` mapping, resource-grant producer, RLS scope policies (new tables are default-deny with no policy), provider receipts and any live byte delivery.
+
+| Decision / affected objects | Reuse alternatives / rationale | Added / changed / retired | Consumer sequence / compatibility owner and removal trigger | PR / evidence |
+| --- | --- | --- | --- | --- |
+| Document registry (identity, immutable versions, owner-to-property links, verified delivery receipts, minimum classification rule: `financial-tax` section records are `financial_tax`/`restricted` in SQL, and the reader requires `financial_tax` allowed for anything filed there, so restricted material there needs both permissions) | No candidate fits (single association, raw paths/shared links, no versions or receipts); `owners`/`properties`/`property_owners` reused as identity anchors | Proposed: four additive tables, two views, a read-only runtime role; legacy file tables and their grants untouched | Store binding, scope policies and handler are separate PRs (Codex). Legacy tables retire only after dependency proof | D1 draft PR; source and local tests only |
+
 ## Verification and open work
 
 - Complete the affected-domain inventory from actual source and verified database evidence when available.

@@ -1,6 +1,7 @@
 -- PROPOSAL ONLY (ECC-D1-CLAUDE-v1). NOT APPLIED to any database. Additive document registry; see docs/documents/adr/ADR-0003-*.md.
 -- Anchored to metadata read 2026-11-11: owners.id integer PK; properties.id bigint PK; property_owners PK (property_id, owner_id) with FKs.
 -- Legacy tables (files, files_new, file_assets, file_sync_audit, work_order_files, doorloop_raw_files) are NOT touched.
+-- Non-blank checks use `x ~ '[^[:space:]]'` (btrim only strips spaces, so a tab/newline-only value would pass; the TypeScript planner rejects it).
 -- Run with ON_ERROR_STOP so a failure leaves no partial change. One-time apply (it refuses a pre-existing runtime role).
 BEGIN;
 
@@ -14,7 +15,7 @@ END $$;
 -- 1. Identity. One home (an owner OR a property); classification is explicit and fixed at creation.
 CREATE TABLE document_records (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),                       -- opaque; matches the UI identifier rule [A-Za-z0-9_-]{1,128}
-  name text NOT NULL CHECK (btrim(name) <> '' AND length(name) <= 255 AND name !~ '[\\/[:cntrl:]]'),
+  name text NOT NULL CHECK (name ~ '[^[:space:]]' AND length(name) <= 255 AND name !~ '[\\/[:cntrl:]]'),
   section text NOT NULL CHECK (section IN ('management-contracts','entity-records','financial-tax','statements-reports','correspondence',
                                            'tenant-documents','property-media','construction','legal','insurance')),
   classification text NOT NULL CHECK (classification IN ('general','confidential','restricted','financial_tax')),   -- no default on purpose
@@ -23,13 +24,17 @@ CREATE TABLE document_records (
   home_property_id bigint REFERENCES properties(id) ON DELETE RESTRICT,
   status text NOT NULL DEFAULT 'active' CHECK (status IN ('active','retired')),
   created_at timestamptz NOT NULL DEFAULT now(),
-  created_by text NOT NULL CHECK (btrim(created_by) <> ''),
+  created_by text NOT NULL CHECK (created_by ~ '[^[:space:]]'),
   retired_at timestamptz,
   CHECK ((home_kind = 'owner' AND home_owner_id IS NOT NULL AND home_property_id IS NULL)
       OR (home_kind = 'property' AND home_property_id IS NOT NULL AND home_owner_id IS NULL)),
   CHECK ((home_kind = 'owner' AND section IN ('management-contracts','entity-records','financial-tax','statements-reports','correspondence'))
       OR (home_kind = 'property' AND section IN ('tenant-documents','property-media','construction','legal','insurance'))),
   CHECK ((status = 'retired') = (retired_at IS NOT NULL)),
+  -- MINIMUM CLASSIFICATION RULE (mirrors shared/documents/model.ts requiredClassifications): the financial-tax section holds financial/tax
+  -- material, so a record there is declared financial_tax or restricted (both default-deny). It can never be general/confidential, so no
+  -- document is implicitly readable merely because it was filed in that section as 'general'.
+  CHECK (section <> 'financial-tax' OR classification IN ('financial_tax','restricted')),
   UNIQUE (id, home_owner_id)                                           -- anchor for link rows (owner-home documents only)
 );
 
@@ -39,7 +44,7 @@ CREATE TABLE document_property_links (
   owner_id integer NOT NULL,
   property_id bigint NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
-  created_by text NOT NULL CHECK (btrim(created_by) <> ''),
+  created_by text NOT NULL CHECK (created_by ~ '[^[:space:]]'),
   PRIMARY KEY (document_id, property_id),
   FOREIGN KEY (document_id, owner_id) REFERENCES document_records (id, home_owner_id) ON DELETE RESTRICT,   -- the link's owner IS the home owner
   FOREIGN KEY (property_id, owner_id) REFERENCES property_owners (property_id, owner_id) ON DELETE RESTRICT -- and really owns the property
@@ -53,11 +58,11 @@ CREATE TABLE document_versions (
   byte_size bigint NOT NULL CHECK (byte_size >= 0 AND byte_size <= 9007199254740991),          -- exactly representable in JS
   sha256 text NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'),
   media_type text NOT NULL CHECK (media_type ~* '^[a-z0-9][a-z0-9.+-]*/[a-z0-9][a-z0-9.+-]*$'),
-  provider text NOT NULL CHECK (btrim(provider) <> ''),
-  provider_object_ref text NOT NULL CHECK (btrim(provider_object_ref) <> ''),                  -- opaque provider identity; never a path or URL
-  provider_revision text NOT NULL CHECK (btrim(provider_revision) <> ''),
+  provider text NOT NULL CHECK (provider ~ '[^[:space:]]'),
+  provider_object_ref text NOT NULL CHECK (provider_object_ref ~ '[^[:space:]]'),                  -- opaque provider identity; never a path or URL
+  provider_revision text NOT NULL CHECK (provider_revision ~ '[^[:space:]]'),
   created_at timestamptz NOT NULL DEFAULT now(),
-  created_by text NOT NULL CHECK (btrim(created_by) <> ''),
+  created_by text NOT NULL CHECK (created_by ~ '[^[:space:]]'),
   UNIQUE (document_id, version_number),
   UNIQUE (provider, provider_object_ref, provider_revision),                                   -- one provider revision, one registered version
   UNIQUE (id, sha256, byte_size)                                                               -- anchor for verified receipts
@@ -68,12 +73,12 @@ CREATE TABLE document_deliveries (
   seq bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   version_id uuid NOT NULL REFERENCES document_versions (id) ON DELETE RESTRICT,
   status text NOT NULL CHECK (status IN ('verified','pending','failed','reconciliation')),
-  provider_receipt_ref text CHECK (provider_receipt_ref IS NULL OR btrim(provider_receipt_ref) <> ''),
+  provider_receipt_ref text CHECK (provider_receipt_ref IS NULL OR provider_receipt_ref ~ '[^[:space:]]'),
   verified_sha256 text CHECK (verified_sha256 IS NULL OR verified_sha256 ~ '^[0-9a-f]{64}$'),
   verified_byte_size bigint CHECK (verified_byte_size IS NULL OR verified_byte_size >= 0),
   note text CHECK (note IS NULL OR length(note) <= 500),                                       -- content-free operational detail only
   observed_at timestamptz NOT NULL DEFAULT now(),
-  recorded_by text NOT NULL CHECK (btrim(recorded_by) <> ''),
+  recorded_by text NOT NULL CHECK (recorded_by ~ '[^[:space:]]'),
   CHECK ((status = 'verified') = (verified_sha256 IS NOT NULL AND verified_byte_size IS NOT NULL)),
   CHECK (status = 'verified' OR (verified_sha256 IS NULL AND verified_byte_size IS NULL)),
   FOREIGN KEY (version_id, verified_sha256, verified_byte_size) REFERENCES document_versions (id, sha256, byte_size)   -- verified == registered

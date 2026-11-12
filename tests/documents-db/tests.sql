@@ -103,6 +103,61 @@ INSERT INTO results SELECT 'a record can be retired once; a retired record takes
   AND pg_temp.err($$INSERT INTO document_versions (document_id,version_number,byte_size,sha256,media_type,provider,provider_object_ref,provider_revision,created_by) VALUES ('00000000-0000-4000-8000-0000000000b1',2,1,repeat('e',64),'application/pdf','synthetic','o-ret','r','t')$$, '23514')
   AND pg_temp.err($$UPDATE document_records SET status='active', retired_at=NULL WHERE id='00000000-0000-4000-8000-0000000000b1'$$, '42501');
 
+-- ===== D1 v2: minimum classification rule, and TypeScript/SQL invariant parity =====
+INSERT INTO results SELECT 'minimum classification: a financial-tax section record cannot be general or confidential (no implicit financial/tax access)',
+  pg_temp.err($$INSERT INTO document_records (name,section,classification,home_kind,home_owner_id,created_by) VALUES ('x','financial-tax','general','owner',17,'t')$$, '23514')
+  AND pg_temp.err($$INSERT INTO document_records (name,section,classification,home_kind,home_owner_id,created_by) VALUES ('x','financial-tax','confidential','owner',17,'t')$$, '23514');
+INSERT INTO document_records (id,name,section,classification,home_kind,home_owner_id,created_by) VALUES
+  ('00000000-0000-4000-8000-0000000000f1','Restricted tax','financial-tax','restricted','owner',17,'t'),
+  ('00000000-0000-4000-8000-0000000000f2','Tax summary 2','financial-tax','financial_tax','owner',17,'t'),
+  ('00000000-0000-4000-8000-0000000000f3','Tax note elsewhere','correspondence','financial_tax','owner',17,'t'),
+  ('00000000-0000-4000-8000-0000000000e1','Parity target','correspondence','general','owner',17,'t');
+INSERT INTO results SELECT 'minimum classification: restricted and financial_tax are accepted in the financial-tax section; financial_tax may sit in other sections',
+  (SELECT count(*)=3 FROM document_records WHERE id IN ('00000000-0000-4000-8000-0000000000f1','00000000-0000-4000-8000-0000000000f2','00000000-0000-4000-8000-0000000000f3'));
+
+CREATE TABLE _parity(name text, ok boolean);
+DO $$
+DECLARE m text; f text; ok boolean := true; n int := 0; col text;
+  bad_media text[] := ARRAY['', 'not a type', 'text/', '/pdf', 'a/b c', 'application', 'application/pdf;charset=utf-8x ', ' application/pdf'];
+  good_media text[] := ARRAY['application/pdf', 'text/plain', 'image/svg+xml', 'application/vnd.ms-excel', 'APPLICATION/PDF'];
+  blanks text[] := ARRAY['', ' ', E'\t', E'  \n '];
+BEGIN
+  -- lists mirror BAD_MEDIA_TYPES / BLANK_FIELDS in tests/unit/documents/corrections.test.ts (keep in sync)
+  FOREACH m IN ARRAY bad_media LOOP
+    BEGIN
+      INSERT INTO document_versions (document_id,version_number,byte_size,sha256,media_type,provider,provider_object_ref,provider_revision,created_by)
+        VALUES ('00000000-0000-4000-8000-0000000000e1', 1, 1, repeat('a',64), m, 'p', 'o-bad-' || md5(m), 'r', 't');
+      ok := false;                                   -- a bad media type was accepted
+    EXCEPTION WHEN check_violation THEN NULL; END;
+  END LOOP;
+  FOREACH f IN ARRAY blanks LOOP
+    FOREACH col IN ARRAY ARRAY['provider','provider_object_ref','provider_revision'] LOOP
+      BEGIN
+        EXECUTE format('INSERT INTO document_versions (document_id,version_number,byte_size,sha256,media_type,provider,provider_object_ref,provider_revision,created_by)
+          VALUES (%L, 1, 1, repeat(''a'',64), ''application/pdf'', %L, %L, %L, ''t'')', '00000000-0000-4000-8000-0000000000e1',
+          CASE WHEN col = 'provider' THEN f ELSE 'p' END, CASE WHEN col = 'provider_object_ref' THEN f ELSE 'o' END, CASE WHEN col = 'provider_revision' THEN f ELSE 'r' END);
+        ok := false;                                 -- a blank provider identity field was accepted
+      EXCEPTION WHEN check_violation THEN NULL; END;
+    END LOOP;
+  END LOOP;
+  INSERT INTO _parity VALUES ('SQL rejects every invalid media type and blank provider field the TypeScript planner rejects', ok);
+  FOREACH m IN ARRAY good_media LOOP
+    n := n + 1;
+    INSERT INTO document_versions (document_id,version_number,byte_size,sha256,media_type,provider,provider_object_ref,provider_revision,created_by)
+      VALUES ('00000000-0000-4000-8000-0000000000e1', n, 1, repeat('a',64), m, 'p', 'o-good-' || n, 'r' || n, 't');   -- must succeed
+  END LOOP;
+  INSERT INTO _parity VALUES ('SQL accepts every media type the TypeScript planner accepts', (SELECT count(*)=5 FROM document_versions WHERE document_id='00000000-0000-4000-8000-0000000000e1'));
+END $$;
+INSERT INTO results SELECT name, ok FROM _parity;
+
+-- receipts: a non-verified receipt carrying only a digest, or only a size, is rejected; duplicate sequences are impossible
+INSERT INTO results SELECT 'a non-verified receipt carrying only a digest, or only a size, is rejected (same rule as checkReceipt)',
+  pg_temp.err($$INSERT INTO document_deliveries (version_id,status,verified_sha256,recorded_by) VALUES ('00000000-0000-4000-8000-0000000001a2','failed',repeat('b',64),'t')$$, '23514')
+  AND pg_temp.err($$INSERT INTO document_deliveries (version_id,status,verified_byte_size,recorded_by) VALUES ('00000000-0000-4000-8000-0000000001a2','pending',120,'t')$$, '23514')
+  AND pg_temp.err($$INSERT INTO document_deliveries (version_id,status,verified_sha256,verified_byte_size,recorded_by) VALUES ('00000000-0000-4000-8000-0000000001a2','reconciliation',repeat('b',64),120,'t')$$, '23514');
+INSERT INTO results SELECT 'receipt sequence numbers are unique: a duplicate sequence cannot be stored (the reader reconciles one defensively)',
+  pg_temp.err($$INSERT INTO document_deliveries (seq,version_id,status,recorded_by) OVERRIDING SYSTEM VALUE VALUES ((SELECT max(seq) FROM document_deliveries),'00000000-0000-4000-8000-0000000001a2','failed','t')$$, '23505');
+
 -- caller-role boundaries: default-deny
 INSERT INTO results SELECT 'anon and authenticated hold no privilege on any new table or view',
   NOT EXISTS (SELECT 1 FROM information_schema.role_table_grants WHERE grantee IN ('anon','authenticated','PUBLIC') AND table_name IN ('document_records','document_property_links','document_versions','document_deliveries','document_current_versions','document_latest_deliveries'));

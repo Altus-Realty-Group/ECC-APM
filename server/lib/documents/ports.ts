@@ -8,13 +8,19 @@ import type { Association, Classification, DeliveryReceipt, DocumentTarget, Regi
 /** The visibility filter every store call must apply BEFORE searching, counting or paging. */
 export type ListFilter = {
   context: DocumentTarget;
-  /** Only these classifications may appear in any row, search hit or count. */
+  /**
+   * A row is visible only if EVERY class in `requiredClassifications(row.section, row.classification)` is in this list: a financial-tax-section row
+   * needs `financial_tax` allowed whatever it was declared as. Applied before any search hit, count or page.
+   */
   allowedClassifications: readonly Classification[];
   /** Property contexts only: home owners whose linked agreements the caller is authorized to see. Owner contexts pass []. */
   authorizedLinkedOwnerIds: readonly number[];
   search: string | null;
   section: string | null;
 };
+
+/** The exact registry link row that made an owner agreement visible under a property: (document, owner, property). */
+export type LinkEvidence = { documentId: string; ownerId: number; propertyId: number };
 
 export type StoreRow = {
   documentId: string;
@@ -25,6 +31,11 @@ export type StoreRow = {
   homeOwnerId: number | null;
   homePropertyId: number | null;
   association: Association;
+  /**
+   * Required for `linked-owner` rows: the exact link row for THIS document and the REQUESTED property, naming the home owner. Without
+   * exact evidence a linked row is rejected (a home-owner match alone is not evidence that this property is covered). Null for direct rows.
+   */
+  link: LinkEvidence | null;
   /** Highest registered version. A record with no version is never returned. */
   currentVersion: RegisteredVersion;
   /** Receipts for the current version (append-only). */
@@ -64,7 +75,8 @@ export type AuthorityPort = (sessionId: string | null, requestedScope: string | 
 export type ReaderEvent =
   | { type: "store_contract_violation"; detail: string }
   | { type: "integrity_mismatch"; documentId: string; versionId: string }
-  | { type: "authority_changed"; documentId?: string };
+  | { type: "authority_changed"; documentId?: string }
+  | { type: "invalid_configuration"; detail: string };
 
 export type ReaderDeps = {
   authority: AuthorityPort;
@@ -73,6 +85,7 @@ export type ReaderDeps = {
   content: ContentSource;
   classificationPolicy: ClassificationPolicy;
   now: () => number;
+  /** Safe integer >= 1. Any other value (NaN, Infinity, 0, negative, fractional) disables downloads before any I/O. */
   maxDownloadBytes?: number;
   /** Optional, content-free operational events (no names, paths or bytes). */
   report?: (e: ReaderEvent) => void;

@@ -16,12 +16,30 @@ export type Classification = (typeof CLASSIFICATIONS)[number];
 /** Readable once the context is authorized. `restricted` and `financial_tax` are default-deny and need an explicit policy allow. */
 export const DEFAULT_ALLOWED_CLASSIFICATIONS: readonly Classification[] = ["general", "confidential"];
 
+/**
+ * MINIMUM CLASSIFICATION RULE (one rule, used by the reader and mirrored by the SQL CHECK): a document in the `financial-tax` section
+ * is financial/tax material whatever it was declared as. Its declared classification must be `financial_tax` or `restricted`; a row that
+ * is declared anything else (for example `general`) is treated as `financial_tax` too, so it is never readable under the default policy.
+ * Every class returned here must be allowed for the row to be visible. There is no implicit financial/tax access.
+ */
+export function requiredClassifications(section: string, declared: Classification): readonly Classification[] {
+  if (section !== "financial-tax") return [declared];
+  return declared === "financial_tax" || declared === "restricted" ? [declared] : [declared, "financial_tax"];
+}
+export const classificationVisible = (section: string, declared: Classification, allowed: readonly Classification[]): boolean =>
+  requiredClassifications(section, declared).every((c) => allowed.includes(c));
+
 export type DeliveryState = "verified" | "pending" | "failed" | "reconciliation";
 export type Association = "direct" | "linked-owner";
 
 /** PR #232's opaque identifier rule. It excludes '/', '.', ':' and whitespace, so a path or URL can never be an identifier. */
 export const IDENTIFIER = /^[A-Za-z0-9_-]{1,128}$/;
 export const SHA256_HEX = /^[0-9a-f]{64}$/;
+/** Identical to the SQL CHECK on document_versions.media_type. */
+export const MEDIA_TYPE = /^[a-z0-9][a-z0-9.+-]*\/[a-z0-9][a-z0-9.+-]*$/i;
+export const isMediaType = (v: unknown): v is string => typeof v === "string" && MEDIA_TYPE.test(v);
+/** Mirrors the SQL `btrim(x) <> ''` checks: a provider identity field must carry non-blank text. */
+export const isNonBlank = (v: unknown): v is string => typeof v === "string" && v.trim() !== "";
 export const MAX_REGISTERED_BYTES = Number.MAX_SAFE_INTEGER;
 export const MAX_PAGE_SIZE = 100;
 export const DEFAULT_PAGE_SIZE = 50;
@@ -59,16 +77,35 @@ export type DeliveryReceipt = {
   verifiedByteSize: number | null;
 };
 
+const isSafeNonNegative = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
+const STATES: readonly string[] = ["verified", "pending", "failed", "reconciliation"];
+export function isRegisteredVersion(v: unknown): v is RegisteredVersion {
+  const o = v as RegisteredVersion;
+  return typeof v === "object" && v !== null && isIdentifier(o.versionId) && isIdentifier(o.documentId)
+    && Number.isSafeInteger(o.versionNumber) && o.versionNumber >= 1 && isSafeNonNegative(o.byteSize) && typeof o.sha256 === "string" && SHA256_HEX.test(o.sha256)
+    && isMediaType(o.mediaType) && isNonBlank(o.provider) && isNonBlank(o.providerObjectRef) && isNonBlank(o.providerRevision);
+}
+export function isDeliveryReceipt(v: unknown): v is DeliveryReceipt {
+  const o = v as DeliveryReceipt;
+  return typeof v === "object" && v !== null && Number.isSafeInteger(o.seq) && o.seq >= 1 && isIdentifier(o.versionId) && STATES.includes(o.status)
+    && (o.verifiedSha256 === null || (typeof o.verifiedSha256 === "string" && SHA256_HEX.test(o.verifiedSha256)))
+    && (o.verifiedByteSize === null || isSafeNonNegative(o.verifiedByteSize));
+}
+
 /**
  * Delivery state of a version from its append-only receipts: the latest receipt decides. `verified` counts only if the receipt's
- * recorded SHA-256 and size equal the registered version's; a "verified" receipt that disagrees is a reconciliation case, never verified.
- * No receipt at all is pending.
+ * recorded SHA-256 and size equal the registered version's. FAIL CLOSED (reconciliation, never verified) whenever the evidence is
+ * ambiguous or malformed, independent of input order: a malformed receipt; two receipts for the version sharing a sequence number
+ * (sequences are unique in the registry, so a repeat is corruption); a non-verified receipt carrying a verified digest/size; or a
+ * "verified" receipt that disagrees with the registered version. No receipt at all is pending.
  */
 export function deliveryStateOf(version: Pick<RegisteredVersion, "versionId" | "sha256" | "byteSize">, receipts: readonly DeliveryReceipt[]): DeliveryState {
-  const own = receipts.filter((r) => r.versionId === version.versionId);
+  const own = receipts.filter((r) => r && r.versionId === version.versionId);
   if (own.length === 0) return "pending";
+  if (!own.every(isDeliveryReceipt) || new Set(own.map((r) => r.seq)).size !== own.length) return "reconciliation";
   const latest = own.reduce((a, b) => (b.seq > a.seq ? b : a));
-  if (latest.status !== "verified") return latest.status;
+  const carriesDigest = latest.verifiedSha256 !== null || latest.verifiedByteSize !== null;
+  if (latest.status !== "verified") return carriesDigest ? "reconciliation" : latest.status;
   return latest.verifiedSha256 === version.sha256 && latest.verifiedByteSize === version.byteSize ? "verified" : "reconciliation";
 }
 
@@ -82,16 +119,16 @@ export type VersionCandidate = Pick<RegisteredVersion, "versionNumber" | "byteSi
 
 /**
  * Decide how to register a candidate version against the document's existing versions (immutable: nothing is ever edited).
- * A retry of an already-registered version (same number AND identical content/provider identity) is a no-op; the same number with
+ * A retry of an already-registered version (same number AND identical content, media type and provider identity) is a no-op; the same number with
  * different content is a conflict; the next number is created; a skipped number is rejected. The same provider revision can never be
  * registered twice for a document (no duplicate storage).
  */
 export function planVersionRegistration(existing: readonly RegisteredVersion[], c: VersionCandidate): VersionPlan {
-  if (!Number.isSafeInteger(c.versionNumber) || c.versionNumber < 1 || !SHA256_HEX.test(c.sha256) || !Number.isSafeInteger(c.byteSize) || c.byteSize < 0
-    || c.provider === "" || c.providerObjectRef === "" || c.providerRevision === "") return { action: "reject", reason: "INVALID_CANDIDATE" };
+  if (!Number.isSafeInteger(c.versionNumber) || c.versionNumber < 1 || typeof c.sha256 !== "string" || !SHA256_HEX.test(c.sha256) || !isSafeNonNegative(c.byteSize)
+    || !isMediaType(c.mediaType) || !isNonBlank(c.provider) || !isNonBlank(c.providerObjectRef) || !isNonBlank(c.providerRevision)) return { action: "reject", reason: "INVALID_CANDIDATE" };
   const same = existing.find((v) => v.versionNumber === c.versionNumber);
   if (same) {
-    const identical = same.sha256 === c.sha256 && same.byteSize === c.byteSize && same.provider === c.provider
+    const identical = same.sha256 === c.sha256 && same.byteSize === c.byteSize && same.mediaType === c.mediaType && same.provider === c.provider
       && same.providerObjectRef === c.providerObjectRef && same.providerRevision === c.providerRevision;
     return identical ? { action: "noop", versionId: same.versionId } : { action: "conflict", reason: "SAME_NUMBER_DIFFERENT_CONTENT" };
   }
@@ -101,16 +138,34 @@ export function planVersionRegistration(existing: readonly RegisteredVersion[], 
   return c.versionNumber === max + 1 ? { action: "create", versionNumber: c.versionNumber } : { action: "reject", reason: "VERSION_GAP" };
 }
 
-export type ReceiptCheck = { ok: true } | { ok: false; reason: "VERIFIED_REQUIRES_MATCHING_DIGEST" | "INVALID_RECEIPT" };
-/** A receipt may say `verified` only with the SHA-256 and size of the registered version. */
+export type ReceiptCheck = { ok: true } | { ok: false; reason: "VERIFIED_REQUIRES_MATCHING_DIGEST" | "NONVERIFIED_CARRIES_DIGEST" | "INVALID_RECEIPT" };
+/**
+ * Same rules as the SQL CHECKs and composite FK: a receipt may say `verified` only with the SHA-256 and size of the registered version,
+ * and ONLY a verified receipt may carry a digest/size (a failed, pending or reconciliation receipt that does is rejected).
+ */
 export function checkReceipt(version: Pick<RegisteredVersion, "sha256" | "byteSize">, r: Pick<DeliveryReceipt, "status" | "verifiedSha256" | "verifiedByteSize">): ReceiptCheck {
-  if (!["verified", "pending", "failed", "reconciliation"].includes(r.status)) return { ok: false, reason: "INVALID_RECEIPT" };
-  if (r.status !== "verified") return { ok: true };
+  if (!STATES.includes(r.status)) return { ok: false, reason: "INVALID_RECEIPT" };
+  if (r.status !== "verified") return r.verifiedSha256 === null && r.verifiedByteSize === null ? { ok: true } : { ok: false, reason: "NONVERIFIED_CARRIES_DIGEST" };
   return r.verifiedSha256 === version.sha256 && r.verifiedByteSize === version.byteSize ? { ok: true } : { ok: false, reason: "VERIFIED_REQUIRES_MATCHING_DIGEST" };
 }
 
 /** What the browser may see of a document. No provider reference, path, URL, checksum or classification detail. */
 export type ProjectedDocument = { id: string; versionId: string; name: string; section: string; association: Association; delivery: DeliveryState };
+
+/**
+ * Compact deterministic fingerprint (53-bit cyrb53) of an authorization-state string. NOT a security primitive: cursors carry no authority
+ * and every page re-authorizes, so this only detects that the effective authorization state changed between pages.
+ */
+export function stateFingerprint(text: string): string {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return `${(4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16)}.${text.length}`;
+}
 
 // ---- bounded, binding-checked cursors (a cursor carries NO authority: it is only a keyset position) ----
 export type CursorState = { kind: TargetKind; id: number; after: string; filterKey: string; binding: string };

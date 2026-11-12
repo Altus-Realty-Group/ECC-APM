@@ -1,6 +1,6 @@
 # ADR-0003: Document registry and protected reader
 
-Status: Proposed (source only; nothing applied or activated). Assignment ECC-D1-CLAUDE-v1.
+Status: Proposed (source only; nothing applied or activated). Assignment ECC-D1-CLAUDE-v1; corrected by ECC-D1-CLAUDE-v2 after Codex's independent reproduction on `d0a629c`.
 Date: 2026-11-11. Stacked on the reviewed A1 head `5e3092bcd4ac64b41e7a902201a57db58d445dee` (PR #229).
 Compatibility target: PR #232 projection at `e1a5ae2dd8d8edf1814571f90b8d1a83ce618375`.
 
@@ -42,17 +42,27 @@ No registry for documents, immutable versions or delivery receipts exists. The l
    by a composite foreign key. The latest receipt decides the state; a later failure or reconciliation supersedes a verified one.
 5. **Classification** (`general`, `confidential`, `restricted`, `financial_tax`) is fixed at record creation. `financial_tax` and
    `restricted` are default-deny: they are readable only when an injected classification policy allows them for the authorized
-   context. No policy is bound, so they are denied.
+   context. No policy is bound, so they are denied. **Minimum classification rule** (one rule, in the reader and the SQL CHECK): a
+   record in the `financial-tax` section is financial/tax material whatever it was declared as. It must be declared `financial_tax` or
+   `restricted` (SQL), and a row that arrives declared anything else is treated as also needing `financial_tax` (reader), so it is
+   never readable under the default policy. There is no implicit financial/tax access.
 6. **Protected reader foundation** (`server/lib/documents`, injected ports, A1-based): resolve the registered IDs server-side; the
    browser sends only the context and opaque document/version IDs; no provider path or shared URL is accepted or returned.
    Authority comes from A1 (`ReadContext`); the owner/property to `scope_ref` mapping is an **injected port whose default returns
    nothing**, so every request is denied until it is bound.
 7. **Filter before search/count**: the store receives the authorized scope, the home targets and the allowed classifications, so
-   restricted rows never contribute to a search hit or a total. A store that returns a row outside that filter is a contract
-   violation and fails closed.
-8. **Downloads** re-authorize the registered document and version, require that the version is current and its latest receipt is
-   verified, then validate delivered bytes (size and SHA-256) before returning them. Mismatch is a conflict and returns no bytes.
-   Expiry of the A1 context during the read withholds the result.
+   restricted rows never contribute to a search hit or a total. A store that returns a row outside that filter, or a malformed row or
+   response of any kind, is a contract violation and fails closed with a bounded `unavailable` that carries no metadata.
+   **Exact link evidence**: a linked agreement under a property is shown only with the exact registry link row for THAT document and THAT
+   property (naming the home owner); a home-owner match alone is not evidence that this property is covered.
+8. **Downloads and revalidation**: a download re-authorizes the registered document and version, requires that the version is current and
+   its latest receipt is verified, then validates delivered bytes (size and SHA-256); mismatch is a conflict and returns no bytes. The
+   reader computes an **effective authorization state** (A1 binding + the target's scope mapping + the allowed classifications + the
+   authorized linked owners). Immediately before ANY metadata or bytes leave, that state is recomputed from scratch and must equal the state
+   the work was done under, and the registry row must still be visible under the fresh filter with the same version and verified delivery;
+   otherwise the result is withheld (`denied` if authority is gone, `stale` if it changed). Cursors are bound to this effective state, not
+   only to the A1 binding. The configured download bound must be a safe integer >= 1, validated before any I/O; otherwise downloads are
+   unavailable.
 9. **Database posture**: new tables enable RLS with **no policy** (default-deny) and are not granted to anon/authenticated. A
    dedicated runtime role is created (refusing a pre-existing one). Scope policies are an activation gate because the owner/property
    mapping is not accepted.

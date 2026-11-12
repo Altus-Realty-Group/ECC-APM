@@ -30,6 +30,6 @@ chk "refused proposal created no tables" "$(psqlx sp -c "select (not exists (sel
 chk "refused proposal left the sentinel" "$(psqlx sp -c "select (exists (select 1 from pg_tables where tablename='sentinel_owned' and tableowner='ecc_documents_runtime'))::int")"
 cleanup_role
 # 3) main proof
-out="$(psqlx main -v proposal="$tmp/proposal.sql" -f "$tmp/tests.sql" 2>&1)"; echo "$out"
+out="$(psqlx main -v proposal="$tmp/proposal.sql" -f "$tmp/tests.sql" 2>&1 || true)"; echo "$out"
 a="$(echo "$out" | tail -1)"; b="$(echo "$rbout" | tail -1)"
 echo "$a $b $sent_pass|$sent_total" | awk -F'[| ]' '{ if ($1==$2 && $2>0 && $3==$4 && $4>0 && $5==$6 && $6>0) { print "[documents-db] PASS main " $1 "/" $2 ", rollback " $3 "/" $4 ", role custody " $5 "/" $6; exit 0 } else { print "[documents-db] FAIL"; exit 1 } }'

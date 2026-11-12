@@ -1,7 +1,7 @@
 // SYNTHETIC fixtures only: no real owners, properties, names, files or provider identities.
 import { APP, COMPANY_A, COMPANY_B, NOW, PERSON, REGISTRY, SESSION_ID, grant, grantsEnvelope, sessionEnvelope } from "../../../shared/authz/conformance.ts";
 import { resolveReadAuthority } from "../../../shared/authz/protectedRead.ts";
-import { deliveryStateOf, type Classification, type DeliveryReceipt, type DocumentTarget, type RegisteredVersion } from "../../../shared/documents/model.ts";
+import { classificationVisible, deliveryStateOf, type Classification, type DeliveryReceipt, type DocumentTarget, type RegisteredVersion } from "../../../shared/documents/model.ts";
 import { sha256Hex } from "../../../server/lib/documents/integrity.ts";
 import type { ContentSource, DocumentStore, ListFilter, ProviderRef, ReaderDeps, ScopeResolver, StoreRow } from "../../../server/lib/documents/ports.ts";
 
@@ -29,7 +29,7 @@ export function doc(id: string, name: string, opts: { homeOwner?: number; homePr
   const row: StoreRow = {
     documentId: id, name, section: opts.section, classification: opts.classification ?? "general",
     homeKind: opts.homeOwner !== undefined ? "owner" : "property", homeOwnerId: opts.homeOwner ?? null, homePropertyId: opts.homeProperty ?? null,
-    association: "direct", currentVersion: current, receipts: delivery === "none" ? [] : [receipt(current, delivery, ++seq)],
+    association: "direct", link: null, currentVersion: current, receipts: delivery === "none" ? [] : [receipt(current, delivery, ++seq)],
   };
   return { row, linkedProperties: opts.linked ?? [], allVersions: all, content };
 }
@@ -55,14 +55,14 @@ export function memoryStore(docs: Doc[], opts: { ignoreFilter?: boolean } = {}) 
   const visible = (d: Doc, f: ListFilter): StoreRow | null => {
     const r = d.row;
     if (!opts.ignoreFilter) {
-      if (!f.allowedClassifications.includes(r.classification)) return null;
+      if (!classificationVisible(r.section, r.classification, f.allowedClassifications)) return null;
       if (f.section && r.section !== f.section) return null;
       if (f.search && !r.name.toLowerCase().includes(f.search.toLowerCase())) return null;
     }
     const c = f.context;
-    if (c.kind === "owner") return r.homeOwnerId === c.id ? { ...r, association: "direct" } : (opts.ignoreFilter ? { ...r, association: "direct" } : null);
-    if (r.homePropertyId === c.id) return { ...r, association: "direct" };
-    if (r.homeOwnerId !== null && d.linkedProperties.includes(c.id) && (opts.ignoreFilter || f.authorizedLinkedOwnerIds.includes(r.homeOwnerId))) return { ...r, association: "linked-owner" };
+    if (c.kind === "owner") return r.homeOwnerId === c.id ? { ...r, association: "direct", link: null } : (opts.ignoreFilter ? { ...r, association: "direct", link: null } : null);
+    if (r.homePropertyId === c.id) return { ...r, association: "direct", link: null };
+    if (r.homeOwnerId !== null && d.linkedProperties.includes(c.id) && (opts.ignoreFilter || f.authorizedLinkedOwnerIds.includes(r.homeOwnerId))) return { ...r, association: "linked-owner", link: { documentId: r.documentId, ownerId: r.homeOwnerId, propertyId: c.id } };
     return null;
   };
   const store: DocumentStore = {

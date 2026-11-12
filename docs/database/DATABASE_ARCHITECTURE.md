@@ -56,6 +56,29 @@ Record applicability for existing and future scenarios, zero/null semantics, who
 
 Record retention and dependency proof before retirement. Link larger decisions to existing ADRs or docs/database/decisions/. Preserve financial/legal custody.
 
+## Native legal domain (L1, issue #214) - proposal
+
+Evidence classes are kept separate. **Read-only live metadata (2026-11-10)**: `legal_cases` (uuid PK, FKs to `id_uuid`), two overlapping `case_type` CHECKs, global UNIQUE NOT NULL `case_number`, `legal_case_events`/`case_history`/`case_tags` without FKs, anon/authenticated DML grants relying on RLS default-deny, no company tables. **Source-only (this PR, not applied)**: `docs/legal/schema/001_native_legal_foundation.proposal.sql`, `shared/legal/contracts.ts`, ADR `docs/legal/adr/ADR-0001-native-legal-source-and-runtime-ownership.md`, model `docs/legal/LEGAL_NATIVE_MODEL_20261110.md`; proven only on a local PostgreSQL 16 reconstruction (`npm run test:legal-db`). **Unverified**: installed behaviour, central grant mapping, legacy staging contents.
+
+| Decision / affected objects | Reuse alternatives / rationale | Added / changed / retired | Consumer sequence / compatibility owner and removal trigger | PR / evidence |
+| --- | --- | --- | --- | --- |
+| Native legal model on `legal_cases` | Reuse existing matter root; no parallel UI-card tables | Proposed: parties, property links, awards, obligors, evidence requirements/refs, source links; one case_type union; scope_ref, docket identity, revision; append-only journal; runtime role | Server rewiring and migration apply are separate PRs. Compatibility owner: ECC backend. `case_history` retired only after dependency proof | L1 draft PR; source and local tests only |
+## Protected-read authorization context (A1, issue #211) - source only
+
+Evidence classes are separate. **Read-only source references**: the Control Plane current-session contract (`3d9aaf27`) admits a person, account and application only; company/lane memberships exist only as a *proposed* workforce contract; retained PR #155 (`54e42095`) is evidence, not an activation target. **Source-only (this PR)**: `shared/authz/` (admission, resource-grant validation, explicit `scope_ref` binding registry with an empty default, fail-closed read decision with fresh clock readings and a bounded `validUntilMs`, exclusive-lease transaction-local context seam with clean-lease check, default-deny restricted-evidence pin, and discard-on-failure), ADR-0002 and `docs/security/PROTECTED_READ_AND_RESOURCE_AUTHORIZATION_20261111.md`; proven by unit tests, a reusable conformance suite and a local PostgreSQL seam test. **Unverified / not done**: any resource-grant producer, a `scope_ref` registry source, live Control Plane registration, runtime role credentials, and the L1 schema application. Custom `ecc.*` settings filter a trusted server-supplied context and do not authenticate grants; the seam requires an exclusively leased clean connection, refuses superuser/`BYPASSRLS` connections, never uses session-level settings, resets and verifies the session, and discards the connection on any cleanup failure.
+
+| Decision / affected objects | Reuse alternatives / rationale | Added / changed / retired | Consumer sequence / compatibility owner and removal trigger | PR / evidence |
+| --- | --- | --- | --- | --- |
+| Consumer-side protected-read boundary | Reuses the `ReadActorResolver` seam and `sessionScope` epoch; PR #155 transport not reintroduced | Added `shared/authz/*`; no table, role, grant or config | Server binding and registry source are separate PRs owned by Codex; removal trigger: replaced by an accepted producer wiring that passes the same conformance suite | A1 draft PR; source and local tests only |
+
+## Document registry and protected reader (D1) - proposal
+
+Evidence classes are separate. **Read-only live metadata (2026-11-11)**: no document/version/delivery registry exists; candidates `files_new` (0 rows, one association, raw path, permissive authenticated SELECT `true`), `file_assets` (0 rows, raw path and shared link), `file_sync_audit` (0 rows, path-based), `files` (50), `doorloop_raw_files` (3,666), `work_order_files` (0); native `owners.id` integer, `properties.id` bigint, `property_owners` PK `(property_id, owner_id)`. **Source-only (this PR, not applied)**: `docs/documents/schema/001_document_registry.proposal.sql`, `shared/documents/`, `server/lib/documents/` (injected, default-unbound reader built on A1; effective-authorization-state revalidation as the last asynchronous step before delivery, with an A1 authority-context snapshot; exact link evidence; validated port responses), ADR-0003; proven on a private local PostgreSQL reconstruction (`npm run test:documents-db`) and unit tests. **Unverified**: the owner/property to `scope_ref` mapping, resource-grant producer, RLS scope policies (new tables are default-deny with no policy), provider receipts and any live byte delivery.
+
+| Decision / affected objects | Reuse alternatives / rationale | Added / changed / retired | Consumer sequence / compatibility owner and removal trigger | PR / evidence |
+| --- | --- | --- | --- | --- |
+| Document registry (identity, immutable versions, owner-to-property links, verified delivery receipts, minimum classification rule: `financial-tax` section records are `financial_tax`/`restricted` in SQL, and the reader requires `financial_tax` allowed for anything filed there, so restricted material there needs both permissions) | No candidate fits (single association, raw paths/shared links, no versions or receipts); `owners`/`properties`/`property_owners` reused as identity anchors | Proposed: four additive tables, two views, a read-only runtime role; legacy file tables and their grants untouched | Store binding, scope policies and handler are separate PRs (Codex). Legacy tables retire only after dependency proof | D1 draft PR; source and local tests only |
+
 ## Verification and open work
 
 - Complete the affected-domain inventory from actual source and verified database evidence when available.
@@ -312,3 +335,28 @@ Nine mounted synthetic lifecycle cases plus six existing focused tests pass; the
 The legal register and matter cards reuse the existing shared QueryClient and session epoch. Keys include epoch, adapter identity, optional test context and resource/matter ID. No placeholder rows survive a key change or refetch; 401/403 and typed denied results participate in the shared purge. A response finishing under an earlier epoch is rejected. Register filters and matter tabs remount with their record/context. Missing, invalid, denied and unconnected detail states are distinct.
 
 This is an unbound frontend projection, not an accepted legal API or authorization issuer. No endpoint, database object, schema, grant or operational writer is added. Native legal contracts remain separately reviewed; the provisional card's single-award fields cannot bind a multi-award producer without explicit mapping. The UI displays unknown cents as unreported and explicit zero as zero cents; it does not infer currency, balance, interest or court deadlines. Source/unit/browser fixtures are synthetic; installed authorization and populated runtime acceptance remain separate gates. No database or provider performance claim is made.
+
+## Owner/property document cards - source implementation 2026-11-11
+
+The actual owner/property Files tabs now mount a shared document view, with
+existing native integer record IDs, five owner sections and five property
+sections. Explicit linked-owner documents are frontend associations, never
+resource grants. No document/version/location registry is declared by the
+current shared/schema.ts source; no table, RPC, grant or persistence is added.
+The default frontend adapter remains unbound with no network/provider access.
+
+The shared QueryClient/session epoch is reused, with keys containing epoch,
+adapter and record kind/ID; no separate persistent cache exists. Metadata
+validation rejects wrong-record, duplicate identity and unknown section/state
+responses. Denials purge existing private data before search/count display.
+Downloads require verified delivery and an adapter-supplied reauthorized Blob
+matching document/version identity. Old-context results cannot start downloads.
+
+The old file router is not mounted, despite defining placeholder file routes.
+Legacy overwrite/share-link helpers and caller-path listing/temp-link helpers
+remain unused. Service-role card reads do not grant document authority. Reuse
+decisions for actual registry candidates and live protected transport remain
+separate acceptance work; no live query, performance or authorization proof.
+See [document implementation record](../documents/OWNER_PROPERTY_DOCUMENTS_20261111.md).
+
+- **Legal award ledger (L5, issue #218):** source-only contracts in `shared/legal/ledger/` (see `docs/legal/LEGAL_AWARD_LEDGER_20261112.md`). No persistence, no SQL, net new database objects: 0. Persisted intake and write authorization remain separate dependencies.

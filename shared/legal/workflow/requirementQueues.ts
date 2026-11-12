@@ -18,17 +18,18 @@ export function requirementQueues(input: unknown): RequirementQueue {
   const open = outcome.projection.requirements
     .filter((r) => r.status === "open")
     .slice()
-    .sort((a, b) => a.id.localeCompare(b.id));
+    .sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
   const assigned = open.filter((r) => r.assignedActor !== null);
   const unassigned = open.filter((r) => r.assignedActor === null);
 
-  const byActor: Record<string, Requirement[]> = {};
+  const byActor: Record<string, Requirement[]> = Object.create(null);
   for (const r of assigned) {
     const key = r.assignedActor as string;
-    (byActor[key] ??= []).push(r);
+    if (!Object.prototype.hasOwnProperty.call(byActor, key)) byActor[key] = [];
+    byActor[key].push(r);
   }
-  for (const key of Object.keys(byActor)) byActor[key].sort((a, b) => a.id.localeCompare(b.id));
+  for (const key of Object.keys(byActor)) byActor[key].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
   return {
     kind: "ready",

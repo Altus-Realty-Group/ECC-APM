@@ -65,3 +65,44 @@ test("deterministic ordering by id", () => {
   assert.equal(q.kind, "ready");
   if (q.kind === "ready") assert.deepEqual(q.open.map(r => r.id), ["r1", "r2"]);
 });
+
+test("prototype-like actor ids are safe own keys", () => {
+  const q = requirementQueues({ ...base, requirements: [
+    { id: "r1", matterId: "m1", description: "A", assignedActor: "__proto__", sourceDate: null, status: "open" },
+    { id: "r2", matterId: "m1", description: "B", assignedActor: "constructor", sourceDate: null, status: "open" },
+    { id: "r3", matterId: "m1", description: "C", assignedActor: "toString", sourceDate: null, status: "open" },
+    { id: "r4", matterId: "m1", description: "D", assignedActor: "__proto__", sourceDate: null, status: "open" },
+  ] });
+  assert.equal(q.kind, "ready");
+  if (q.kind === "ready") {
+    assert.equal(q.byActor["__proto__"].length, 2);
+    assert.equal(q.byActor["constructor"].length, 1);
+    assert.equal(q.byActor["toString"].length, 1);
+    assert.equal(q.counts.assigned, 4);
+  }
+});
+
+test("locale-independent ordering for mixed-case and non-ascii", () => {
+  const q = requirementQueues({ ...base, requirements: [
+    { id: "rB", matterId: "m1", description: "B", assignedActor: null, sourceDate: null, status: "open" },
+    { id: "ra", matterId: "m1", description: "A", assignedActor: null, sourceDate: null, status: "open" },
+    { id: "ré", matterId: "m1", description: "E", assignedActor: null, sourceDate: null, status: "open" },
+  ] });
+  assert.equal(q.kind, "ready");
+  if (q.kind === "ready") assert.deepEqual(q.open.map(r => r.id), ["rB", "ra", "ré"]);
+});
+
+test("nonready states are returned unchanged", () => {
+  for (const kind of ["unavailable", "missing", "denied", "stale", "conflict"] as const) {
+    const q = requirementQueues({ kind, reason: "x", asOf: null });
+    assert.equal(q.kind, kind === "stale" ? "stale" : kind === "conflict" ? "conflict" : kind);
+  }
+});
+
+test("input is not mutated", () => {
+  const reqs = [{ id: "r1", matterId: "m1", description: "A", assignedActor: "user-1", sourceDate: null, status: "open" as const }];
+  const input = { ...base, requirements: reqs };
+  const before = JSON.stringify(input);
+  requirementQueues(input);
+  assert.equal(JSON.stringify(input), before);
+});

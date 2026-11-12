@@ -24,7 +24,9 @@ scripts. TypeScript includes retain authz and documents and cover the entire
 shared legal domain, including workflow/queue source that previously had no
 application import to pull it into the typecheck. The
 architecture record preserves all domain sections. No consumer contract or
-algorithm is changed during those conflict resolutions.
+algorithm is changed during those conflict resolutions. The expanded typecheck
+found two unknown-return narrowings in the workflow date helpers; explicit null
+and validated-string branches resolve them without weakening date validation.
 
 ## Validation boundary
 

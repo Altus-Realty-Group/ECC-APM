@@ -35,9 +35,14 @@ function realDate(v: unknown): v is string {
   const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
   return day <= [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
 }
-function dateOrNull(v: unknown): string | null { check(v === null || realDate(v)); return v; }
+function dateOrNull(v: unknown): string | null {
+  if (v === null) return null;
+  check(realDate(v));
+  return v;
+}
 function asOf(v: unknown): string | null {
-  if (v === null || realDate(v)) return v;
+  if (v === null) return null;
+  if (realDate(v)) return v;
   check(typeof v === "string");
   const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?Z$/.exec(v);
   check(m && realDate(m[1]) && Number(m[2]) < 24 && Number(m[3]) < 60 && Number(m[4]) < 60);

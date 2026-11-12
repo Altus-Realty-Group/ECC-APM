@@ -61,6 +61,15 @@ link is short-lived and revoked after triggering the browser download. A record,
 adapter, delivery, version or session change/unmount suppresses late results.
 Download denial participates in the same shared cache purge.
 
+`transportAdapter.ts` bridges an explicitly injected protected-reader transport
+into the existing UI. It drains bounded pages (100 per page, at most 500 total),
+rejects cursor loops and inconsistent totals, and withholds earlier pages if a
+later page denies or becomes stale. Downloads validate registered identity,
+size (at most 50 MiB), media type and SHA-256 before creating a Blob. Aborted or
+old-session work cannot deliver results. This is compatible with D1's proposed
+paginated lists and verified byte response; it does not mount a handler or choose
+an endpoint. The production card still uses the unbound adapter.
+
 The default adapter returns unavailable and performs no network request. This
 is a frontend dependency interface, not an accepted installed endpoint or an
 authorization/registry producer. Synthetic data exists only in tests.
@@ -84,13 +93,15 @@ target changes. Net new database objects:0.
 
 ## Validation and limits
 
+- Document transport suite:10/10, including partial-page denial, cursor loops,
+  corrupt bytes, size limits and stale-session suppression.
 - Focused document component/model/query suite:16/16; independent deferred
   download checks for record/adapter/session/unmount plus a successful control.
 - Existing no-data card compatibility is retained.
 - Full unit suite, typecheck, guardrail and build are recorded in the PR.
 - The browser harness uses actual Files components, CardShell, Sidebar,
   WorkspaceBar and styles, with synthetic adapters only. It specifies 390/1440,
-  filtering, pending download denial, downloaded bytes, session reset, linked
+  filtering, pending download denial, downloaded bytes, corrupt-byte rejection, session reset, linked
   owner records, all error states, cross-domain denial, geometry and 44px targets.
 - Local browser proof did not pass: Chromium failed at socket creation under
   host policy; remote browser could not reach the local preview. No screenshot,
@@ -117,8 +128,13 @@ selects the existing dashboard/legal proofs. Actual billing is not measured.
 No provider/production calls, deployment, migration, secret or service changes.
 Revert the document-scope/step changes to restore prior CI behavior.
 
-Hosted execution and artifact review are required before changing the browser
-acceptance status above. A passing unit/build step alone is insufficient.
+Hosted acceptance on the preceding UI head `e1a5ae2` passed at 390 and 1440px
+(Verify run 43117501459). The downloaded artifact and four screenshots were
+reviewed: no horizontal overflow, console errors, page errors or rejected
+requests. This supersedes the initial local-host limitation above for that head.
+The transport bridge and corrupt-byte journey require a new hosted run on their
+own head; prior acceptance does not prove those changes. A passing unit/build
+step alone is insufficient.
 
 Rollback: revert source changes. This PR performs no live migration. Removing
 newly created empty Dropbox folders is a separate explicitly requested action;

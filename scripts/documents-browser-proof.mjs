@@ -24,6 +24,8 @@ try {
   await page.addInitScript(() => localStorage.removeItem("ecc.sidebar.collapsed"));
   page.on("console", m => { if (m.type() === "error") receipt.consoleErrors.push(m.text()); });
   page.on("pageerror", e => receipt.pageErrors.push(e.message));
+  let downloadCount = 0;
+  page.on("download", () => { downloadCount++; });
   await page.route("**/*", route => {
     const url = new URL(route.request().url());
     if (url.hostname !== "127.0.0.1" || /^\/(api|bff)(\/|$)/.test(url.pathname)) {
@@ -46,6 +48,14 @@ try {
     await docs.getByRole("button", { name: "Download", exact: true }).click();
     const downloaded = await downloading;
     assert.equal(await readFile(await downloaded.path(), "utf8"), "SYNTHETIC DOWNLOAD ONLY");
+    const beforeTamper = downloadCount;
+    await page.locator('[data-mode="tampered"]').press("Enter");
+    await expect(docs.locator("li")).toHaveCount(2);
+    await docs.locator("li").filter({ hasText: "SYNTHETIC management agreement" }).getByRole("button", { name: "Download", exact: true }).click();
+    await expect(docs.getByText("Download unavailable. Try again.", { exact: true })).toBeVisible();
+    assert.equal(downloadCount, beforeTamper, "Corrupt bytes must not trigger a browser download");
+    await page.locator('[data-mode="ready"]').press("Enter");
+    await expect(docs.locator("li")).toHaveCount(2);
     await page.locator('[data-mode="session"]').press("Enter");
     await expect(docs.getByLabel("Search documents")).toHaveValue("");
     await expect(docs.locator("li")).toHaveCount(2);

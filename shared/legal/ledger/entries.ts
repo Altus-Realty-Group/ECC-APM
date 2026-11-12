@@ -1,6 +1,7 @@
 // Strict parsing and canonical form of ledger records. Anything unexpected is rejected: unknown keys, missing keys, wrong types,
 // unreal dates, unsafe numbers. Reuses the L1 money rules (`parseMoney`) so the database CHECKs, the award and the ledger agree.
-import { LegalContractError, MAX_MONEY_CENTS, parseMoney } from "../contracts";
+import { AWARD_KINDS, LIABILITIES, LegalContractError, MAX_MONEY_CENTS, parseAward, parseMoney, type LegalAward } from "../contracts";
+import { fingerprint } from "./digest";
 import {
   CHARGE_COMPONENTS, type ConflictCode, LEDGER_ENTRY_KINDS, PROVENANCE_SOURCES, REVERSAL_REASONS,
   type CollectionApproval, type EvidenceReference, type LedgerEntry, type Provenance, type Reconciliation,
@@ -122,17 +123,73 @@ export function canonicalEntry(e: LedgerEntry): string {
 export function parseReconciliation(raw: unknown): Reconciliation | null {
   if (raw === null) return null;
   if (!isRecord(raw)) return fail("reconciliation must be an object or null", "INVALID_RECONCILIATION");
-  exactKeys(raw, ["asOf", "reconciledBy", "evidence"], "reconciliation");
-  return { asOf: parseDate(raw.asOf, "reconciliation asOf"), reconciledBy: nonBlank(raw.reconciledBy, "reconciledBy"), evidence: parseEvidence(raw.evidence, "reconciliation") };
+  exactKeys(raw, ["asOf", "reconciledBy", "evidence", "ledgerSeq", "ledgerDigest"], "reconciliation");
+  if (typeof raw.ledgerSeq !== "number" || !Number.isSafeInteger(raw.ledgerSeq) || raw.ledgerSeq < 0) fail("reconciliation must name the ledger position it reviewed", "INVALID_RECONCILIATION");
+  if (typeof raw.ledgerDigest !== "string" || !DIGEST.test(raw.ledgerDigest)) fail("reconciliation must name the ledger state it reviewed", "INVALID_RECONCILIATION");
+  return { asOf: parseDate(raw.asOf, "reconciliation asOf"), reconciledBy: nonBlank(raw.reconciledBy, "reconciledBy"), evidence: parseEvidence(raw.evidence, "reconciliation"),
+    ledgerSeq: raw.ledgerSeq as number, ledgerDigest: raw.ledgerDigest as string };
+}
+
+export const DIGEST = /^[0-9a-f]{16}$/;
+
+/** Fingerprint of the exact ledger content (entries in sequence order). Equal content gives equal digests; any appended or altered entry changes it. */
+export function ledgerDigest(awardId: string, entriesInSeqOrder: readonly LedgerEntry[]): string {
+  return fingerprint(JSON.stringify([awardId, entriesInSeqOrder.map(canonicalEntry)]));
+}
+
+/** Parties as a stable, order-independent list so a reordered but identical set compares equal. */
+export function normalizeParties(obligors: LegalAward["obligors"]): LegalAward["obligors"] {
+  return obligors.map((o) => ({ partyId: o.partyId, liability: o.liability })).sort((a, b) => (a.partyId < b.partyId ? -1 : a.partyId > b.partyId ? 1 : 0));
+}
+
+const AWARD_KEYS = ["id", "matterId", "kind", "amount", "judgmentVerification", "collectionReadiness", "revision", "obligors"];
+const sameKeys = (o: Record<string, unknown>, keys: readonly string[]) => {
+  const have = Object.keys(o).sort(); const want = [...keys].sort();
+  return have.length === want.length && have.every((k, i) => k === want[i]);
+};
+/**
+ * Strictly validate the ONE supported award representation (the normalized L1 `LegalAward`: `amount` is null or {cents, currency})
+ * before it is converted for the L1 parser. Wire fields (amountCents/currency), a missing or malformed `amount`, extra keys and
+ * parties carrying anything but partyId/liability are all rejected: recorded money is never silently erased or guessed.
+ */
+export function validateAward(award: unknown): LegalAward {
+  const bad = (m: string): never => { throw new LedgerError(m, "INVALID_AWARD"); };
+  if (!isRecord(award)) return bad("award is required");
+  if (!sameKeys(award, AWARD_KEYS)) return bad("award must be a normalized L1 award (unsupported or conflicting representation)");
+  let wire: { amountCents: number | null; currency: string | null };
+  const amount = award.amount;
+  if (amount === null) wire = { amountCents: null, currency: null };
+  else if (isRecord(amount) && sameKeys(amount, ["cents", "currency"])) wire = { amountCents: amount.cents as number, currency: amount.currency as string };
+  else return bad("award amount must be null or {cents, currency}");
+  if (!Array.isArray(award.obligors)) return bad("award obligors must be an array");
+  for (const o of award.obligors) if (!isRecord(o) || !sameKeys(o, ["partyId", "liability"])) return bad("award obligors carry only partyId and liability");
+  if (!(AWARD_KINDS as readonly unknown[]).includes(award.kind)) return bad("award kind is not recognised");
+  let parsed: LegalAward;
+  try { parsed = parseAward({ id: award.id, matterId: award.matterId, kind: award.kind, judgmentVerification: award.judgmentVerification, collectionReadiness: award.collectionReadiness, revision: award.revision, obligors: award.obligors, ...wire }); }
+  catch { return bad("award is not a valid L1 award"); }
+  return parsed;
 }
 
 export function parseCollectionApproval(raw: unknown): CollectionApproval {
   if (!isRecord(raw)) return fail("approval must be an object");
-  exactKeys(raw, ["awardId", "matterId", "approvedBy", "approvedOn", "evidence", "currency", "outstandingCents", "ledgerSeq"], "approval");
+  exactKeys(raw, ["awardId", "matterId", "approvedBy", "approvedOn", "evidence", "currency", "outstandingCents", "ledgerSeq", "ledgerDigest", "awardRevision", "creditorPartyId", "obligors"], "approval");
+  if (typeof raw.ledgerDigest !== "string" || !DIGEST.test(raw.ledgerDigest)) fail("approval must name the ledger state it approved");
+  if (typeof raw.awardRevision !== "number" || !Number.isSafeInteger(raw.awardRevision) || raw.awardRevision < 0) fail("approval must name the award revision it approved");
+  if (!Array.isArray(raw.obligors) || raw.obligors.length === 0) fail("approval must name the obligors it approved");
+  const seenParty = new Set<string>();
+  const obligors = (raw.obligors as unknown[]).map((x) => {
+    if (!isRecord(x) || !sameKeys(x, ["partyId", "liability"])) return fail("approval obligors carry only partyId and liability");
+    const partyId = ledgerId(x.partyId, "obligor partyId");
+    if (seenParty.has(partyId)) fail("approval names an obligor twice");
+    seenParty.add(partyId);
+    if (!(LIABILITIES as readonly unknown[]).includes(x.liability)) fail("approval obligor liability is not recognised");
+    return { partyId, liability: x.liability as LegalAward["obligors"][number]["liability"] };
+  });
   if (typeof raw.currency !== "string" || !/^[A-Z]{3}$/.test(raw.currency)) fail("approval currency is required");
   if (typeof raw.outstandingCents !== "number" || !Number.isSafeInteger(raw.outstandingCents) || raw.outstandingCents < 1) fail("approval must name a positive outstanding amount");
   if (typeof raw.ledgerSeq !== "number" || !Number.isSafeInteger(raw.ledgerSeq) || raw.ledgerSeq < 0) fail("approval must name the ledger position it approved");
   return { awardId: ledgerId(raw.awardId, "awardId"), matterId: ledgerId(raw.matterId, "matterId"), approvedBy: nonBlank(raw.approvedBy, "approvedBy"),
     approvedOn: parseDate(raw.approvedOn, "approvedOn"), evidence: parseEvidence(raw.evidence, "approval"), currency: raw.currency as string,
-    outstandingCents: raw.outstandingCents as number, ledgerSeq: raw.ledgerSeq as number };
+    outstandingCents: raw.outstandingCents as number, ledgerSeq: raw.ledgerSeq as number,
+    ledgerDigest: raw.ledgerDigest as string, awardRevision: raw.awardRevision as number, creditorPartyId: ledgerId(raw.creditorPartyId, "creditorPartyId"), obligors: normalizeParties(obligors) };
 }

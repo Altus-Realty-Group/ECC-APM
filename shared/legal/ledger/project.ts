@@ -1,7 +1,7 @@
 // L5 ledger projection. Pure and total: it never throws; anything inconsistent yields status "conflict" with NO numbers (fail closed).
 // Arithmetic is exact (BigInt) and every result must fit a JS safe integer. Nothing is clamped, defaulted, accrued or assumed.
-import { LegalContractError, MAX_MONEY_CENTS, moneyToWire, parseAward, type LegalAward } from "../contracts";
-import { LedgerError, canonicalEntry, ledgerId, parseLedgerEntry, parseReconciliation } from "./entries";
+import { MAX_MONEY_CENTS, type LegalAward } from "../contracts";
+import { LedgerError, canonicalEntry, ledgerDigest, ledgerId, normalizeParties, parseLedgerEntry, parseReconciliation, validateAward } from "./entries";
 import type { ConflictCode, LedgerAwardContext, LedgerEntry, LedgerProjection, Reconciliation, ReviewCode } from "./model";
 
 const MAX = BigInt(MAX_MONEY_CENTS);
@@ -9,19 +9,11 @@ const CONFLICT_STATUS = "conflict" as const;
 
 function conflictProjection(awardId: string, matterId: string, code: ConflictCode): LedgerProjection {
   return { awardId, matterId, status: CONFLICT_STATUS, conflict: code, review: [], currency: null, principal: null, principalVerified: false,
-    chargedCents: null, satisfiedCents: null, netCents: null, outstandingCents: null, unknownEntryIds: [], lastSeq: 0, creditorPartyId: null, obligors: [],
-    reconciliation: { state: "none", asOf: null, unreconciledEntryIds: [] } };
+    chargedCents: null, satisfiedCents: null, netCents: null, outstandingCents: null, unknownEntryIds: [], lastSeq: 0, ledgerDigest: "", awardRevision: 0, creditorPartyId: null, obligors: [],
+    reconciliation: { state: "none", asOf: null, unreconciledEntryIds: [], staleReasons: [] } };
 }
 
-/** Validate an award with the L1 parser (so the ledger can never accept an award the L1 contract would refuse). */
-export function validateAward(award: unknown): LegalAward {
-  const a = award as LegalAward;
-  if (typeof a !== "object" || a === null) throw new LedgerError("award is required", "INVALID_AWARD");
-  try {
-    const parsed = parseAward({ ...(a as object), ...moneyToWire(a.amount === undefined ? null : a.amount) });
-    return parsed;
-  } catch (e) { throw new LedgerError(e instanceof LegalContractError ? "award is not a valid L1 award" : "award is invalid", "INVALID_AWARD"); }
-}
+export { validateAward };
 
 type Parsed = { award: LegalAward; creditor: string | null; reconciliation: Reconciliation | null; entries: LedgerEntry[] };
 
@@ -94,10 +86,11 @@ export function projectLedger(ctx: LedgerAwardContext, rawEntries: readonly unkn
   if (unknownEntryIds.length > 0) review.push("UNKNOWN_ENTRY_AMOUNT");
   const currency = award.amount !== null ? award.amount.currency : (entries.find((e) => e.currency !== null)?.currency ?? null);
 
-  const reconciliation = reconciliationState(p.reconciliation, entries);
+  const digest = ledgerDigest(award.id, entries);
+  const reconciliation = reconciliationState(p.reconciliation, entries, digest);
   const base = {
     awardId: award.id, matterId: award.matterId, conflict: null as null, currency, principal: award.amount, principalVerified: award.judgmentVerification === "verified" && award.amount !== null,
-    unknownEntryIds, lastSeq: entries.length, creditorPartyId: p.creditor, obligors: award.obligors.map((o) => ({ ...o })), reconciliation,
+    unknownEntryIds, lastSeq: entries.length, ledgerDigest: digest, awardRevision: award.revision, creditorPartyId: p.creditor, obligors: normalizeParties(award.obligors), reconciliation,
   };
   if (review.length > 0) {
     // Something contributing is UNKNOWN: report no total at all (never zero, never a partial sum).
@@ -116,10 +109,18 @@ export function projectLedger(ctx: LedgerAwardContext, rawEntries: readonly unkn
     netCents: Number(net), outstandingCents: overpaid ? null : Number(net) };
 }
 
-function reconciliationState(r: Reconciliation | null, entries: LedgerEntry[]): LedgerProjection["reconciliation"] {
-  if (r === null) return { state: "none", asOf: null, unreconciledEntryIds: [] };
-  const later = entries.filter((e) => e.effectiveDate > r.asOf).map((e) => e.entryId);
-  return { state: later.length === 0 ? "current" : "stale", asOf: r.asOf, unreconciledEntryIds: later };
+/**
+ * A reconciliation is current only for the exact ledger state it reviewed: same position AND same content fingerprint. Any entry appended
+ * afterwards makes it stale whatever its effectiveDate (a backdated payment included). asOf stays a business date; no clock is consulted.
+ * An entry effective after asOf is additionally unreviewed (the review could not have covered it).
+ */
+function reconciliationState(r: Reconciliation | null, entries: LedgerEntry[], digest: string): LedgerProjection["reconciliation"] {
+  if (r === null) return { state: "none", asOf: null, unreconciledEntryIds: [], staleReasons: [] };
+  const staleReasons: LedgerProjection["reconciliation"]["staleReasons"] = [];
+  if (r.ledgerSeq !== entries.length || r.ledgerDigest !== digest) staleReasons.push("LEDGER_CHANGED");
+  if (entries.some((e) => e.effectiveDate > r.asOf)) staleReasons.push("ENTRY_AFTER_AS_OF");
+  const unreconciledEntryIds = entries.filter((e) => e.seq > r.ledgerSeq || e.effectiveDate > r.asOf).map((e) => e.entryId);
+  return { state: staleReasons.length === 0 ? "current" : "stale", asOf: r.asOf, unreconciledEntryIds, staleReasons };
 }
 
 export type LedgerSummary = {

@@ -1,6 +1,6 @@
 // Synthetic fixtures only: invented ids and amounts. Nothing here is a real matter, party, award or payment.
 import { parseAward, type LegalAward } from "../../../../shared/legal/contracts.ts";
-import type { LedgerAwardContext } from "../../../../shared/legal/ledger/index.ts";
+import { projectLedger, type LedgerAwardContext } from "../../../../shared/legal/ledger/index.ts";
 
 export const awardOf = (over: Record<string, unknown> = {}): LegalAward => parseAward({
   id: "award-1", matterId: "matter-1", kind: "damages", amountCents: 100000, currency: "USD", judgmentVerification: "verified",
@@ -24,7 +24,18 @@ export const credit = (id: string, seq: number, cents: number, over: Record<stri
 export const reversal = (id: string, seq: number, target: string, reason = "returned_payment", over: Record<string, unknown> = {}) =>
   entry({ entryId: id, seq, kind: "reversal", targetEntryId: target, reason, amountCents: null, currency: null, effectiveDate: "2026-03-02",
     provenance: { source: "bank_record", recordedBy: "clerk-1", approvedBy: "attorney-1" }, ...over });
-export const approval = (over: Record<string, unknown> = {}) => ({
-  awardId: "award-1", matterId: "matter-1", approvedBy: "attorney-1", approvedOn: "2026-03-05", evidence: ev(), currency: "USD", outstandingCents: 75000, ledgerSeq: 1, ...over,
-});
-export const reconciled = (asOf = "2026-03-05") => ({ asOf, reconciledBy: "clerk-2", evidence: ev() });
+/** The ledger a default review/approval was made against: one 250.00 payment. */
+export const DEFAULT_ENTRIES = (): unknown[] => [payment("p1", 1, 25000)];
+const stateOf = (entries: unknown[]) => projectLedger(ctxOf(), entries);
+export const approval = (over: Record<string, unknown> = {}, entries: unknown[] = DEFAULT_ENTRIES()) => {
+  const p = stateOf(entries);
+  return {
+    awardId: "award-1", matterId: "matter-1", approvedBy: "attorney-1", approvedOn: "2026-03-05", evidence: ev(), currency: "USD",
+    outstandingCents: p.outstandingCents ?? 1, ledgerSeq: p.lastSeq, ledgerDigest: p.ledgerDigest,
+    awardRevision: 1, creditorPartyId: "creditor-1", obligors: [{ partyId: "party-a", liability: "joint" }, { partyId: "party-b", liability: "joint" }], ...over,
+  };
+};
+export const reconciled = (asOf = "2026-03-05", entries: unknown[] = DEFAULT_ENTRIES(), over: Record<string, unknown> = {}) => {
+  const p = stateOf(entries);
+  return { asOf, reconciledBy: "clerk-2", evidence: ev(), ledgerSeq: p.lastSeq, ledgerDigest: p.ledgerDigest, ...over };
+};

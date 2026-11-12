@@ -3,7 +3,7 @@
 Status: **source only**. Pure TypeScript under `shared/legal/ledger/`. No UI, route, SQL, persistence, live data, grant, credential, provider call or enforcement. Net new database objects: **0**. Stacked on L1 (PR #223); L1 contracts are reused unmodified.
 
 ## Model
-- **One ledger per L1 award.** The ledger is keyed to a single `LegalAward` (validated through L1 `parseAward`). Obligor count never multiplies it; distinct awards stay distinct, including for the same person. `summarizeLedgers` counts each award identity once, rejects a conflicting repeat (`DUPLICATE_AWARD_CONFLICT`) and entries naming no supplied award (`ORPHAN_ENTRIES`).
+- **One ledger per L1 award.** The ledger is keyed to a single `LegalAward`. Only the normalized L1 representation is accepted (`amount` is `null` or `{cents, currency}`; exact key set). A malformed `amount`, wire `amountCents`/`currency` with or without a normalized amount, a missing `amount`, extra keys or parties carrying anything but `partyId`/`liability` are `INVALID_AWARD` conflicts: recorded money is never silently turned into "unknown". Obligor count never multiplies it; distinct awards stay distinct, including for the same person. `summarizeLedgers` counts each award identity once, rejects a conflicting repeat (`DUPLICATE_AWARD_CONFLICT`) and entries naming no supplied award (`ORPHAN_ENTRIES`).
 - **Principal = the L1 award amount.** Fees, costs and interest enter only as explicit `charge` entries authorized by a court order; **interest is an explicit approved amount** (no rate, accrual or formula exists in the model). `payment` and `credit` entries satisfy the balance; **no allocation order is assumed**.
 - **Append-only entries** (`seq` contiguous from 1). A `reversal` names an existing earlier entry, a reason and an approver, carries no amount, and undoes its target exactly. No edits or deletes.
 - **Evidence-referenced.** Every entry and reconciliation needs ≥1 evidence reference whose matter equals the award's matter.
@@ -23,8 +23,19 @@ Conflict codes: wrong award/matter, wrong-matter evidence, currency mismatch (ne
 
 `planAppend` decides `append | noop | reject` for one new entry without storing anything; a conflicted ledger accepts nothing and the next entry must carry `lastSeq + 1`.
 
+## Reconciliation (bound to the reviewed state)
+A `Reconciliation` carries `asOf` (a **business date**; no clock, no expiry threshold), `reconciledBy`, same-matter evidence, and the ledger state it reviewed: `ledgerSeq` and `ledgerDigest`. It is `current` only when both still match the ledger **and** no entry is effective after `asOf`. Any entry appended afterwards, a backdated payment or a reversal included, makes it `stale` (`staleReasons`: `LEDGER_CHANGED`, `ENTRY_AFTER_AS_OF`). Reconciliation stays a required eligibility input. `ledgerDigest` is a deterministic FNV-1a fingerprint of the canonical entries, for integrity of "which state was reviewed", not a security primitive.
+
 ## Collection eligibility (`evaluateCollectionEligibility`)
-Separate from arithmetic. Eligible only when the ledger is `known`, the principal's judgment is `verified`, reconciliation is current (no entry later than `asOf`), outstanding > 0, **and** an explicit `CollectionApproval` (approver, date, same-matter evidence) matches the award, matter, currency, outstanding amount and current `lastSeq` (any later entry, including a reversal, makes it stale). L1 `collectionReadiness` is not trusted. The result is only `{eligible, blockers}`: it states no enforceability, interest, accrual or legal deadline and authorizes no enforcement.
+A **planning result, never enforcement authority**, and separate from arithmetic. The projection is first validated structurally (`isValidProjection`): null, non-objects, unrecognised `status`, missing/inconsistent fields, or a `known` projection that is not self-consistent (charged − satisfied = net = outstanding) yield `PROJECTION_INVALID` and nothing else. `evaluateCollectionEligibilityForLedger` projects the award and entries itself so no hand-made projection is needed.
+
+Eligible only when all hold:
+- ledger `known`; judgment `verified`; outstanding > 0;
+- a **named creditor** and **at least one named obligor** (`CREDITOR_UNRESOLVED`, `OBLIGOR_UNRESOLVED` otherwise);
+- reconciliation `current` (above);
+- an explicit `CollectionApproval` (approver, date, same-matter evidence) that matches the award, matter, currency, outstanding amount, ledger `lastSeq` **and** `ledgerDigest`, the **award revision**, the **creditor** and the **obligor set with liabilities** (order-insensitive). Any change to the award or its parties, even with the same amount and sequence, gives `APPROVAL_AWARD_CHANGED` / `APPROVAL_PARTIES_CHANGED`; any ledger change gives `APPROVAL_STALE`.
+
+L1 `collectionReadiness` is not trusted. The result is only `{eligible, blockers}`: no enforceability, interest, accrual or legal deadline, and no enforcement action.
 
 ## Not provided / dependencies
 - The workbook preview is **not** a verified award producer; fixtures are synthetic.

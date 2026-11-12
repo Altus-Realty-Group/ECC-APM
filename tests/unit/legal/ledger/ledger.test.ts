@@ -164,11 +164,13 @@ test("creditor cannot be an obligor; invalid L1 award is refused", () => {
   assert.equal(projectLedger(null as never, []).status, "conflict");
   assert.equal(summarizeLedgers([bad], []).conflict, "INVALID_AWARD");
 });
-test("reconciliation: none / current / stale; later entries are listed", () => {
+test("reconciliation: none / current / stale; entries effective after asOf are listed", () => {
+  const e = [payment("p1", 1, 5)];
   assert.equal(projectLedger(ctxOf(), []).reconciliation.state, "none");
-  assert.equal(projectLedger(ctxOf({ reconciliation: reconciled("2026-03-05") }), [payment("p1", 1, 5)]).reconciliation.state, "current");
-  const stale = projectLedger(ctxOf({ reconciliation: reconciled("2026-02-01") }), [payment("p1", 1, 5)]);
+  assert.equal(projectLedger(ctxOf({ reconciliation: reconciled("2026-03-05", e) }), e).reconciliation.state, "current");
+  const stale = projectLedger(ctxOf({ reconciliation: reconciled("2026-02-01", e) }), e);
   assert.equal(stale.reconciliation.state, "stale"); assert.deepEqual(stale.reconciliation.unreconciledEntryIds, ["p1"]);
+  assert.deepEqual(stale.reconciliation.staleReasons, ["ENTRY_AFTER_AS_OF"]);
   expectConflict(ctxOf({ reconciliation: { ...reconciled(), evidence: [{ evidenceId: "x", matterId: "matter-9" }] } }), [], "WRONG_MATTER_EVIDENCE");
 });
 test("projection is pure and order-insensitive on input order", () => {

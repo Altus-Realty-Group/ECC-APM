@@ -44,7 +44,15 @@ export type LedgerEntry = {
 };
 
 /** Accounting reconciliation recorded for the award's ledger. The as-of date is explicit; there is no default and no clock. */
-export type Reconciliation = { asOf: string; reconciledBy: string; evidence: EvidenceReference[] };
+export type Reconciliation = {
+  /** Business date of the review. Never compared to a wall clock: there is no expiry threshold. */
+  asOf: string;
+  reconciledBy: string;
+  evidence: EvidenceReference[];
+  /** The ledger state that was actually reviewed. Any appended entry (whatever its effectiveDate) makes the reconciliation stale. */
+  ledgerSeq: number;
+  ledgerDigest: string;
+};
 
 /** Award-side inputs. `award` is an L1 award (its `amount` is the principal). The creditor is explicit or unknown. */
 export type LedgerAwardContext = { award: LegalAward; creditorPartyId: string | null; reconciliation: Reconciliation | null };
@@ -56,10 +64,14 @@ export type CollectionApproval = {
   approvedBy: string;
   approvedOn: string;
   evidence: EvidenceReference[];
-  /** The ledger state that was approved: a later entry makes the approval stale. */
+  /** The state that was approved. Any change to the award, its parties or the ledger makes the approval stale. */
   currency: string;
   outstandingCents: number;
   ledgerSeq: number;
+  ledgerDigest: string;
+  awardRevision: number;
+  creditorPartyId: string;
+  obligors: LegalAward["obligors"];
 };
 
 export type ConflictCode =
@@ -100,8 +112,17 @@ export type LedgerProjection = {
   unknownEntryIds: string[];
   /** The highest sequence number in the ledger (0 when empty). */
   lastSeq: number;
+  /** Fingerprint of the exact entries behind this projection (integrity, not security). Reconciliations and approvals bind to it. */
+  ledgerDigest: string;
+  awardRevision: number;
   /** Obligations: the award's obligors (debtors) and the creditor. No amounts live on obligors. */
   creditorPartyId: string | null;
   obligors: LegalAward["obligors"];
-  reconciliation: { state: "none" | "current" | "stale"; asOf: string | null; unreconciledEntryIds: string[] };
+  reconciliation: {
+    state: "none" | "current" | "stale";
+    asOf: string | null;
+    /** Entries appended after the reviewed state, or effective after asOf. */
+    unreconciledEntryIds: string[];
+    staleReasons: ("LEDGER_CHANGED" | "ENTRY_AFTER_AS_OF")[];
+  };
 };

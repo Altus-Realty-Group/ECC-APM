@@ -1,19 +1,44 @@
-# Legal workflow structure — L6 v2
+# Legal workflow projection boundary
 
-**PR:** #230  
-**Branch:** grok/ecc-legal-workflow-structure-20261111  
-**Parent:** 5fb91423fc8cb41c972de96b5291a044c3a3ed04
+Source-only, unbound; no accepted legal producer or live access is established.
+PR #230 remains stacked on the native legal foundation.
 
-## Corrections
-1. Whole projection is validated against its matter. Wrong-matter children, duplicate IDs and malformed L1 dimensions are rejected as conflict.
-2. Evidence is default-deny. Only explicitly unrestricted evidence is returned. Restricted evidence is filtered before search/count/metadata.
-3. All open missing requirements are kept, including assigned ones. Unassigned is a separate subset. Request-recipient wording is not an actor.
-4. Unknown award counts are deduplicated by identity. Unknown amount remains unknown, not zero.
-5. Court dates are validated as ISO. Unknown dates stay unknown. No deadline is invented.
-6. Outcomes model unavailable, missing, denied, stale and conflict.
+`consumeProjection(unknown)` is the consumption entry. It accepts a raw
+projection or an explicit ready/nonready outcome and returns only whitelisted
+fields. Every collection and row is narrowed before access. L1 matter/award
+parsers enforce dimensions, revision, money and obligors. Normalized amount
+objects and wire amounts are reconciled explicitly: conflicting representations
+are rejected, not selected by null-coalescing. Null stays unknown; zero stays zero.
 
-## Missing producer
-No accepted legal producer exists. Projections remain unbound.
+Wrong-matter children, duplicate IDs, malformed nullable fields, unsafe evidence
+URL schemes, impossible dates and invalid identities yield a generic conflict
+without source IDs, filenames, URLs or reasons. Calendar validation handles leap
+years without coercing array/object values to dates. Snapshot asOf accepts null,
+a real ISO calendar date or a valid UTC RFC3339 timestamp.
 
-## Rollback
-Revert the correction commits on this branch.
+Missing/malformed evidence classification is restricted. Only an explicit
+`restricted === false` may enter the ready projection. Filtering happens in the
+boundary itself before counts or search consumers, not in an optional later
+helper. Output is copied so subsequent source mutation cannot modify it.
+
+Ready includes summary counts computed from that sanitized projection: public
+evidence, open requirements, unassigned open requirements, unknown award amounts
+and verified monetary awards. All open requirements remain present, including
+assigned ones; request-recipient wording is never promoted to an actor. Missing,
+denied, unavailable, stale and conflict outcomes discard unrelated payload fields
+and private source diagnostics. The default producer remains unbound.
+
+Compatibility helpers validate their inputs. Identical repeated awards are
+counted once by the legacy count helpers; conflicting repeated awards are
+rejected. Whole-projection duplicate identities are rejected in accordance with
+the L1 projection boundary. Helpers do not create awards, money or deadlines.
+
+Local proof: 21 focused cases, including classification normalization, actual
+nonready execution, malformed collection/row matrices, normalized/wire money,
+privacy, source-mutation isolation and real calendar cases. Four deliberate
+mutations (classification default, output masking, conflicting money and denied
+payload echo) are caught by assertions. Full checks are reported on the reviewed
+source head; no PostgreSQL or live-producer claim follows from this slice.
+
+Rollback: revert the boundary correction source commit. No database, provider,
+operational document, shared shell or UI state was changed by this work.

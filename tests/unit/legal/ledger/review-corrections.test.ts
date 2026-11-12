@@ -224,3 +224,90 @@ test("evaluate-for-ledger projects itself, so a hand-made projection is not need
   const bad = evaluateCollectionEligibilityForLedger(ctxOf({ reconciliation: reconciled() }), [...base(), payment("p1", 1, 9)], approval());
   assert.equal(bad.eligible, false); assert.ok(bad.blockers.includes("LEDGER_CONFLICT"));
 });
+
+// ---- v3: complete reconciliation projection, positive revisions, strict recorded amounts ----
+const withRecon = (reconciliation: unknown) => ({ ...readyProjection(), reconciliation } as never);
+test("a partial or contradictory `current` reconciliation is PROJECTION_INVALID, never eligible", () => {
+  const bad: Record<string, unknown> = {
+    "state only": { state: "current" },
+    "bad asOf + stale fields": { state: "current", asOf: "bad", unreconciledEntryIds: ["missing-entry"], staleReasons: ["LEDGER_CHANGED"] },
+    "current with unreconciled ids": { state: "current", asOf: "2026-03-05", unreconciledEntryIds: ["p1"], staleReasons: [] },
+    "current with stale reasons": { state: "current", asOf: "2026-03-05", unreconciledEntryIds: [], staleReasons: ["LEDGER_CHANGED"] },
+    "current with null asOf": { state: "current", asOf: null, unreconciledEntryIds: [], staleReasons: [] },
+    "current with impossible date": { state: "current", asOf: "2026-02-30", unreconciledEntryIds: [], staleReasons: [] },
+    "current with non-string date": { state: "current", asOf: 20260305, unreconciledEntryIds: [], staleReasons: [] },
+    "ids missing": { state: "current", asOf: "2026-03-05", staleReasons: [] },
+    "reasons missing": { state: "current", asOf: "2026-03-05", unreconciledEntryIds: [] },
+    "ids not an array": { state: "current", asOf: "2026-03-05", unreconciledEntryIds: "", staleReasons: [] },
+    "blank id": { state: "current", asOf: "2026-03-05", unreconciledEntryIds: [" "], staleReasons: [] },
+    "unknown reason": { state: "current", asOf: "2026-03-05", unreconciledEntryIds: [], staleReasons: ["EXPIRED"] },
+    "stale with only an unknown reason": { state: "stale", asOf: "2026-03-05", unreconciledEntryIds: [], staleReasons: ["EXPIRED"] },
+    "stale with a known and an unknown reason": { state: "stale", asOf: "2026-03-05", unreconciledEntryIds: [], staleReasons: ["LEDGER_CHANGED", "EXPIRED"] },
+    "extra key (expiry)": { state: "current", asOf: "2026-03-05", unreconciledEntryIds: [], staleReasons: [], expiresOn: "2027-01-01" },
+    "none with a date": { state: "none", asOf: "2026-03-05", unreconciledEntryIds: [], staleReasons: [] },
+    "none with reasons": { state: "none", asOf: null, unreconciledEntryIds: [], staleReasons: ["LEDGER_CHANGED"] },
+    "stale with no reason": { state: "stale", asOf: "2026-03-05", unreconciledEntryIds: [], staleReasons: [] },
+    "stale after-asOf with no entries": { state: "stale", asOf: "2026-03-05", unreconciledEntryIds: [], staleReasons: ["ENTRY_AFTER_AS_OF"] },
+    "duplicate ids": { state: "stale", asOf: "2026-03-05", unreconciledEntryIds: ["a", "a"], staleReasons: ["ENTRY_AFTER_AS_OF"] },
+    "duplicate reasons": { state: "stale", asOf: "2026-03-05", unreconciledEntryIds: ["a"], staleReasons: ["LEDGER_CHANGED", "LEDGER_CHANGED"] },
+    "null": null, "string": "current", "array": [],
+  };
+  for (const [name, r] of Object.entries(bad)) {
+    const out = evaluateCollectionEligibility(withRecon(r), approval());
+    assert.equal(out.eligible, false, name); assert.deepEqual(out.blockers, ["PROJECTION_INVALID"], name);
+  }
+});
+test("controls: every reconciliation the projector can produce is a valid shape", () => {
+  const e = [payment("p1", 1, 5)];
+  const shapes = [
+    projectLedger(ctxOf(), e),                                                              // none
+    projectLedger(ctxOf({ reconciliation: reconciled("2026-03-05", e) }), e),               // current
+    projectLedger(ctxOf({ reconciliation: reconciled("2026-02-01", e) }), e),               // stale: entry after asOf
+    projectLedger(ctxOf({ reconciliation: reconciled("2026-03-05", base()) }), [...base(), payment("p2", 2, 1)]),  // stale: ledger changed
+    projectLedger(ctxOf({ reconciliation: reconciled("2026-03-05", [payment("p1", 1, 9)]) }), [payment("p1", 1, 10)]), // stale: same seq
+  ];
+  for (const p of shapes) assert.equal(isValidProjection(p), true, JSON.stringify(p.reconciliation));
+  assert.deepEqual(shapes.map((p) => p.reconciliation.state), ["none", "current", "stale", "stale", "stale"]);
+  assert.equal(evaluateCollectionEligibility(readyProjection(), approval()).eligible, true);
+});
+
+test("award revision must be positive in projections and approvals (conflict sentinel stays separate)", () => {
+  const out = evaluateCollectionEligibility({ ...readyProjection(), awardRevision: 0 } as never, approval({ awardRevision: 0 }));
+  assert.deepEqual(out, { eligible: false, blockers: ["PROJECTION_INVALID"] });
+  for (const rev of [0, -1, 1.5, "1", null, NaN]) assert.throws(() => parseCollectionApproval(approval({ awardRevision: rev })), String(rev));
+  const p0 = { ...readyProjection(), awardRevision: 0 } as never;
+  assert.equal(isValidProjection(p0), false);
+  assert.ok(evaluateCollectionEligibility(readyProjection(), approval({ awardRevision: 0 })).blockers.includes("APPROVAL_INVALID"));
+  // an award with revision 0 never reaches a projection: L1 requires >= 1
+  assert.equal(projectLedger(ctxOf({}, {}), []).awardRevision, 1);
+  assert.equal(projectLedger({ ...ctxOf(), award: { ...ctxOf().award, revision: 0 } as never }, []).conflict, "INVALID_AWARD");
+  const conflict = projectLedger(ctxOf(), [payment("p1", 1, 5, { currency: "CAD" })]);
+  assert.equal(conflict.awardRevision, 0); assert.equal(isValidProjection(conflict), true);
+  assert.equal(evaluateCollectionEligibility(conflict, approval()).eligible, false);
+});
+
+test("a recorded amount needs numeric cents and a currency; null members are malformed, not unknown", () => {
+  const bad: unknown[] = [
+    { cents: null, currency: null }, { cents: undefined, currency: undefined }, { cents: undefined, currency: "USD" }, { cents: 5, currency: undefined },
+    { cents: null, currency: "USD" }, { cents: 5, currency: null }, { cents: "5", currency: "USD" }, { cents: NaN, currency: "USD" },
+    { cents: Infinity, currency: "USD" }, { cents: 5, currency: 840 }, { cents: 5, currency: "" }, { cents: 5, currency: "US" }, { cents: Number.MAX_SAFE_INTEGER + 1, currency: "USD" },
+  ];
+  for (const amount of bad) {
+    const p = projectLedger(withAward((a) => { a.amount = amount; }), []);
+    assert.equal(p.status, "conflict", JSON.stringify(amount)); assert.equal(p.conflict, "INVALID_AWARD", JSON.stringify(amount));
+    assert.equal(p.principal, null);
+  }
+});
+test("undefined award fields are rejected, not read as unknown", () => {
+  for (const key of ["id", "matterId", "kind", "judgmentVerification", "collectionReadiness", "revision", "obligors", "amount"]) {
+    const p = projectLedger(withAward((a) => { a[key] = undefined; }), []);
+    assert.equal(p.conflict, "INVALID_AWARD", key);
+  }
+});
+test("only amount:null is unknown; recorded zero stays zero; a normal amount is unchanged", () => {
+  const unk = projectLedger(ctxOf({}, { amountCents: null, currency: null }), []);
+  assert.equal(unk.status, "unknown"); assert.deepEqual(unk.review, ["UNKNOWN_PRINCIPAL"]); assert.equal(unk.principal, null);
+  const zero = projectLedger(withAward((a) => { a.amount = { cents: 0, currency: "USD" }; }), []);
+  assert.equal(zero.status, "known"); assert.equal(zero.outstandingCents, 0); assert.deepEqual(zero.principal, { cents: 0, currency: "USD" });
+  assert.equal(projectLedger(ctxOf(), []).outstandingCents, 100000);
+});

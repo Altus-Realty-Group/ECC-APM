@@ -3,7 +3,7 @@
 // exact award revision, parties and ledger state. L1's collectionReadiness is not trusted, and nothing here assumes enforceability,
 // interest, accrual or a legal deadline.
 import { LIABILITIES, MAX_MONEY_CENTS } from "../contracts";
-import { DIGEST, normalizeParties, parseCollectionApproval } from "./entries";
+import { DIGEST, normalizeParties, parseCollectionApproval, parseDate } from "./entries";
 import { projectLedger } from "./project";
 import type { LedgerAwardContext, LedgerProjection } from "./model";
 
@@ -20,6 +20,23 @@ const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object
 const nonBlank = (v: unknown): v is string => typeof v === "string" && v.trim() !== "";
 const safeInt = (v: unknown, min: number): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= min && v <= MAX_MONEY_CENTS;
 const ids = (v: unknown): v is string[] => Array.isArray(v) && v.every(nonBlank);
+const STALE_REASONS = ["LEDGER_CHANGED", "ENTRY_AFTER_AS_OF"];
+const unique = (a: unknown[]) => new Set(a).size === a.length;
+const realDate = (v: unknown): boolean => { try { parseDate(v, "asOf"); return true; } catch { return false; } };
+
+/** The reconciliation block must be complete AND self-consistent: `current` carries a real business date and nothing unreviewed or stale. */
+function validReconciliation(r: unknown): boolean {
+  if (!isObj(r)) return false;
+  const keys = Object.keys(r).sort();
+  if (keys.join() !== ["asOf", "staleReasons", "state", "unreconciledEntryIds"].join()) return false;
+  if (!ids(r.unreconciledEntryIds) || !unique(r.unreconciledEntryIds)) return false;
+  if (!Array.isArray(r.staleReasons) || !r.staleReasons.every((x) => STALE_REASONS.includes(x as string)) || !unique(r.staleReasons)) return false;
+  if (r.state === "none") return r.asOf === null && r.unreconciledEntryIds.length === 0 && r.staleReasons.length === 0;
+  if (!realDate(r.asOf)) return false;
+  if (r.state === "current") return r.unreconciledEntryIds.length === 0 && r.staleReasons.length === 0;
+  if (r.state === "stale") return r.staleReasons.length > 0 && (!r.staleReasons.includes("ENTRY_AFTER_AS_OF") || r.unreconciledEntryIds.length > 0);
+  return false;
+}
 
 /**
  * Structural validation of a projection before anything is concluded from it. Fail closed: null, a non-object, an unrecognised status or any
@@ -30,10 +47,10 @@ export function isValidProjection(p: unknown): p is LedgerProjection {
   if (!nonBlank(p.awardId) || !nonBlank(p.matterId) || typeof p.status !== "string" || !STATUSES.includes(p.status)) return false;
   if (!Array.isArray(p.review) || !ids(p.unknownEntryIds) || !Array.isArray(p.obligors) || typeof p.principalVerified !== "boolean") return false;
   if (!(p.creditorPartyId === null || nonBlank(p.creditorPartyId))) return false;
-  if (!isObj(p.reconciliation) || !["none", "current", "stale"].includes(p.reconciliation.state as string)) return false;
+  if (!validReconciliation(p.reconciliation)) return false;
   if (p.status === "conflict") return nonBlank(p.conflict);
   if (p.conflict !== null) return false;
-  if (!safeInt(p.lastSeq, 0) || !safeInt(p.awardRevision, 0) || typeof p.ledgerDigest !== "string" || !DIGEST.test(p.ledgerDigest)) return false;
+  if (!safeInt(p.lastSeq, 0) || !safeInt(p.awardRevision, 1) || typeof p.ledgerDigest !== "string" || !DIGEST.test(p.ledgerDigest)) return false;
   if (!(p.obligors as unknown[]).every((o) => isObj(o) && nonBlank(o.partyId) && (LIABILITIES as readonly unknown[]).includes(o.liability))) return false;
   if (p.status === "unknown") return (p.review as unknown[]).length > 0 && p.outstandingCents === null;
   // status is review or known: the arithmetic is fully known.

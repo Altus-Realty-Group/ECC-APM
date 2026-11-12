@@ -159,7 +159,11 @@ export function validateAward(award: unknown): LegalAward {
   let wire: { amountCents: number | null; currency: string | null };
   const amount = award.amount;
   if (amount === null) wire = { amountCents: null, currency: null };
-  else if (isRecord(amount) && sameKeys(amount, ["cents", "currency"])) wire = { amountCents: amount.cents as number, currency: amount.currency as string };
+  else if (isRecord(amount) && sameKeys(amount, ["cents", "currency"])) {
+    // Only an explicit null amount means unknown. A recorded amount needs real cents and a real currency: null/undefined members are malformed, not "unknown".
+    if (typeof amount.cents !== "number" || typeof amount.currency !== "string") return bad("a recorded award amount needs numeric cents and a currency");
+    wire = { amountCents: amount.cents, currency: amount.currency };
+  }
   else return bad("award amount must be null or {cents, currency}");
   if (!Array.isArray(award.obligors)) return bad("award obligors must be an array");
   for (const o of award.obligors) if (!isRecord(o) || !sameKeys(o, ["partyId", "liability"])) return bad("award obligors carry only partyId and liability");
@@ -174,7 +178,7 @@ export function parseCollectionApproval(raw: unknown): CollectionApproval {
   if (!isRecord(raw)) return fail("approval must be an object");
   exactKeys(raw, ["awardId", "matterId", "approvedBy", "approvedOn", "evidence", "currency", "outstandingCents", "ledgerSeq", "ledgerDigest", "awardRevision", "creditorPartyId", "obligors"], "approval");
   if (typeof raw.ledgerDigest !== "string" || !DIGEST.test(raw.ledgerDigest)) fail("approval must name the ledger state it approved");
-  if (typeof raw.awardRevision !== "number" || !Number.isSafeInteger(raw.awardRevision) || raw.awardRevision < 0) fail("approval must name the award revision it approved");
+  if (typeof raw.awardRevision !== "number" || !Number.isSafeInteger(raw.awardRevision) || raw.awardRevision < 1) fail("approval must name the positive award revision it approved");
   if (!Array.isArray(raw.obligors) || raw.obligors.length === 0) fail("approval must name the obligors it approved");
   const seenParty = new Set<string>();
   const obligors = (raw.obligors as unknown[]).map((x) => {

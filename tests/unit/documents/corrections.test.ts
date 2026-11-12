@@ -120,7 +120,7 @@ test("the minimum classification rule: a financial-tax section row needs financi
   assert.deepEqual([...requiredClassifications("financial-tax", "general")], ["general", "financial_tax"]);
   assert.deepEqual([...requiredClassifications("financial-tax", "confidential")], ["confidential", "financial_tax"]);
   assert.deepEqual([...requiredClassifications("financial-tax", "financial_tax")], ["financial_tax"]);
-  assert.deepEqual([...requiredClassifications("financial-tax", "restricted")], ["restricted"]);
+  assert.deepEqual([...requiredClassifications("financial-tax", "restricted")], ["restricted", "financial_tax"], "v3: restricted material in the financial-tax section needs BOTH permissions");
   assert.deepEqual([...requiredClassifications("correspondence", "general")], ["general"]);
   assert.equal(classificationVisible("financial-tax", "general", ["general", "confidential"]), false, "REPRODUCED: default policy must not open a financial-tax row declared general");
   assert.equal(classificationVisible("financial-tax", "general", ["general", "confidential", "financial_tax"]), true);

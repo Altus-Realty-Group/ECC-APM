@@ -76,7 +76,8 @@ export type ReaderEvent =
   | { type: "store_contract_violation"; detail: string }
   | { type: "integrity_mismatch"; documentId: string; versionId: string }
   | { type: "authority_changed"; documentId?: string }
-  | { type: "invalid_configuration"; detail: string };
+  | { type: "invalid_configuration"; detail: string }
+  | { type: "invalid_authority_context"; detail: string };
 
 export type ReaderDeps = {
   authority: AuthorityPort;

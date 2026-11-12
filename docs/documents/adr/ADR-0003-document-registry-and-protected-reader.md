@@ -1,6 +1,6 @@
 # ADR-0003: Document registry and protected reader
 
-Status: Proposed (source only; nothing applied or activated). Assignment ECC-D1-CLAUDE-v1; corrected by ECC-D1-CLAUDE-v2 after Codex's independent reproduction on `d0a629c`.
+Status: Proposed (source only; nothing applied or activated). Assignment ECC-D1-CLAUDE-v1; corrected by ECC-D1-CLAUDE-v2 and v3 after Codex's independent reproductions on `d0a629c` and `2377084`.
 Date: 2026-11-11. Stacked on the reviewed A1 head `5e3092bcd4ac64b41e7a902201a57db58d445dee` (PR #229).
 Compatibility target: PR #232 projection at `e1a5ae2dd8d8edf1814571f90b8d1a83ce618375`.
 
@@ -43,9 +43,12 @@ No registry for documents, immutable versions or delivery receipts exists. The l
 5. **Classification** (`general`, `confidential`, `restricted`, `financial_tax`) is fixed at record creation. `financial_tax` and
    `restricted` are default-deny: they are readable only when an injected classification policy allows them for the authorized
    context. No policy is bound, so they are denied. **Minimum classification rule** (one rule, in the reader and the SQL CHECK): a
-   record in the `financial-tax` section is financial/tax material whatever it was declared as. It must be declared `financial_tax` or
-   `restricted` (SQL), and a row that arrives declared anything else is treated as also needing `financial_tax` (reader), so it is
-   never readable under the default policy. There is no implicit financial/tax access.
+   record in the `financial-tax` section is financial/tax material whatever it was declared as, so `financial_tax` must ALWAYS be allowed
+   for it, in addition to its declared class. The SQL CHECK limits that section to records declared `financial_tax` or `restricted`; the
+   reader additionally requires `financial_tax` for any row filed there (including a defensive `general`/`confidential` row). Therefore
+   restricted material in the financial-tax section needs BOTH `restricted` and `financial_tax`; a policy allowing only one of them reads
+   nothing there. There is no implicit financial/tax access. This is verified for every section x classification x permission set, for list,
+   count, search and download.
 6. **Protected reader foundation** (`server/lib/documents`, injected ports, A1-based): resolve the registered IDs server-side; the
    browser sends only the context and opaque document/version IDs; no provider path or shared URL is accepted or returned.
    Authority comes from A1 (`ReadContext`); the owner/property to `scope_ref` mapping is an **injected port whose default returns
@@ -58,11 +61,18 @@ No registry for documents, immutable versions or delivery receipts exists. The l
 8. **Downloads and revalidation**: a download re-authorizes the registered document and version, requires that the version is current and
    its latest receipt is verified, then validates delivered bytes (size and SHA-256); mismatch is a conflict and returns no bytes. The
    reader computes an **effective authorization state** (A1 binding + the target's scope mapping + the allowed classifications + the
-   authorized linked owners). Immediately before ANY metadata or bytes leave, that state is recomputed from scratch and must equal the state
-   the work was done under, and the registry row must still be visible under the fresh filter with the same version and verified delivery;
-   otherwise the result is withheld (`denied` if authority is gone, `stale` if it changed). Cursors are bound to this effective state, not
-   only to the A1 binding. The configured download bound must be a safe integer >= 1, validated before any I/O; otherwise downloads are
-   unavailable.
+   authorized linked owners); cursors are bound to it. **Final delivery order** (download): provider read, then the FINAL registry read, then
+   the FINAL authorization decision as the LAST asynchronous step (the A1 decision, scope mapping, classification policy and linked owners are
+   recomputed from scratch and must equal the state the work ran under), then synchronous validation of the final row against that fresh
+   authorization (visible under the fresh filter, same version, same digest and size, still verified), then an expiry check immediately
+   before returning. No registry or provider read follows the final decision. A list follows the same shape (count and list reads, the final
+   decision, then projection and the immediate expiry check). Revoked => `denied`; changed or expired => `stale`; unreadable => `unavailable`.
+   The configured download bound must be a safe integer >= 1, validated before any I/O; otherwise downloads are unavailable.
+8a. **Authority boundary**: an allowed A1 decision is validated and SNAPSHOT before use. A1's own `assertContext` is reused (person-UUID
+   actor, bounded non-empty array of valid scope_refs, finite positive `validUntilMs`), and a non-empty bounded binding and a finite positive
+   session expiry are also required. The reader works from a frozen copy, hands the classification policy that copy, and treats any
+   missing, non-finite or malformed field (on list and download, at the first decision and at the final one) as `unavailable`, with no
+   registry, scope or provider call; an already-expired context is `denied`.
 9. **Database posture**: new tables enable RLS with **no policy** (default-deny) and are not granted to anon/authenticated. A
    dedicated runtime role is created (refusing a pre-existing one). Scope policies are an activation gate because the owner/property
    mapping is not accepted.

@@ -17,14 +17,15 @@ export type Classification = (typeof CLASSIFICATIONS)[number];
 export const DEFAULT_ALLOWED_CLASSIFICATIONS: readonly Classification[] = ["general", "confidential"];
 
 /**
- * MINIMUM CLASSIFICATION RULE (one rule, used by the reader and mirrored by the SQL CHECK): a document in the `financial-tax` section
- * is financial/tax material whatever it was declared as. Its declared classification must be `financial_tax` or `restricted`; a row that
- * is declared anything else (for example `general`) is treated as `financial_tax` too, so it is never readable under the default policy.
- * Every class returned here must be allowed for the row to be visible. There is no implicit financial/tax access.
+ * MINIMUM CLASSIFICATION RULE (one rule, used by the reader and the SQL CHECK): a document in the `financial-tax` section is
+ * financial/tax material whatever it was declared as, so `financial_tax` must ALWAYS be allowed for it. Its declared classification
+ * (which the SQL CHECK limits to `financial_tax` or `restricted` there) must be allowed as well. Therefore restricted material in that
+ * section needs BOTH `restricted` and `financial_tax`; a row that arrives declared `general`/`confidential` there is never readable under
+ * the default policy. Every class returned here must be allowed for the row to be visible. There is no implicit financial/tax access.
  */
 export function requiredClassifications(section: string, declared: Classification): readonly Classification[] {
   if (section !== "financial-tax") return [declared];
-  return declared === "financial_tax" || declared === "restricted" ? [declared] : [declared, "financial_tax"];
+  return declared === "financial_tax" ? [declared] : [declared, "financial_tax"];
 }
 export const classificationVisible = (section: string, declared: Classification, allowed: readonly Classification[]): boolean =>
   requiredClassifications(section, declared).every((c) => allowed.includes(c));

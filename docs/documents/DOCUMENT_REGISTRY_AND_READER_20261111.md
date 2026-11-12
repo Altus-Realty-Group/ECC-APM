@@ -1,6 +1,6 @@
 # Document registry and protected reader foundation (D1)
 
-Assignment ECC-D1-CLAUDE-v1, corrected by ECC-D1-CLAUDE-v2. Source only: nothing is applied, mounted, bound or activated. Decision record:
+Assignment ECC-D1-CLAUDE-v1, corrected by ECC-D1-CLAUDE-v2 and v3. Source only: nothing is applied, mounted, bound or activated. Decision record:
 [ADR-0003](adr/ADR-0003-document-registry-and-protected-reader.md). Schema proposal: `schema/001_document_registry.proposal.sql`
 (rollback: `...rollback.proposal.sql`). Code: `shared/documents/`, `server/lib/documents/`. Stacked on A1 (PR #229, `5e3092b`); compatible with the
 PR #232 projection (`e1a5ae2`).
@@ -26,14 +26,20 @@ DML grants. `file_assets` stores raw paths and `shared_link_url`. `file_sync_aud
 | `document_versions` | one immutable version | contiguous numbers; 64-hex SHA-256; size ≤ JS safe integer; valid media type; non-blank provider identity (tab/newline-only is blank); unique provider revision; never updated or deleted |
 | `document_deliveries` | one append-only receipt | `verified` requires digest and size and a composite FK equal to the registered version's; a non-verified receipt must carry neither; sequence numbers are unique; the latest receipt decides (duplicate or malformed sequences reconcile, in any input order) |
 
-Classifications: `general`, `confidential` (readable once authorized), `restricted`, `financial_tax` (default-deny). **Minimum classification rule**: a `financial-tax` section record must be `financial_tax` or `restricted` (SQL CHECK), and the reader treats any row filed there as also needing `financial_tax`, so nothing in that section is readable under the default policy. Provider identity is an opaque
+Classifications: `general`, `confidential` (readable once authorized), `restricted`, `financial_tax` (default-deny). **Minimum classification rule**: `financial_tax` is ALWAYS required for a record filed in the `financial-tax` section, in addition to its declared class (SQL CHECK: declared `financial_tax` or `restricted` there). So restricted material in that section needs both `restricted` and `financial_tax`, and nothing in it is readable under the default policy. Provider identity is an opaque
 object reference and revision, never a path or URL. Views `document_current_versions` and `document_latest_deliveries` (`security_invoker`) support the future store.
 
 ## Reader
 `createDocumentReader(deps)` takes only injected ports (`authority`, `scopes`, `store`, `content`, `classificationPolicy`, `now`). Defaults deny.
+* **Authority boundary**: an allowed A1 decision is validated and snapshotted (A1's `assertContext` plus a non-empty binding and a finite session
+  expiry) and the reader works from a frozen copy; a missing, non-finite or malformed context field is `unavailable` with no registry, scope or
+  provider call, on list and download, at the first and the final decision.
 * **Effective authorization state**: A1 binding + the target's `scope_ref` mapping + the allowed classifications + the authorized linked owners.
-  It binds every cursor and is **recomputed from scratch immediately before any metadata or bytes leave**; a change in permission, mapping,
-  classification policy or linked-owner authorization during the reads withholds the result (`denied` if authority is gone, `stale` if it changed).
+  It binds every cursor. **Final delivery order**: provider read, final registry read, the final authorization decision (the LAST asynchronous
+  step; everything is recomputed and must equal the state the work ran under), synchronous validation of the final row against that fresh
+  authorization, then an expiry check immediately before returning. Nothing asynchronous follows the final decision. A change in permission,
+  mapping, classification policy or linked-owner authorization at any point, including during the final registry read, withholds the result
+  (`denied` if authority is gone, `stale` if it changed).
 * **List** `read({sessionId, context, cursor?, limit?, search?, section?})`: A1 decision first; the owner/property must map to a `scope_ref` in the
   decision (an unmapped one is denied before any registry query); allowed classifications are computed (default-deny classes need an explicit policy
   allow); for property contexts each linked agreement's HOME owner must also be authorized. The store receives the filter and applies it before
@@ -43,7 +49,7 @@ object reference and revision, never a path or URL. Views `document_current_vers
 * **Download** `download({sessionId, context, documentId, versionId})`: identifiers are opaque (no path, URL, dot or slash); re-authorizes; the
   document must be visible in THIS context (otherwise `missing`, indistinguishable from absent); the version must be the current one (older is
   `stale`, unknown is `missing`); delivery must be `verified`; delivered bytes must equal the registered size and SHA-256 (else `conflict`, no bytes);
-  after the provider read the authorization is recomputed and the registry row is re-read: it must still be visible, the same version and still verified.
+  then the final registry read and the final authorization decision (see above): the row must still be visible under the fresh authorization, the same version and still verified.
 * **Port responses are validated.** A malformed row (null, wrong types, missing version, invalid media type, blank provider fields, receipts that are
   not receipts), a non-array list, a bad count, bad linked owners or a bad authority decision returns a bounded `unavailable` containing no metadata;
   a thrown exception from any port is caught the same way. The configured `maxDownloadBytes` must be a safe integer >= 1 (NaN, Infinity, 0, negative,
@@ -57,6 +63,7 @@ object reference and revision, never a path or URL. Views `document_current_vers
 | --- | --- |
 | Default-unbound denial; unmapped scope denial | `tests/unit/documents/reader.test.ts` (spied ports show zero calls) |
 | v2 corrections: permission/mapping/linked-owner changes during asynchronous work, effective-state cursors, registry change during the provider read | `tests/unit/documents/corrections.test.ts` |
+| v3: final registry read ordering, expiry/permission change during that read, immediate expiry check, section x classification x permission matrix for list/count/search/download, malformed A1 contexts on list and download | `tests/unit/documents/delivery-boundary.test.ts` |
 | v2: exact document-to-property link evidence, wrong-property documents from the same owner, minimum classification rule, invariant parity, reversed duplicate receipts, invalid bounds, malformed port responses | same |
 | Cross-company, cross-owner, cross-property denial | same; denied before any list/count/get/bytes |
 | Restricted/financial filtering before search and count; explicit policy; store that ignores the filter fails closed | same |

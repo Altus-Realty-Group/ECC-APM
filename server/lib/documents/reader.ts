@@ -12,6 +12,7 @@
 //  - Downloads require the current version, a verified delivery and byte integrity (size + SHA-256).
 import { CLASSIFICATIONS, DEFAULT_ALLOWED_CLASSIFICATIONS, OWNER_SECTION_IDS, PROPERTY_SECTION_IDS, classificationVisible, clampPageSize, decodeCursor, deliveryStateOf, encodeCursor, isDeliveryReceipt, isIdentifier, isRegisteredVersion, isSafeName, sectionIdsFor, stateFingerprint, validTarget, type Association, type Classification, type DocumentTarget, type ProjectedDocument } from "../../../shared/documents/model";
 import type { ReadContext } from "../../../shared/authz/protectedRead";
+import { assertContext } from "../../../shared/authz/dbContext";
 import { bytesMatch } from "./integrity";
 import type { ListFilter, ReaderDeps, StoreRow } from "./ports";
 
@@ -41,6 +42,23 @@ export function isStoreRow(v: unknown): v is StoreRow {
     && isRegisteredVersion(r.currentVersion) && Array.isArray(r.receipts) && r.receipts.every(isDeliveryReceipt);
 }
 
+/**
+ * Validate and SNAPSHOT an allowed A1 context at the authority boundary. Reuses A1's own context validation (`assertContext`: a person-UUID
+ * actor, a bounded non-empty array of valid scope_refs and a finite positive `validUntilMs`) and additionally requires a non-empty bounded
+ * binding and a finite positive session expiry. Returns a frozen copy (later mutation of the port's object cannot change a decision), or
+ * null for anything missing, non-finite or malformed.
+ */
+export function snapshotContext(raw: unknown): ReadContext | null {
+  if (!isRecord(raw)) return null;
+  try { assertContext({ actor: raw.actor, scopeRefs: raw.scopeRefs, validUntilMs: raw.validUntilMs }); } catch { return null; }
+  if (typeof raw.binding !== "string" || raw.binding === "" || raw.binding.length > 2048) return null;
+  if (typeof raw.sessionExpiresAtMs !== "number" || !Number.isFinite(raw.sessionExpiresAtMs) || raw.sessionExpiresAtMs <= 0) return null;
+  return Object.freeze({
+    actor: raw.actor as string, scopeRefs: Object.freeze([...(raw.scopeRefs as string[])]), binding: raw.binding,
+    sessionExpiresAtMs: raw.sessionExpiresAtMs, validUntilMs: raw.validUntilMs as number,
+  });
+}
+
 type Authorized = { ctx: ReadContext; filter: Omit<ListFilter, "search" | "section">; stateKey: string };
 
 export function createDocumentReader(deps: ReaderDeps) {
@@ -55,7 +73,11 @@ export function createDocumentReader(deps: ReaderDeps) {
     try { auth = await deps.authority(sessionId, null); } catch { return fail("unavailable"); }
     if (!auth || typeof auth.allowed !== "boolean") return fail("unavailable");
     if (!auth.allowed) return fail(auth.reason === "AUTHORITY_UNAVAILABLE" || auth.reason === "CLOCK_INVALID" ? "unavailable" : "denied");
-    const ctx = auth.context;
+    const ctx = snapshotContext(auth.context);
+    if (!ctx) { deps.report?.({ type: "invalid_authority_context", detail: "malformed" }); return fail("unavailable"); }
+    const t0 = deps.now();
+    if (typeof t0 !== "number" || !Number.isFinite(t0)) return fail("unavailable");
+    if (t0 >= ctx.validUntilMs) return fail("denied");
     try {
       const scope = target.kind === "owner" ? await deps.scopes.scopeOfOwner(target.id) : await deps.scopes.scopeOfProperty(target.id);
       if (typeof scope !== "string" || scope === "" || !ctx.scopeRefs.includes(scope)) return fail("denied");
@@ -152,9 +174,14 @@ export function createDocumentReader(deps: ReaderDeps) {
     const typed = rows as StoreRow[];
     const page = typed.slice(0, limit);
     const nextCursor = typed.length > limit ? encodeCursor({ kind: target.kind, id: target.id, after: page[page.length - 1].documentId, filterKey, binding }) : null;
-    const documents = page.map(project);
+    // The last asynchronous step is the final authorization decision. Everything after it is synchronous.
     const again = await reauthorize(req.sessionId, target, a);
     if ("kind" in again) return again;
+    // The rows were validated above under a filter whose effective state `reauthorize` has just proven identical to the fresh one, so no
+    // second validation is needed here (it could not differ). Only the immediate expiry check remains.
+    const documents = page.map(project);                  // synchronous projection happens AFTER the final decision ...
+    const tNow = deps.now();                               // ... so expiry is read again immediately before returning
+    if (!Number.isFinite(tNow) || tNow >= again.ctx.validUntilMs || tNow >= a.ctx.validUntilMs) { deps.report?.({ type: "authority_changed" }); return fail("stale"); }
     return { kind: "ready", context: target, documents, total, nextCursor };
   }
 
@@ -191,17 +218,20 @@ export function createDocumentReader(deps: ReaderDeps) {
       deps.report?.({ type: "integrity_mismatch", documentId: found.documentId, versionId: current.versionId });
       return fail("conflict");
     }
-    // Complete revalidation AFTER the provider read: permission, mapping, classification and linked-owner state must be unchanged, and the
-    // registry must still show the same document/version, still visible under the fresh filter and still verified.
+    // FINAL REGISTRY READ first, then the FINAL authorization decision as the last asynchronous step. Nothing asynchronous follows the decision:
+    // the row is validated against the FRESH authorization synchronously and expiry is checked immediately before returning.
+    let recheck: unknown;
+    try { recheck = await deps.store.get({ ...a.filter, search: null, section: null }, req.documentId); } catch { return fail("unavailable"); }
     const again = await reauthorize(req.sessionId, target, a, found.documentId);
     if ("kind" in again) return again;
-    let recheck: unknown;
-    try { recheck = await deps.store.get({ ...again.filter, search: null, section: null }, req.documentId); } catch { return fail("unavailable"); }
     if (recheck === null || recheck === undefined) { deps.report?.({ type: "authority_changed", documentId: found.documentId }); return fail("stale"); }
     const rc = recheck as StoreRow;
-    if (rowViolatesFilter(rc, { ...again.filter, search: null, section: null }) || rc.documentId !== found.documentId) { deps.report?.({ type: "store_contract_violation", detail: "recheck" }); return fail("unavailable"); }
+    const fresh: ListFilter = { ...again.filter, search: null, section: null };
+    if (rowViolatesFilter(rc, fresh) || rc.documentId !== found.documentId) { deps.report?.({ type: "store_contract_violation", detail: "recheck" }); return fail("unavailable"); }
     if (rc.currentVersion.versionId !== current.versionId || rc.currentVersion.sha256 !== current.sha256 || rc.currentVersion.byteSize !== current.byteSize
       || deliveryStateOf(rc.currentVersion, rc.receipts) !== "verified") { deps.report?.({ type: "authority_changed", documentId: found.documentId }); return fail("stale"); }
+    const tNow = deps.now();
+    if (!Number.isFinite(tNow) || tNow >= again.ctx.validUntilMs || tNow >= a.ctx.validUntilMs) { deps.report?.({ type: "authority_changed", documentId: found.documentId }); return fail("stale"); }
     return {
       kind: "ready", documentId: found.documentId, versionId: current.versionId, name: found.name,
       mediaType: current.mediaType.toLowerCase(), byteSize: current.byteSize, sha256: current.sha256, bytes,

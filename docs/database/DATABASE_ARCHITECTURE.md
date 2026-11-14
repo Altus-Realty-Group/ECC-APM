@@ -79,6 +79,14 @@ Evidence classes are separate. **Read-only live metadata (2026-11-11)**: no docu
 | --- | --- | --- | --- | --- |
 | Document registry (identity, immutable versions, owner-to-property links, verified delivery receipts, minimum classification rule: `financial-tax` section records are `financial_tax`/`restricted` in SQL, and the reader requires `financial_tax` allowed for anything filed there, so restricted material there needs both permissions) | No candidate fits (single association, raw paths/shared links, no versions or receipts); `owners`/`properties`/`property_owners` reused as identity anchors | Proposed: four additive tables, two views, a read-only runtime role; legacy file tables and their grants untouched | Store binding, scope policies and handler are separate PRs (Codex). Legacy tables retire only after dependency proof | D1 draft PR; source and local tests only |
 
+## Combined L1 + D1 database rehearsal - local reconstruction only
+
+Evidence classes are separate. **Read-only live metadata** is unchanged from the L1 (2026-11-10) and D1 (2026-11-11) sections above; this change read no live catalog or row. **Source-only, local reconstruction (this PR)**: `tests/legal-documents-db/` applies the L1 and D1 proposals, in that order, to one private PostgreSQL 16 database reconstructed from both observations (`npm run test:legal-documents-db`): 51 main, 6 negative-control, 34 rollback and 11 custody checks, plus a 3-check reproduction of one incompatibility. Detail: `docs/database/COMBINED_LEGAL_DOCUMENTS_DB_REHEARSAL_20261112.md`. **Unverified**: installed behaviour; the live key shapes of `properties` (`id` bigint and `id_uuid` uuid are reconstructed as two independent keys, no pairing assumed), `units`, `tenants`, `leases`; any scope mapping; backfill.
+
+| Decision / affected objects | Reuse alternatives / rationale | Added / changed / retired | Consumer sequence / compatibility owner and removal trigger | PR / evidence |
+| --- | --- | --- | --- | --- |
+| Combined proof of the two existing proposals; legacy-uuid (L1) and native-numeric (D1) identity families stay separate | No new persistence; no bridge between `id_uuid` and `id`, because equivalence is not verified | None in the database. Added test files and one package script only. L1 foreign keys target `id_uuid`; D1 foreign keys target native numeric keys; no cross-domain object | Matter/document association needs a separately reviewed explicit mapping. **Open L1 decision**: the revision guard blocks the baseline `ON DELETE SET NULL` on `legal_cases` references (reproduced; compatibility owner: ECC backend; resolve before any apply). L1 rollback remains partial cleanup, never restoration | Combined rehearsal draft PR; local reconstruction only |
+
 ## Verification and open work
 
 - Complete the affected-domain inventory from actual source and verified database evidence when available.

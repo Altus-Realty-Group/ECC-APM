@@ -34,3 +34,7 @@
   .ecc-legal .ecc-legal-row { flex-direction: column; }
   .ecc-legal-badge { flex-shrink: 1; }
 }
+
+.ecc-legal-award { border-bottom: 1px solid #555; padding: 12px 0 20px; }
+.ecc-legal-award h3 { font-size: 17px; color: #d4af37; }
+.ecc-legal-panel li { margin-bottom: 16px; line-height: 1.6; }

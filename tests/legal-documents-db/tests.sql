@@ -39,11 +39,36 @@ CREATE TABLE _pre AS SELECT * FROM pg_temp.rows();
 -- baseline objects NEITHER proposal may alter (everything except the four legal tables L1 documents as changed)
 CREATE TABLE _fp AS SELECT 'baseline_untouched'::text k, pg_temp.fp('^(owners|properties|property_owners|units|tenants|leases|files|files_new|legacy_staging)$','^$') v;
 INSERT INTO _fp SELECT 'pre_legal_cases', pg_temp.fp('^(legal_cases|legal_case_events|case_history|case_tags)$','^$');
-INSERT INTO results SELECT 'baseline reconstruction has BOTH key families on properties (bigint id PK, separate uuid id_uuid UNIQUE)',
-  (SELECT data_type='bigint' FROM information_schema.columns WHERE table_name='properties' AND column_name='id')
-  AND (SELECT data_type='uuid' FROM information_schema.columns WHERE table_name='properties' AND column_name='id_uuid')
-  AND EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='properties'::regclass AND contype='p' AND pg_get_constraintdef(oid)='PRIMARY KEY (id)')
-  AND EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='properties'::regclass AND contype='u' AND pg_get_constraintdef(oid)='UNIQUE (id_uuid)');
+-- The reconstruction must conform to the CATALOG-VERIFIED key definitions (relayed from Codex's read-only inspection, 2026-11-14). This proves the
+-- reconstruction matches the stated shape; it is not itself a live check. A baseline that deviates (negative control m7) must fail here.
+CREATE FUNCTION pg_temp.key_shape(tbl regclass, id_type text) RETURNS boolean LANGUAGE sql AS $$
+  SELECT (SELECT format_type(atttypid, atttypmod) = id_type AND attnotnull FROM pg_attribute WHERE attrelid=tbl AND attname='id')
+    AND EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conrelid=tbl AND c.contype='p' AND c.conkey = ARRAY[(SELECT attnum FROM pg_attribute WHERE attrelid=tbl AND attname='id')])
+    AND (SELECT format_type(atttypid, atttypmod) = 'uuid' AND attnotnull FROM pg_attribute WHERE attrelid=tbl AND attname='id_uuid')
+    AND (SELECT count(*)=1 FROM pg_index i WHERE i.indrelid=tbl AND i.indisunique AND NOT i.indisprimary AND i.indnatts=1
+           AND i.indkey[0]=(SELECT attnum FROM pg_attribute WHERE attrelid=tbl AND attname='id_uuid')
+           AND NOT EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conindid=i.indexrelid AND c.contype IN ('u','p')))    -- standalone unique INDEX, not a constraint
+    AND NOT EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conrelid=tbl AND c.contype IN ('p','u') AND (SELECT attnum FROM pg_attribute WHERE attrelid=tbl AND attname='id_uuid') = ANY(c.conkey))
+$$;
+INSERT INTO results SELECT 'CATALOG-SHAPE: properties/units/leases id bigint PK, owners/tenants id integer PK, each with uuid NOT NULL id_uuid under a standalone UNIQUE index (never a PK)',
+  pg_temp.key_shape('properties','bigint') AND pg_temp.key_shape('units','bigint') AND pg_temp.key_shape('leases','bigint')
+  AND pg_temp.key_shape('owners','integer') AND pg_temp.key_shape('tenants','integer');
+INSERT INTO results SELECT 'CATALOG-SHAPE: property_owners.property_id and owner_id are bigint with PRIMARY KEY (property_id, owner_id); legal_cases.id is a uuid PK',
+  (SELECT count(*)=2 FROM pg_attribute WHERE attrelid='property_owners'::regclass AND attname IN ('property_id','owner_id') AND atttypid='int8'::regtype)
+  AND EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='property_owners'::regclass AND contype='p' AND pg_get_constraintdef(oid)='PRIMARY KEY (property_id, owner_id)')
+  AND EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='legal_cases'::regclass AND contype='p' AND pg_get_constraintdef(oid)='PRIMARY KEY (id)')
+  AND (SELECT atttypid='uuid'::regtype FROM pg_attribute WHERE attrelid='legal_cases'::regclass AND attname='id');
+INSERT INTO results SELECT 'CATALOG-SHAPE: legal_cases property/unit/tenant/lease references are uuid, target id_uuid of properties/units/tenants/leases and are ON DELETE SET NULL',
+  (SELECT count(*)=4 FROM pg_constraint c WHERE c.conrelid='legal_cases'::regclass AND c.contype='f' AND c.confdeltype='n'
+     AND (SELECT atttypid='uuid'::regtype FROM pg_attribute WHERE attrelid=c.conrelid AND attnum=c.conkey[1])
+     AND (SELECT attname FROM pg_attribute WHERE attrelid=c.confrelid AND attnum=c.confkey[1])='id_uuid'
+     AND ((SELECT attname FROM pg_attribute WHERE attrelid=c.conrelid AND attnum=c.conkey[1]), c.confrelid::regclass::text) IN
+         (('property_id','properties'),('unit_id','units'),('tenant_id','tenants'),('lease_id','leases')));
+INSERT INTO results SELECT 'the two key families are crossed in every synthetic table (no uuid suffix equals its numeric id), so no equivalence can be inferred',
+  (SELECT bool_and(right(id_uuid::text,2)::int <> id % 100) FROM properties)
+  AND (SELECT bool_and(right(id_uuid::text,1)::int <> id % 10) FROM units)
+  AND (SELECT bool_and(right(id_uuid::text,1)::int <> id % 10) FROM tenants)
+  AND (SELECT bool_and(right(id_uuid::text,1)::int <> id % 10) FROM leases);
 
 -- ===== apply in order: L1 then D1 =====
 \i :legal
@@ -234,10 +259,24 @@ INSERT INTO results SELECT 'a property used by an L1 matter link cannot be delet
 -- legal_cases.{property,unit,tenant,lease}_id are ON DELETE SET NULL, but L1's legal_matter_guard (BEFORE UPDATE, revision compare-and-set)
 -- also fires for that referential UPDATE, sees the revision unchanged and raises 40001. Deleting a referenced property/unit/tenant/lease
 -- therefore FAILS under L1 instead of nulling the reference. This pins the CURRENT behaviour so a deliberate fix must update the record.
-INSERT INTO results SELECT 'KNOWN INCOMPATIBILITY (L1 vs baseline FK action): deleting a property referenced by legal_cases.property_id fails 40001 under L1',
-  pg_temp.expect_err($$DELETE FROM properties WHERE id=46$$,'40001')
+INSERT INTO units (id, id_uuid) VALUES (5003,'00000000-0000-4000-8000-0000000b0003');
+INSERT INTO tenants (id, id_uuid) VALUES (3003,'00000000-0000-4000-8000-0000000c1003');
+INSERT INTO leases (id, id_uuid) VALUES (7003,'00000000-0000-4000-8000-0000000d0003');
+INSERT INTO legal_cases (id, case_type, status, unit_id) VALUES ('00000000-0000-4000-8000-0000000c0004','other','draft','00000000-0000-4000-8000-0000000b0003');
+INSERT INTO legal_cases (id, case_type, status, tenant_id) VALUES ('00000000-0000-4000-8000-0000000c0005','other','draft','00000000-0000-4000-8000-0000000c1003');
+INSERT INTO legal_cases (id, case_type, status, lease_id) VALUES ('00000000-0000-4000-8000-0000000c0006','other','draft','00000000-0000-4000-8000-0000000d0003');
+-- UNRESOLVED ACCEPTANCE BLOCKER (reported, NOT fixed here; independent of D1, reproduced on L1 alone in run.sh): the baseline foreign keys
+-- legal_cases.{property,unit,tenant,lease}_id are ON DELETE SET NULL, but L1's legal_matter_guard (BEFORE UPDATE, revision compare-and-set)
+-- also fires for that referential UPDATE, sees the revision unchanged and raises 40001. Deleting a referenced property/unit/tenant/lease
+-- therefore FAILS under L1 instead of nulling the reference. This pins the CURRENT behaviour so a deliberate fix must update the record.
+INSERT INTO results SELECT 'UNRESOLVED BLOCKER (L1 vs catalog-verified FK action): deleting a referenced property, unit, tenant or lease fails 40001 under L1 (all four references)',
+  pg_temp.expect_err($$DELETE FROM properties WHERE id=46$$,'40001') AND pg_temp.expect_err($$DELETE FROM units WHERE id=5003$$,'40001')
+  AND pg_temp.expect_err($$DELETE FROM tenants WHERE id=3003$$,'40001') AND pg_temp.expect_err($$DELETE FROM leases WHERE id=7003$$,'40001')
   AND (SELECT count(*)=4 FROM pg_constraint WHERE conrelid='legal_cases'::regclass AND contype='f' AND confdeltype='n')
-  AND (SELECT property_id IS NOT NULL FROM legal_cases WHERE id='00000000-0000-4000-8000-0000000c0003');
+  AND (SELECT count(*)=4 FROM legal_cases WHERE id IN ('00000000-0000-4000-8000-0000000c0003','00000000-0000-4000-8000-0000000c0004','00000000-0000-4000-8000-0000000c0005','00000000-0000-4000-8000-0000000c0006')
+        AND coalesce(property_id,unit_id,tenant_id,lease_id) IS NOT NULL);
+DELETE FROM units WHERE id=5002;   -- no reference to it anywhere: must succeed as a plain statement (a failure aborts the suite loudly)
+INSERT INTO results SELECT 'an unreferenced parent row still deletes normally under L1 (the blocker is only the SET NULL action)', NOT EXISTS (SELECT 1 FROM units WHERE id=5002);
 INSERT INTO results SELECT 'an owner with a document home cannot be deleted', pg_temp.expect_err($$DELETE FROM owners WHERE id=17$$,'23503');
 
 -- ===== runtime-role behaviour with real rows present =====

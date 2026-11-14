@@ -24,7 +24,7 @@ strict() { local db="$1"; shift; psqlx "$db" -v ON_ERROR_STOP=1 "$@"; }
 
 pass=0; total=0
 chk() { total=$((total+1)); if [ "$2" = "1" ]; then pass=$((pass+1)); else echo "FAIL: $1"; fi; }
-newdb() { psqlx postgres -c "CREATE DATABASE $1" >/dev/null; psqlx "$1" -v ON_ERROR_STOP=1 -f "$tmp/baseline.sql" >/dev/null; }
+newdb() { psqlx postgres -c "CREATE DATABASE $1" >/dev/null; psqlx "$1" -v ON_ERROR_STOP=1 -f "${2:-$tmp/baseline.sql}" >/dev/null; }
 # Roles are cluster-wide: every scenario drops its database, then both runtime roles, before the next one starts.
 enddb() { psqlx postgres -c "DROP DATABASE IF EXISTS $1" >/dev/null; psqlx postgres -c "DROP ROLE IF EXISTS ecc_legal_runtime" >/dev/null 2>&1 || true; psqlx postgres -c "DROP ROLE IF EXISTS ecc_documents_runtime" >/dev/null 2>&1 || true; }
 both() { strict "$1" -f "$tmp/${2:-legal}.sql" >/dev/null; strict "$1" -f "$tmp/${3:-documents}.sql" >/dev/null; }
@@ -44,10 +44,11 @@ enddb main
 # ---------------------------------------------------------------- 2) negative controls: a broken boundary MUST be caught by the SAME suite
 neg_pass=0; neg_total=0
 negctl() {   # name, which proposal (legal|documents), sed-script, expected failing-check substring
-  local name="$1" which="$2" script="$3" expect="$4" db="neg_${1}" lf="$tmp/legal.sql" df="$tmp/documents.sql" o p t
+  local name="$1" which="$2" script="$3" expect="$4" db="neg_${1}" lf="$tmp/legal.sql" df="$tmp/documents.sql" bf="$tmp/baseline.sql" o p t
   if [ "$which" = legal ]; then sed "$script" "$tmp/legal.sql" > "$tmp/m_$name.sql"; cmp -s "$tmp/legal.sql" "$tmp/m_$name.sql" && { echo "FAIL: mutant $name did not change the proposal (vacuous control)"; neg_total=$((neg_total+1)); return; }; lf="$tmp/m_$name.sql"
+  elif [ "$which" = baseline ]; then sed "$script" "$tmp/baseline.sql" > "$tmp/m_$name.sql"; cmp -s "$tmp/baseline.sql" "$tmp/m_$name.sql" && { echo "FAIL: mutant $name did not change the baseline (vacuous control)"; neg_total=$((neg_total+1)); return; }; bf="$tmp/m_$name.sql"
   else sed "$script" "$tmp/documents.sql" > "$tmp/m_$name.sql"; cmp -s "$tmp/documents.sql" "$tmp/m_$name.sql" && { echo "FAIL: mutant $name did not change the proposal (vacuous control)"; neg_total=$((neg_total+1)); return; }; df="$tmp/m_$name.sql"; fi
-  newdb "$db"
+  newdb "$db" "$bf"
   o="$(psqlx "$db" -v legal="$lf" -v documents="$df" -f "$tmp/tests.sql" 2>&1 || true)"
   p="${o##*$'\n'}"; neg_total=$((neg_total+1))
   if ! echo "$p" | grep -Eq '^[0-9]+\|[0-9]+$'; then echo "FAIL: negative control $name did not finish cleanly (a crash is not a catch): $p"; enddb "$db"; return; fi
@@ -61,6 +62,9 @@ negctl m3_legal_role_bypasses_rls      legal     's/NOLOGIN NOBYPASSRLS/NOLOGIN 
 negctl m4_documents_policy_opens_d1    documents '$ s/^COMMIT;$/CREATE POLICY leak ON document_records FOR SELECT TO ecc_documents_runtime USING (true);\nCOMMIT;/' 'default-deny (RLS on, no policy)'
 negctl m5_legal_keeps_anon_grants      legal     "/REVOKE ALL ON %I FROM anon/d" 'anon, authenticated and PUBLIC hold nothing'
 negctl m6_legal_same_matter_fk_dropped legal     's/^  FOREIGN KEY (party_id, matter_id) REFERENCES legal_parties(id, matter_id) ON DELETE RESTRICT$/  FOREIGN KEY (party_id) REFERENCES legal_parties(id) ON DELETE RESTRICT/' 'cannot join an award to a party of ANOTHER matter'
+
+negctl m7_baseline_tenants_id_wrong_type baseline 's/CREATE TABLE tenants (id integer PRIMARY KEY/CREATE TABLE tenants (id bigint PRIMARY KEY/' 'CATALOG-SHAPE: properties/units/leases id bigint PK'
+negctl m8_baseline_id_uuid_unique_constraint baseline 's/^CREATE UNIQUE INDEX properties_id_uuid_key ON properties (id_uuid);/ALTER TABLE properties ADD CONSTRAINT properties_id_uuid_key UNIQUE (id_uuid);/' 'CATALOG-SHAPE'
 
 # ---------------------------------------------------------------- 3) rollback rehearsal (L1 rollback = PARTIAL cleanup; D1 rollback = exact removal when empty)
 build() { newdb "$1"; both "$1"; strict "$1" -f "$tmp/populate.sql" >/dev/null; }
@@ -147,24 +151,34 @@ cchk "D1 rollback refuses when its role owns an unrelated object" "$(refused c5 
 cchk "refused D1 rollback changed nothing (tables, role, sentinel)" "$([ "$b" = "$(fpq c5 "$ALL" "$FALL")" ] && echo 1 || echo 0)"
 enddb c5
 
-# ---------------------------------------------------------------- 5) exact reproduction of the reported L1-vs-baseline incompatibility (L1 only, no D1)
+# ---------------------------------------------------------------- 5) exact reproduction of the UNRESOLVED L1-vs-baseline blocker, all four references (L1 only, no D1)
 repro_pass=0; repro_total=0
 rchk() { repro_total=$((repro_total+1)); if [ "$2" = "1" ]; then repro_pass=$((repro_pass+1)); else echo "REPRO FAIL: $1"; fi; }
 newdb repro
-ins() { printf "insert into properties(id,name,id_uuid) values (%s,'x','00000000-0000-4000-8000-0000000000%s'); insert into legal_cases(case_number,case_type,status,property_id) values ('%s','other','draft','00000000-0000-4000-8000-0000000000%s');" "$1" "$1" "$2" "$1"; }
-strict repro -c "$(ins 91 R1)" >/dev/null; strict repro -c "delete from properties where id=91" >/dev/null
-rchk "baseline (no L1): deleting a referenced property nulls legal_cases.property_id" "$(psqlx repro -c "select (property_id is null)::int from legal_cases where case_number='R1'")"
+# parent table, its id type, the legal_cases reference column; keys are supplied explicitly (no defaults are verified)
+repro_one() {   # parent idcol-literal refcol tag
+  local tbl="$1" idv="$2" col="$3" tag="$4" u="00000000-0000-4000-8000-0000000e0$(printf '%03d' "$2")"
+  strict repro -c "insert into $tbl(id,id_uuid) values ($idv,'$u')" >/dev/null 2>&1 || strict repro -c "insert into $tbl(id,name,id_uuid) values ($idv,'x','$u')" >/dev/null
+  strict repro -c "insert into legal_cases(case_number,case_type,status,$col) values ('$tag$idv','other','draft','$u')" >/dev/null
+}
+for spec in "properties 91 property_id" "units 92 unit_id" "tenants 93 tenant_id" "leases 94 lease_id"; do
+  set -- $spec; repro_one "$1" "$2" "$3" B
+  strict repro -c "delete from $1 where id=$2" >/dev/null
+  rchk "baseline (no L1): deleting a referenced $1 row nulls legal_cases.$3 (ON DELETE SET NULL)" "$(psqlx repro -c "select ($3 is null)::int from legal_cases where case_number='B$2'")"
+done
 strict repro -f "$tmp/legal.sql" >/dev/null
-strict repro -c "$(ins 92 R2)" >/dev/null
-rerr="$(strict repro -c "delete from properties where id=92" 2>&1 >/dev/null || true)"
-rchk "L1 only (D1 NOT installed): the same delete is refused with 40001 'stale or omitted revision'" "$(echo "$rerr" | grep -q 'legal: stale or omitted revision (expected 2, got 1)' && echo 1 || echo 0)"
-rchk "L1 only: the referenced property row and the case reference both survive the refused delete" "$(psqlx repro -c "select (exists (select 1 from properties where id=92) and (select property_id is not null from legal_cases where case_number='R2'))::int")"
+for spec in "properties 95 property_id" "units 96 unit_id" "tenants 97 tenant_id" "leases 98 lease_id"; do
+  set -- $spec; repro_one "$1" "$2" "$3" L
+  rerr="$(strict repro -c "delete from $1 where id=$2" 2>&1 >/dev/null || true)"
+  rchk "L1 only (D1 NOT installed): deleting a referenced $1 row is refused 40001 'stale or omitted revision'" "$(echo "$rerr" | grep -q 'legal: stale or omitted revision (expected 2, got 1)' && echo 1 || echo 0)"
+  rchk "L1 only: the $1 row and the legal_cases.$3 reference both survive the refused delete" "$(psqlx repro -c "select (exists (select 1 from $1 where id=$2) and (select $3 is not null from legal_cases where case_number='L$2'))::int")"
+done
 enddb repro
 
 # ---------------------------------------------------------------- informational: the reverse apply order (NOT counted; the documented order is L1 then D1)
 newdb rev; if strict rev -f "$tmp/documents.sql" >/dev/null 2>&1 && strict rev -f "$tmp/legal.sql" >/dev/null 2>&1; then rev="applies cleanly"; else rev="FAILS"; fi; enddb rev
 echo "[info] reverse order (D1 then L1) $rev; not part of the pass totals"
 
-echo "[legal-documents-db] main ${main_pass:-0}/${main_total:-0}, negative controls $neg_pass/$neg_total, rollback $pass/$total, role custody $custody_pass/$custody_total, known-incompatibility reproduction $repro_pass/$repro_total"
+echo "[legal-documents-db] main ${main_pass:-0}/${main_total:-0}, negative controls $neg_pass/$neg_total, rollback $pass/$total, role custody $custody_pass/$custody_total, unresolved-blocker reproduction $repro_pass/$repro_total"
 if [ "${main_pass:-0}" = "${main_total:-x}" ] && [ "${main_total:-0}" -gt 0 ] && [ "$neg_pass" = "$neg_total" ] && [ "$neg_total" -gt 0 ] && [ "$pass" = "$total" ] && [ "$total" -gt 0 ] && [ "$custody_pass" = "$custody_total" ] && [ "$custody_total" -gt 0 ] && [ "$repro_pass" = "$repro_total" ] && [ "$repro_total" -gt 0 ]; then
   echo "[legal-documents-db] PASS (reconstruction proof only; not installed/live proof)"; else echo "[legal-documents-db] FAIL"; exit 1; fi

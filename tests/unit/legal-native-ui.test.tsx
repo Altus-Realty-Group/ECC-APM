@@ -25,6 +25,9 @@ test("restricted evidence never reaches cached projection, counts or rendered me
   assert.equal(state.kind, "ready"); assert.equal(state.matters[0].evidence.length, 1);
   assert.doesNotMatch(JSON.stringify(state), /PRIVATE|secret|example.com/);
   assert.equal(p.evidence.length, 2);
+  const withExtra = normalizeLegalState({ kind: "ready", matters: [p], providerDetail: "PRIVATE EXTRA" } as any);
+  assert.doesNotMatch(JSON.stringify(withExtra), /PRIVATE/);
+  assert.deepEqual(normalizeLegalState({ kind: "conflict", providerDetail: "PRIVATE EXTRA" } as any), { kind: "conflict" });
 });
 test("malformed and implicit-public evidence fail closed without leaking raw errors", () => {
   const p = projection();

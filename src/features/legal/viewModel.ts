@@ -7,7 +7,10 @@ export const readable = (s: string) => s.replace(/_/g, " ");
 export function normalizeLegalState<T extends LegalDashboardState | LegalMatterState>(state: T): T {
   if (state.kind === "error") return { kind: "error", message: "Legal records could not be loaded." } as T;
   if (state.kind === "unavailable") return { kind: "unavailable", reason: "No accepted legal source is connected." } as T;
-  if (state.kind !== "ready") return state;
+  if (state.kind !== "ready") {
+    if (["loading", "denied", "missing", "stale", "conflict", "empty"].includes(state.kind)) return { kind: state.kind } as T;
+    return { kind: "conflict" } as T;
+  }
   const rows = "matters" in state ? state.matters : [state.matter];
   const clean: WorkflowProjection[] = [], matters = new Set<string>(), awards = new Set<string>();
   if (!Array.isArray(rows)) return { kind: "conflict" } as T;
@@ -21,7 +24,7 @@ export function normalizeLegalState<T extends LegalDashboardState | LegalMatterS
     }
     clean.push(result.projection);
   }
-  return ("matters" in state ? { ...state, matters: clean } : { ...state, matter: clean[0] }) as T;
+  return ("matters" in state ? { kind: "ready", matters: clean, stale: state.stale === true } : { kind: "ready", matter: clean[0], stale: state.stale === true }) as T;
 }
 export function queues(p: WorkflowProjection) {
   const result = requirementQueues(p);

@@ -11,6 +11,8 @@
 -- UPDATE (legal_cases: revision = r + 1) by an authorized scoped caller.
 --
 -- Apply order: 001 first (and any time before runtime use of the legal tables; D1 is independent), then this file, in the same maintenance window.
+-- SCHEMA TARGETING: every relation this script locks, alters, references or reads is schema-qualified (public.*, pg_catalog.*), so a same-named relation
+-- earlier in search_path (another schema, or a temporary table) is never locked, altered or referenced; only the verified public objects are touched.
 -- Run with ON_ERROR_STOP: one transaction, so a refusal leaves no change. One-time apply: it refuses anything that is not the expected 001/baseline shape.
 BEGIN;
 DO $$ BEGIN
@@ -18,7 +20,7 @@ DO $$ BEGIN
     RAISE EXCEPTION 'reference protection refused: apply 001_native_legal_foundation first (no changes made)';
   END IF;
 END $$;
-LOCK TABLE legal_cases, legal_matter_properties IN ACCESS EXCLUSIVE MODE;
+LOCK TABLE public.legal_cases, public.legal_matter_properties IN ACCESS EXCLUSIVE MODE;
 
 DO $$
 DECLARE
@@ -33,12 +35,12 @@ BEGIN
       ('legal_matter_properties','unit_id','units','n'), ('legal_matter_properties','lease_id','leases','n'),
       ('legal_matter_properties','property_id','properties','r')) v(child, col, parent, act)
   LOOP
-    SELECT attnum INTO col_attnum FROM pg_attribute WHERE attrelid = ('public.'||spec.child)::regclass AND attname = spec.col AND NOT attisdropped;
-    SELECT attnum INTO pk_attnum  FROM pg_attribute WHERE attrelid = ('public.'||spec.parent)::regclass AND attname = 'id_uuid' AND NOT attisdropped;
+    SELECT attnum INTO col_attnum FROM pg_catalog.pg_attribute WHERE attrelid = ('public.'||spec.child)::regclass AND attname = spec.col AND NOT attisdropped;
+    SELECT attnum INTO pk_attnum  FROM pg_catalog.pg_attribute WHERE attrelid = ('public.'||spec.parent)::regclass AND attname = 'id_uuid' AND NOT attisdropped;
     IF col_attnum IS NULL OR pk_attnum IS NULL THEN RAISE EXCEPTION 'reference protection refused: %.% or %.id_uuid is missing (no changes made)', spec.child, spec.col, spec.parent; END IF;
-    SELECT count(*) INTO n FROM pg_constraint c WHERE c.conrelid = ('public.'||spec.child)::regclass AND c.contype = 'f' AND col_attnum = ANY (c.conkey);
+    SELECT count(*) INTO n FROM pg_catalog.pg_constraint c WHERE c.conrelid = ('public.'||spec.child)::regclass AND c.contype = 'f' AND col_attnum = ANY (c.conkey);
     IF n <> 1 THEN RAISE EXCEPTION 'reference protection refused: %.% is in % foreign key definition(s), expected exactly 1 (no changes made)', spec.child, spec.col, n; END IF;
-    SELECT * INTO k FROM pg_constraint c WHERE c.conrelid = ('public.'||spec.child)::regclass AND c.contype = 'f' AND col_attnum = ANY (c.conkey);
+    SELECT * INTO k FROM pg_catalog.pg_constraint c WHERE c.conrelid = ('public.'||spec.child)::regclass AND c.contype = 'f' AND col_attnum = ANY (c.conkey);
     IF k.conkey <> ARRAY[col_attnum] OR k.confrelid <> ('public.'||spec.parent)::regclass OR k.confkey <> ARRAY[pk_attnum]
        OR k.confupdtype <> 'a' OR k.confmatchtype <> 's' OR k.condeferrable OR NOT k.convalidated OR k.conparentid <> 0 OR k.confdeltype <> spec.act::"char" THEN
       RAISE EXCEPTION 'reference protection refused: %.% -> %(id_uuid) is not the expected single-column definition with delete action % (found action %); no changes made',
@@ -52,10 +54,10 @@ BEGIN
       ('legal_cases','tenant_id','tenants'),      ('legal_cases','lease_id','leases'),
       ('legal_matter_properties','unit_id','units'), ('legal_matter_properties','lease_id','leases')) v(child, col, parent)
   LOOP
-    SELECT c.conname INTO k FROM pg_constraint c WHERE c.conrelid = ('public.'||spec.child)::regclass AND c.contype = 'f'
-      AND (SELECT attnum FROM pg_attribute WHERE attrelid = c.conrelid AND attname = spec.col) = ANY (c.conkey);
-    EXECUTE format('ALTER TABLE %I DROP CONSTRAINT %I', spec.child, k.conname);
-    EXECUTE format('ALTER TABLE %I ADD CONSTRAINT %I FOREIGN KEY (%I) REFERENCES %I (id_uuid) ON DELETE RESTRICT', spec.child, k.conname, spec.col, spec.parent);
+    SELECT c.conname INTO k FROM pg_catalog.pg_constraint c WHERE c.conrelid = ('public.'||spec.child)::regclass AND c.contype = 'f'
+      AND (SELECT attnum FROM pg_catalog.pg_attribute WHERE attrelid = c.conrelid AND attname = spec.col) = ANY (c.conkey);
+    EXECUTE format('ALTER TABLE public.%I DROP CONSTRAINT %I', spec.child, k.conname);
+    EXECUTE format('ALTER TABLE public.%I ADD CONSTRAINT %I FOREIGN KEY (%I) REFERENCES public.%I (id_uuid) ON DELETE RESTRICT', spec.child, k.conname, spec.col, spec.parent);
   END LOOP;
 END $$;
 

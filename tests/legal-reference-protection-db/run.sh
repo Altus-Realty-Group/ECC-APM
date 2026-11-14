@@ -9,7 +9,7 @@ here="$(cd "$(dirname "$0")" && pwd)"; root="$here/../.."; comb="$root/tests/leg
 tmp="$(mktemp -d)"; chmod 755 "$tmp"
 as() { if [ "$(id -u)" = 0 ]; then runuser -u postgres -- "$@"; else "$@"; fi; }
 [ "$(id -u)" = 0 ] && chown postgres "$tmp"
-cp "$comb/baseline.sql" "$comb/fp.sql" "$tmp/"; cp "$comb/tests.sql" "$tmp/comb_tests.sql"; cp "$here/tests.sql" "$tmp/ref_tests.sql"
+cp "$comb/baseline.sql" "$comb/fp.sql" "$tmp/"; cp "$comb/tests.sql" "$tmp/comb_tests.sql"; cp "$here/tests.sql" "$tmp/ref_tests.sql"; cp "$here/shadow.sql" "$tmp/shadow.sql"
 cp "$root/docs/legal/schema/001_native_legal_foundation.proposal.sql" "$tmp/legal.sql"
 cp "$root/docs/legal/schema/001_native_legal_foundation.rollback.proposal.sql" "$tmp/legal_rb.sql"
 cp "$root/docs/legal/schema/002_legal_reference_protection.proposal.sql" "$tmp/ref.sql"
@@ -97,9 +97,11 @@ ALLSETNULL="legal_cases.lease_id=n,legal_cases.property_id=n,legal_cases.tenant_
 chk_actions() { local got; got="$(actions "$1" | tr ',' '\n' | sort | paste -sd,)"; local want; want="$(echo "$2" | tr ',' '\n' | sort | paste -sd,)"; [ "$got" = "$want" ] && echo 1 || { echo "  (actions: $got)" >&2; echo 0; }; }
 
 # A) populated references: 002 rollback refuses while the 001 guard is installed, and changes nothing
-build ra; strict ra -c "$LINK" >/dev/null; b="$(fpall ra)"
-chk "002 rollback refuses while legal_cases references are populated and 001's guard is installed" "$(refused ra "$tmp/ref_rb.sql" 'rollback refused: legal_cases\.[a-z_]+ holds [0-9]+ populated reference')"
+build ra; b="$(fpall ra)"
+chk "002 rollback refuses while legal_cases references are populated and 001's guard is bound" "$(refused ra "$tmp/ref_rb.sql" 'rollback refused: legal_cases\.[a-z_]+ holds [0-9]+ populated reference')"
 chk "refused 002 rollback changed nothing; all six references still RESTRICT" "$(and "$([ "$b" = "$(fpall ra)" ] && echo 1 || echo 0)" "$(chk_actions ra "$ALLRESTRICT")")"
+strict ra -c "$LINK" >/dev/null
+chk "with link references ALSO populated the link custody rule fires first (it does not depend on the guard)" "$(refused ra "$tmp/ref_rb.sql" 'rollback refused: legal_matter_properties\.[a-z_]+ holds [0-9]+ populated reference')"
 # unlink legal_cases explicitly (revisioned), then the link table is the remaining custody
 strict ra -c "$UNLINK" >/dev/null   # explicit revisioned unlink of the baseline row and the fixture case
 chk "002 rollback refuses while legal_matter_properties references are populated" "$(refused ra "$tmp/ref_rb.sql" 'rollback refused: legal_matter_properties\.[a-z_]+ holds [0-9]+ populated reference')"
@@ -132,5 +134,113 @@ newdb re; strict re -f "$tmp/legal.sql" >/dev/null
 chk "002 rollback refuses when 002 was never applied (references are SET NULL, not the RESTRICT 002 produces)" "$(refused re "$tmp/ref_rb.sql" 'not the expected RESTRICT definition produced by 002')"
 enddb re
 
-echo "[legal-reference-protection-db] main ${main_pass}/${main_total}, negative controls $neg_pass/$neg_total, existing-suite / apply-refusal / rollback checks $pass/$total"
-if [ "$main_pass" = "$main_total" ] && [ "$main_total" -gt 0 ] && [ "$neg_pass" = "$neg_total" ] && [ "$neg_total" -gt 0 ] && [ "$pass" = "$total" ] && [ "$total" -gt 0 ]; then echo "[legal-reference-protection-db] PASS (reconstruction proof only; not installed/live proof)"; else echo "[legal-reference-protection-db] FAIL"; exit 1; fi
+
+# ---------------------------------------------------------------- 5) v2 gaps: (1) rollback custody independent of the matter guard and its name, (2) schema targeting
+# gap_run APPLY_FILE ROLLBACK_FILE runs every scenario against the given proposal files and prints GAPFAIL lines and a final `GAPRESULT passed total`.
+SHADOWCAT="create schema if not exists shadow; create table shadow.pg_constraint (oid oid, conname name); create table shadow.pg_trigger (oid oid, tgname name); create table shadow.pg_attribute (attrelid oid, attname name);"
+PUB6="select (count(*)=6 and coalesce(bool_and(confdeltype='r'),false))::int from pg_constraint c where c.contype='f' and ((c.conrelid='public.legal_cases'::regclass and c.confrelid::regclass::text ~ '^(properties|units|tenants|leases)$') or (c.conrelid=to_regclass('public.legal_matter_properties') and c.confrelid::regclass::text ~ '^(units|leases)$'))"
+shfp() { psqlx "$1" -c "select coalesce(md5(string_agg(c.conrelid::regclass::text||' '||c.conname||' '||pg_get_constraintdef(c.oid), '|' order by c.conrelid::regclass::text, c.conname)),'none')||'/'||(select count(*) from shadow.legal_cases)||'/'||(select count(*) from shadow.legal_matter_properties) from pg_constraint c where c.connamespace='shadow'::regnamespace"; }
+gap_run() {
+  local APPLY="$1" RB="$2" GP=0 GT=0 b sb out
+  gc() { GT=$((GT+1)); if [ "$2" = "1" ]; then GP=$((GP+1)); else echo "GAPFAIL: $1"; fi; }
+  mk001() { newdb "$1"; strict "$1" -f "$tmp/legal.sql" >/dev/null; strict "$1" -f "$tmp/documents.sql" >/dev/null; }
+  mk002() { mk001 "$1"; strict "$1" -f "$APPLY" >/dev/null; strict "$1" -c "$POP" >/dev/null; }
+  wrap() { printf 'SET search_path = shadow, public, pg_catalog;\n\\i %s\n' "$2" > "$tmp/wrap_$1.sql"; chmod 644 "$tmp/wrap_$1.sql"; echo "$tmp/wrap_$1.sql"; }
+  tempwrap() {   # one session: create TEMP look-alikes, fingerprint them, run the file, fingerprint again
+    cat > "$tmp/tw_$1.sql" <<WRAP
+\set kind temp
+\i $tmp/shadow.sql
+SELECT coalesce(md5(string_agg(conrelid::regclass::text||conname||pg_get_constraintdef(oid), '|' ORDER BY conrelid::regclass::text, conname)),'none') AS before FROM pg_constraint WHERE connamespace = pg_my_temp_schema() \gset
+\i $2
+SELECT (coalesce(md5(string_agg(conrelid::regclass::text||conname||pg_get_constraintdef(oid), '|' ORDER BY conrelid::regclass::text, conname)),'none') = :'before') AS same FROM pg_constraint WHERE connamespace = pg_my_temp_schema() \gset
+SELECT 'TEMPUNTOUCHED|' || :'same';
+WRAP
+    chmod 644 "$tmp/tw_$1.sql"; echo "$tmp/tw_$1.sql"; }
+  # ---- gap 1: link custody must not depend on the matter guard, nor on the trigger NAME
+  mk002 g1a; strict g1a -c "$UNLINK" >/dev/null
+  strict g1a -c "insert into legal_matter_properties(matter_id,property_id) values ('00000000-0000-4000-8000-0000000f0a01','00000000-0000-4000-8000-000000000042'); $LINK" >/dev/null
+  strict g1a -c "drop trigger legal_cases_guard on legal_cases" >/dev/null; b="$(fpall g1a)"
+  gc "GAP1a: guard TRIGGER dropped but link table kept (property-only link + unit link): rollback refuses populated unit/lease links" "$(refused g1a "$RB" 'rollback refused: legal_matter_properties\.unit_id holds [0-9]+ populated reference')"
+  gc "GAP1a: that refusal changed nothing (whole-schema fingerprint, six RESTRICT, both links intact)" "$(and "$([ "$b" = "$(fpall g1a)" ] && echo 1 || echo 0)" "$(chk_actions g1a "$ALLRESTRICT")" "$([ "$(psqlx g1a -c "select count(*) from legal_matter_properties")" = 2 ] && echo 1 || echo 0)")"
+  enddb g1a
+  mk002 g1b; strict g1b -c "alter trigger legal_cases_guard on legal_cases rename to zz_renamed_guard" >/dev/null; b="$(fpall g1b)"
+  gc "GAP1b: a RENAMED matter guard is still detected (bound by function): populated legal_cases references refuse the rollback" "$(refused g1b "$RB" 'rollback refused: legal_cases\.[a-z_]+ holds [0-9]+ populated reference')"
+  gc "GAP1b: that refusal changed nothing; all six references still RESTRICT" "$(and "$([ "$b" = "$(fpall g1b)" ] && echo 1 || echo 0)" "$(chk_actions g1b "$ALLRESTRICT")")"
+  enddb g1b
+  mk002 g1c; strict g1c -c "create function public.zz_noop() returns trigger language plpgsql as \$\$ begin return new; end \$\$; drop trigger legal_cases_guard on legal_cases; create trigger legal_cases_guard before update on legal_cases for each row execute function public.zz_noop()" >/dev/null; b="$(fpall g1c)"
+  gc "GAP1c: a trigger NAMED legal_cases_guard that does not run the guard function is an unexpected trigger state: refused" "$(refused g1c "$RB" 'unexpected trigger state')"
+  gc "GAP1c: that refusal changed nothing" "$([ "$b" = "$(fpall g1c)" ] && echo 1 || echo 0)"
+  enddb g1c
+  mk002 g1d; strict g1d -c "drop trigger legal_cases_guard on legal_cases" >/dev/null     # no link rows; legal_cases references populated; nothing runs the guard
+  gc "GAP1d: nothing bound to the guard and no populated links: populated legal_cases references may return to baseline SET NULL" "$(ok g1d "$RB")"
+  gc "GAP1d: all six are SET NULL and the baseline action works again (deleting a referenced property nulls the reference)" "$(and "$(chk_actions g1d "$ALLSETNULL")" "$(strict g1d -c "delete from properties where id=81" >/dev/null 2>&1 && psqlx g1d -c "select (property_id is null)::int from legal_cases where id='00000000-0000-4000-8000-0000000f0a01'")")"
+  enddb g1d
+  # ---- gap 2: schema targeting. Look-alike relations are searched FIRST; apply/rollback must touch only the verified public objects
+  mk001 g2a; strict g2a -v kind=schema -f "$tmp/shadow.sql" >/dev/null; sb="$(shfp g2a)"
+  strict g2a -f "$(wrap g2a "$APPLY")" >/dev/null 2>&1
+  gc "GAP2 apply (look-alike schema first): public holds the six RESTRICT references to public parents" "$(psqlx g2a -c "$PUB6")"
+  gc "GAP2 apply: the shadow tables, FKs and rows are untouched" "$([ "$sb" = "$(shfp g2a)" ] && echo 1 || echo 0)"
+  strict g2a -c "$POP" >/dev/null 2>&1; strict g2a -c "$UNLINK" >/dev/null 2>&1; strict g2a -f "$(wrap g2a "$RB")" >/dev/null 2>&1
+  gc "GAP2 rollback (look-alike schema first): public returns to SET NULL and the shadow stays untouched" "$(and "$(chk_actions g2a "$ALLSETNULL")" "$([ "$sb" = "$(shfp g2a)" ] && echo 1 || echo 0)")"
+  enddb g2a
+  mk002 g2b; strict g2b -v kind=schema -f "$tmp/shadow.sql" >/dev/null; sb="$(shfp g2b)"; b="$(fpall g2b)"
+  gc "GAP2 populated-row check reads the PUBLIC legal_cases: an EMPTY look-alike first in search_path cannot hide populated references" "$(refused g2b "$(wrap g2b "$RB")" 'rollback refused: legal_cases\.[a-z_]+ holds [0-9]+ populated reference')"
+  gc "GAP2 that refusal changed nothing in public or in the shadow schema" "$(and "$([ "$b" = "$(fpall g2b)" ] && echo 1 || echo 0)" "$([ "$sb" = "$(shfp g2b)" ] && echo 1 || echo 0)")"
+  strict g2b -c "$UNLINK" >/dev/null
+  strict g2b -c "insert into shadow.properties(id,id_uuid) values (1,'00000000-0000-4000-8000-0000000a0001'); insert into shadow.legal_cases(id,property_id) values ('00000000-0000-4000-8000-0000000a0002','00000000-0000-4000-8000-0000000a0001')" >/dev/null; sb="$(shfp g2b)"
+  gc "GAP2 a POPULATED look-alike cannot cause a false refusal: clean public references roll back" "$(ok g2b "$(wrap g2b "$RB")")"
+  gc "GAP2 and that populated shadow stays byte-identical while public returns to SET NULL" "$(and "$([ "$sb" = "$(shfp g2b)" ] && echo 1 || echo 0)" "$(chk_actions g2b "$ALLSETNULL")")"
+  enddb g2b
+  mk002 g2f; strict g2f -c "$UNLINK" >/dev/null; strict g2f -c "$LINK" >/dev/null; strict g2f -v kind=schema -f "$tmp/shadow.sql" >/dev/null; b="$(fpall g2f)"
+  gc "GAP2 populated LINK check reads the PUBLIC legal_matter_properties: an empty look-alike link table cannot hide a populated unit link" "$(refused g2f "$(wrap g2f "$RB")" 'rollback refused: legal_matter_properties\.unit_id holds [0-9]+ populated reference')"
+  gc "GAP2 that refusal changed nothing" "$([ "$b" = "$(fpall g2f)" ] && echo 1 || echo 0)"
+  enddb g2f
+  mk001 g2c; strict g2c -c "create schema shadow; create sequence shadow.legal_cases; create sequence shadow.legal_matter_properties" >/dev/null
+  gc "GAP2 look-alike SEQUENCES first in search_path do not break the apply (LOCK/ALTER target public)" "$(ok g2c "$(wrap g2c "$APPLY")")"
+  strict g2c -c "$POP" >/dev/null 2>&1; strict g2c -c "$UNLINK" >/dev/null 2>&1
+  gc "GAP2 look-alike SEQUENCES do not break the rollback; public returns to SET NULL" "$(and "$(ok g2c "$(wrap g2c "$RB")")" "$(chk_actions g2c "$ALLSETNULL")")"
+  enddb g2c
+  mk001 g2d; strict g2d -c "$SHADOWCAT" >/dev/null
+  gc "GAP2 look-alike pg_constraint/pg_trigger/pg_attribute tables ahead of pg_catalog: apply still validates and rewrites the real definitions" "$(and "$(ok g2d "$(wrap g2d "$APPLY")")" "$(psqlx g2d -c "$PUB6")")"
+  strict g2d -c "$POP" >/dev/null 2>&1; strict g2d -c "$UNLINK" >/dev/null 2>&1
+  gc "GAP2 look-alike catalog tables: rollback also validates the real definitions and restores SET NULL" "$(and "$(ok g2d "$(wrap g2d "$RB")")" "$(chk_actions g2d "$ALLSETNULL")")"
+  enddb g2d
+  mk001 g2e; out="$(strict g2e -f "$(tempwrap g2e "$APPLY")" 2>&1 || true)"
+  gc "GAP2 apply with TEMP look-alikes (always first in resolution): public holds the six RESTRICT references and the temp relations are untouched" "$(and "$(psqlx g2e -c "$PUB6")" "$(echo "$out" | grep -q 'TEMPUNTOUCHED|t' && echo 1 || echo 0)")"
+  strict g2e -c "$POP" >/dev/null 2>&1; strict g2e -c "$UNLINK" >/dev/null 2>&1
+  out="$(strict g2e -f "$(tempwrap g2f "$RB")" 2>&1 || true)"
+  gc "GAP2 rollback with TEMP look-alikes: public returns to SET NULL and the temp relations are untouched" "$(and "$(chk_actions g2e "$ALLSETNULL")" "$(echo "$out" | grep -q 'TEMPUNTOUCHED|t' && echo 1 || echo 0)")"
+  enddb g2e
+  echo "GAPRESULT $GP $GT"
+}
+gout="$(gap_run "$tmp/ref.sql" "$tmp/ref_rb.sql")"
+echo "$gout" | grep '^GAPFAIL' | sed 's/^GAPFAIL: /FAIL: /' || true
+gres="$(echo "$gout" | grep '^GAPRESULT' | tail -1)"; gap_pass="$(echo "$gres" | cut -d' ' -f2)"; gap_total="$(echo "$gres" | cut -d' ' -f3)"
+[ -n "$gres" ] || { echo "FAIL: gap scenarios did not finish"; gap_pass=0; gap_total=1; }
+pass=$((pass+gap_pass)); total=$((total+gap_total))
+
+# negative controls isolating each v2 correction: the SAME gap scenarios must fail on a proposal with that one correction removed
+gneg_pass=0; gneg_total=0
+gapneg() {   # name, which (ref|rb), sed script, substring of the failing scenario
+  local name="$1" which="$2" script="$3" expect="$4" a="$tmp/ref.sql" r="$tmp/ref_rb.sql" src o; gneg_total=$((gneg_total+1))
+  if [ "$which" = ref ]; then src="$tmp/ref.sql"; else src="$tmp/ref_rb.sql"; fi
+  sed "$script" "$src" > "$tmp/g_$name.sql"; cmp -s "$src" "$tmp/g_$name.sql" && { echo "FAIL: mutant $name changed nothing (vacuous control)"; return; }
+  chmod 644 "$tmp/g_$name.sql"; if [ "$which" = ref ]; then a="$tmp/g_$name.sql"; else r="$tmp/g_$name.sql"; fi
+  o="$(gap_run "$a" "$r" 2>&1)"
+  if echo "$o" | grep -q '^GAPRESULT' && echo "$o" | grep '^GAPFAIL' | grep -qF -- "$expect"; then gneg_pass=$((gneg_pass+1)); else echo "FAIL: gap negative control $name was NOT caught (expected a failing scenario containing: $expect)"; echo "$o" | grep '^GAPFAIL\|^GAPRESULT' | head -4 | sed 's/^/    /'; fi
+}
+gapneg c1a_link_check_nested_in_guard_test rb "s/^  IF has_links THEN\$/  IF has_links AND guard_installed THEN/" 'GAP1a'
+gapneg c1b_guard_detected_by_trigger_name rb "s/t.tgfoid = guard_fn::oid AND NOT t.tgisinternal);/t.tgname = 'legal_cases_guard' AND NOT t.tgisinternal);/" 'GAP1b'
+gapneg c1c_unexpected_trigger_state_not_refused rb "/IF EXISTS (SELECT 1 FROM pg_catalog.pg_trigger t WHERE t.tgrelid = 'public.legal_cases'::regclass AND t.tgname/,/^  END IF;/d" 'GAP1c'
+gapneg c2a_apply_lock_unqualified ref "s/LOCK TABLE public\.legal_cases, public\.legal_matter_properties/LOCK TABLE legal_cases, legal_matter_properties/" 'GAP2 look-alike SEQUENCES'
+gapneg c2b_apply_alter_drop_unqualified ref "s/ALTER TABLE public\.%I DROP CONSTRAINT %I/ALTER TABLE %I DROP CONSTRAINT %I/" 'GAP2 apply (look-alike schema first)'
+gapneg c2c_apply_alter_add_unqualified ref "s/ALTER TABLE public\.%I ADD CONSTRAINT/ALTER TABLE %I ADD CONSTRAINT/" 'GAP2 apply (look-alike schema first)'
+gapneg c2d_apply_references_unqualified ref "s/REFERENCES public\.%I (id_uuid)/REFERENCES %I (id_uuid)/" 'GAP2 apply (look-alike schema first)'
+gapneg c2e_apply_catalog_unqualified ref "s/pg_catalog\.pg_constraint/pg_constraint/g" 'GAP2 look-alike pg_constraint'
+gapneg c2f_rollback_legal_cases_count_unqualified rb "s/FROM public\.legal_cases WHERE %I IS NOT NULL/FROM legal_cases WHERE %I IS NOT NULL/" 'GAP2 populated-row check'
+gapneg c2g_rollback_link_count_unqualified rb "s/FROM public\.legal_matter_properties WHERE %I IS NOT NULL/FROM legal_matter_properties WHERE %I IS NOT NULL/" 'GAP2 populated LINK check'
+gapneg c2h_rollback_alter_add_unqualified rb "s/ALTER TABLE public\.%I ADD CONSTRAINT/ALTER TABLE %I ADD CONSTRAINT/" 'GAP2 rollback (look-alike schema first)'
+gapneg c2i_rollback_lock_unqualified rb "s/LOCK TABLE public\.legal_cases IN/LOCK TABLE legal_cases IN/" 'GAP2 look-alike SEQUENCES'
+
+echo "[legal-reference-protection-db] main ${main_pass}/${main_total}, negative controls $neg_pass/$neg_total, v2 gap-correction controls $gneg_pass/$gneg_total, existing-suite / apply-refusal / rollback / gap checks $pass/$total (gap scenarios ${gap_pass}/${gap_total})"
+if [ "$main_pass" = "$main_total" ] && [ "$main_total" -gt 0 ] && [ "$neg_pass" = "$neg_total" ] && [ "$neg_total" -gt 0 ] && [ "$gneg_pass" = "$gneg_total" ] && [ "$gneg_total" -gt 0 ] && [ "$pass" = "$total" ] && [ "$total" -gt 0 ]; then echo "[legal-reference-protection-db] PASS (reconstruction proof only; not installed/live proof)"; else echo "[legal-reference-protection-db] FAIL"; exit 1; fi

@@ -16,6 +16,8 @@ export function LegalMatterView({ id, adapter }: { id: string; adapter: LegalAda
       : state.kind === "unavailable" ? <StateNotice kind="partial" title="Legal workspace is not available." detail={state.reason} />
       : state.kind === "denied" ? <StateNotice kind="denied" title="You don't have access to this legal matter." />
       : state.kind === "missing" ? <StateNotice kind="empty" title="Matter not found." detail="Check the link or return to the register." />
+      : state.kind === "conflict" ? <StateNotice kind="error" title="Legal records conflict. Review is required." />
+      : state.kind === "stale" ? <StateNotice kind="stale" title="Legal records are out of date. Reload before review." onRetry={retry} />
       : state.kind === "cleared" ? <StateNotice kind="stale" title="Legal records were cleared after an access change." onRetry={retry} />
       : <StateNotice kind="error" title={state.message} onRetry={retry} />}
   </div>;

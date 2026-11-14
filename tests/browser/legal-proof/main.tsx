@@ -15,10 +15,16 @@ import { fixtureLegalAdapter, SYNTHETIC_MATTERS } from "../../../src/features/le
 import type { LegalDashboardState } from "../../../src/features/legal/types";
 const client = createQueryClient();
 const longCaption = "SYNTHETIC LONG CAPTION " + "UnbrokenFixtureCaption".repeat(12);
+const zero = { ...SYNTHETIC_MATTERS[1], matter: { ...SYNTHETIC_MATTERS[1].matter, id: "zero" },
+  requirements: [], awards: [{ ...SYNTHETIC_MATTERS[1].awards[0], id: "award-zero", matterId: "zero", amount: { cents: 0, currency: "USD" }, judgmentVerification: "verified" as const }] };
 const matters = [
-  { ...SYNTHETIC_MATTERS[0], caption: longCaption },
-  { ...SYNTHETIC_MATTERS[1], id: "zero", awardId: "award-zero", awardCents: 0, awardVerified: true },
-  { ...SYNTHETIC_MATTERS[1], id: "joint", caption: "SYNTHETIC JOINT PROJECTION", awardId: "award-zero", awardCents: 0, awardVerified: true },
+  { ...SYNTHETIC_MATTERS[0], matter: { ...SYNTHETIC_MATTERS[0].matter, docketNumber: longCaption },
+    evidence: [{ id: "public-order", matterId: "m-001", filename: "Public synthetic order", url: null, confidence: "low" as const, restricted: false },
+      { id: "private-order", matterId: "m-001", filename: "PRIVATE SYNTHETIC EVIDENCE", url: null, confidence: "high" as const, restricted: true }],
+    courtEvents: [{ id: "source-event", matterId: "m-001", date: null, source: "Synthetic docket source", responsibleActor: null }] },
+  zero,
+  { ...zero, matter: { ...zero.matter, id: "joint", docketNumber: "SYNTHETIC JOINT PROJECTION" }, awards: [{ ...zero.awards[0], id: "award-joint", matterId: "joint", amount: null,
+    obligors: [{ partyId: "p1", liability: "joint" as const }, { partyId: "p2", liability: "joint" as const }] }] },
 ];
 function Fixture() {
   const [mode, setMode] = useState("ready");
@@ -26,12 +32,13 @@ function Fixture() {
     const state: LegalDashboardState = mode === "ready" || mode === "stale" ? { kind: "ready", matters, stale: mode === "stale" }
       : mode === "error" ? { kind: "error", message: "Synthetic load failure" }
       : mode === "unavailable" ? { kind: "unavailable", reason: "No accepted producer" }
+      : mode === "conflict" ? { kind: "conflict" }
       : mode === "loading" ? { kind: "loading" } : mode === "denied" ? { kind: "denied" } : { kind: "empty" };
     return fixtureLegalAdapter(state);
   }, [mode]);
   return <QueryClientProvider client={client}><aside aria-label="Synthetic proof controls" style={{ color: "white", padding: 12 }}>
     <strong>SYNTHETIC FIXTURE / NO LIVE DATA</strong><div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-    {["ready", "stale", "empty", "unavailable", "error", "denied", "loading"].map(value => <button key={value}
+    {["ready", "stale", "empty", "unavailable", "error", "denied", "loading", "conflict"].map(value => <button key={value}
       style={{ minHeight: 44 }} onClick={() => setMode(value)} data-mode={value}>{value}</button>)}
     <button style={{ minHeight: 44 }} onClick={() => handleSessionBoundary(client)} data-mode="session">Session boundary</button>
     <button style={{ minHeight: 44 }} data-mode="other-denial" onClick={() => {

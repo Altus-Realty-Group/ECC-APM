@@ -87,6 +87,14 @@ Evidence classes are separate. **Catalog-verified metadata** (read-only inspecti
 | --- | --- | --- | --- | --- |
 | Combined proof of the two existing proposals; legacy-uuid (L1, `id_uuid`) and native-numeric (D1, `id`) identity families stay separate | No new persistence; no bridge between `id_uuid` and `id`, because equivalence is not verified | None in the database. Added test files and one package script only. L1 foreign keys target `id_uuid`; D1 foreign keys target native numeric keys; no cross-domain object | Matter/document association needs a separately reviewed explicit mapping. **Unresolved acceptance blocker (L1)**: the revision guard blocks the catalog-verified `ON DELETE SET NULL` on all four `legal_cases` references (reproduced; compatibility owner: ECC backend; L1 must not be installed until a separate L1 correction resolves it). L1 rollback remains partial cleanup, never restoration | Combined rehearsal draft PR; local reconstruction only |
 
+## L1 reference protection (follow-up proposal) - source only
+
+Evidence classes are separate. **Catalog-verified metadata** (relayed 2026-11-14, not re-queried here): `legal_cases` property/unit/tenant/lease uuid references target `id_uuid` with ON DELETE SET NULL. **Reconstructed proof (local PG16)**: `npm run test:legal-reference-protection-db` on the combined baseline reproduces the 001 revision-guard conflict and proves the proposed fix (counts in `docs/legal/LEGAL_REFERENCE_PROTECTION_20261114.md`). **Installed behaviour**: none. **Unverified**: live constraint names/deferrability, lock duration, `legal_parties.tenant_id`.
+
+| Decision / affected objects | Reuse alternatives / rationale | Added / changed / retired | Consumer sequence / compatibility owner and removal trigger | PR / evidence |
+| --- | --- | --- | --- | --- |
+| Preserve referenced parents of `legal_cases` (property, unit, tenant, lease) and `legal_matter_properties` (unit, lease) | Rejected: a trigger-depth or revision exemption in `legal_matter_guard` (weakens the revision protocol and still nulls links implicitly); rejected: weakening NULLS NOT DISTINCT or auto-merging links. Chosen: `ON DELETE RESTRICT` plus explicit revisioned unlinking | Proposed `002_legal_reference_protection` (rewrites six FK delete actions, same names/columns/targets; no table, role, grant, trigger or function change) and its guarded partial rollback. A technical reference-preservation rule, not a legal retention determination | Apply 001 then 002 before any runtime use; 002 is a prerequisite for installing 001. Rollback 002 before 001 (the reverse leaves a residual RESTRICT). Compatibility owner: ECC backend; surface `23503` and an unlink path in server/UI separately. `legal_parties.tenant_id` stays SET NULL (open) | Draft PR stacked on #238; source and local tests only |
+
 ## Verification and open work
 
 - Complete the affected-domain inventory from actual source and verified database evidence when available.

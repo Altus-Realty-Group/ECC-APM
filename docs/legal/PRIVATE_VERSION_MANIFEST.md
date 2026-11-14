@@ -11,10 +11,11 @@ Internal helper that builds a private version manifest from unknown input using 
 - Ambiguous selection (more than one distinct version for the same `documentId`) is rejected.
 - Output contains only whitelisted fields: `documentId`, `versionId`, `versionNumber`, `byteSize`, `sha256`, `mediaType`.
 - Provider references, paths, URLs, filenames, and raw errors are never returned.
-- Entries are stably ordered by `documentId` then `versionId`.
+- Entries use locale-independent UTF-16 code-unit order by `documentId` then `versionId`.
+- Distinct version identities cannot share a provider/object/revision triple, matching the D1 registry uniqueness rule.
 - Canonical form is the JSON array of ordered tuples `[documentId, versionId, versionNumber, byteSize, sha256, mediaType]`.
 - The manifest carries the actual SHA-256 (hex) of the UTF-8 encoding of that canonical string, computed via `crypto.subtle.digest`. Ledger fingerprints and other hashes are not substituted.
-- If cryptographic support is unavailable, the result is `{ ok: false, reason: "unavailable" }`. No weaker fallback is used.
+- If cryptographic support is missing, rejects, throws, or returns an invalid digest, the result is `{ ok: false, reason: "unavailable" }`. No weaker fallback is used.
 - Input is never mutated. Prototype-like identifiers are handled safely via `Map`.
 
 ## Scope and non-goals

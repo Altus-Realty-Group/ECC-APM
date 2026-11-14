@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, webcrypto } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 import { buildPrivateVersionManifest, canonicalSerialize, type ManifestEntry } from "../../../../shared/legal/packet/versionManifest.ts";
+
+if (!globalThis.crypto?.subtle) Object.defineProperty(globalThis, "crypto", { value: webcrypto, configurable: true });
 
 const validVersion = (over: Record<string, unknown> = {}) => ({
   versionId: "v1",
@@ -11,8 +14,8 @@ const validVersion = (over: Record<string, unknown> = {}) => ({
   sha256: "a".repeat(64),
   mediaType: "application/pdf",
   provider: "dropbox",
-  providerObjectRef: "obj-1",
-  providerRevision: "rev-1",
+  providerObjectRef: String(over.versionId ?? "v1"),
+  providerRevision: "rev-" + String(over.versionNumber ?? 1),
   ...over,
 });
 
@@ -145,4 +148,44 @@ test("does not substitute ledger fingerprint or other hashes", async () => {
     // ledger fingerprint is 16 hex chars; this must be full SHA-256
     assert.equal(result.manifest.manifestSha256.length, 64);
   }
+});
+
+
+test("one provider object revision cannot acquire two registered identities", async () => {
+  const a = validVersion({ providerObjectRef: "SYNTHETIC-object" });
+  const b = validVersion({ documentId: "d2", versionId: "v2", providerObjectRef: "SYNTHETIC-object" });
+  for (const rows of [[a, b], [b, a]]) assert.deepEqual(await buildPrivateVersionManifest(rows), { ok: false, reason: "conflicting_identity" });
+  const valid = await buildPrivateVersionManifest([a, { ...b, providerRevision: "different-revision" }]);
+  assert.equal(valid.ok, true);
+});
+
+test("missing, rejected or malformed cryptographic support yields unavailable without raw errors", async () => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "crypto");
+  try {
+    for (const value of [undefined, { subtle: {} }, { subtle: { digest: async () => { throw new Error("SYNTHETIC PRIVATE FAILURE"); } } },
+      { subtle: { digest: () => { throw new Error("SYNTHETIC PRIVATE FAILURE"); } } }, { subtle: { digest: async () => new ArrayBuffer(31) } }]) {
+      Object.defineProperty(globalThis, "crypto", { value, configurable: true });
+      assert.deepEqual(await buildPrivateVersionManifest([validVersion()]), { ok: false, reason: "unavailable" });
+    }
+  } finally {
+    if (descriptor) Object.defineProperty(globalThis, "crypto", descriptor);
+  }
+});
+
+test("canonical order and SHA-256 are identical under different process locales", () => {
+  const code = `import { webcrypto } from 'node:crypto';
+    if (!globalThis.crypto?.subtle) Object.defineProperty(globalThis,'crypto',{value:webcrypto,configurable:true});
+    const {buildPrivateVersionManifest}=await import('./shared/legal/packet/versionManifest.ts');
+    const v=id=>({documentId:id,versionId:id+'-v1',versionNumber:1,byteSize:0,sha256:'a'.repeat(64),mediaType:'application/pdf',provider:'synthetic',providerObjectRef:id,providerRevision:'r1'});
+    const out=await buildPrivateVersionManifest([v('a'),v('A')]);
+    if (!out.ok) throw Error('manifest failed');
+    process.stdout.write(JSON.stringify(out.manifest));`;
+  const outputs = ["en_US.UTF-8", "da_DK.UTF-8"].map(locale => {
+    const run = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", code],
+      { encoding: "utf8", env: { ...process.env, LANG: locale, LC_ALL: locale }, timeout: 10_000 });
+    assert.equal(run.status, 0, run.stderr);
+    return JSON.parse(run.stdout);
+  });
+  assert.deepEqual(outputs[0], outputs[1]);
+  assert.deepEqual(outputs[0].entries.map((e: ManifestEntry) => e.documentId), ["A", "a"]);
 });

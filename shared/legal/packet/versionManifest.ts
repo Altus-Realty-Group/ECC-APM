@@ -4,7 +4,7 @@
 // Reuses document/version identity from D1; invents none.
 // Never returns provider references, paths, URLs, filenames, or raw errors.
 
-import { isRegisteredVersion, type RegisteredVersion } from "../../documents/model.ts";
+import { isRegisteredVersion, type RegisteredVersion } from "../../documents/model";
 
 export const MAX_MANIFEST_ROWS = 500;
 
@@ -38,19 +38,26 @@ function hasSubtleDigest(): boolean {
 }
 
 async function sha256HexUtf8(text: string): Promise<string | null> {
-  if (!hasSubtleDigest()) return null;
-  const bytes = new TextEncoder().encode(text);
-  const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  try {
+    if (!hasSubtleDigest()) return null;
+    const bytes = new TextEncoder().encode(text);
+    const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+    if (!(digest instanceof ArrayBuffer) || digest.byteLength !== 32) return null;
+    return Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  } catch {
+    return null;
+  }
 }
+
+const compareId = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
+const compareEntry = (a: ManifestEntry, b: ManifestEntry) =>
+  compareId(a.documentId, b.documentId) || compareId(a.versionId, b.versionId);
 
 /** Stable canonical serialization: sorted by documentId then versionId; fixed field order as array of tuples. */
 export function canonicalSerialize(entries: readonly ManifestEntry[]): string {
-  const sorted = [...entries].sort((a, b) =>
-    a.documentId.localeCompare(b.documentId) || a.versionId.localeCompare(b.versionId)
-  );
+  const sorted = [...entries].sort(compareEntry);
   const tuples = sorted.map((e) => [
     e.documentId,
     e.versionId,
@@ -103,6 +110,7 @@ export async function buildPrivateVersionManifest(input: unknown): Promise<Manif
 
   const byVersionId = new Map<string, RegisteredVersion>();
   const byDocumentId = new Map<string, string>(); // documentId -> versionId
+  const byProviderRevision = new Map<string, string>();
 
   for (const raw of input) {
     if (!isRegisteredVersion(raw)) return { ok: false, reason: "invalid_entry" };
@@ -120,17 +128,20 @@ export async function buildPrivateVersionManifest(input: unknown): Promise<Manif
       return { ok: false, reason: "ambiguous_selection" };
     }
 
+    // Mirrors D1's UNIQUE(provider, provider_object_ref, provider_revision).
+    const providerKey = JSON.stringify([v.provider, v.providerObjectRef, v.providerRevision]);
+    if (byProviderRevision.has(providerKey)) return { ok: false, reason: "conflicting_identity" };
+
     byVersionId.set(v.versionId, v);
     byDocumentId.set(v.documentId, v.versionId);
+    byProviderRevision.set(providerKey, v.versionId);
   }
 
   const entries: ManifestEntry[] = [];
   for (const v of byVersionId.values()) {
     entries.push(extractWhitelist(v));
   }
-  entries.sort((a, b) =>
-    a.documentId.localeCompare(b.documentId) || a.versionId.localeCompare(b.versionId)
-  );
+  entries.sort(compareEntry);
 
   const canonical = canonicalSerialize(entries);
   const digest = await sha256HexUtf8(canonical);

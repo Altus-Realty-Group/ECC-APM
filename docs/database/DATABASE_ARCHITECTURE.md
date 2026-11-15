@@ -56,6 +56,53 @@ Record applicability for existing and future scenarios, zero/null semantics, who
 
 Record retention and dependency proof before retirement. Link larger decisions to existing ADRs or docs/database/decisions/. Preserve financial/legal custody.
 
+## Native legal domain (L1, issue #214) - proposal
+
+Evidence classes are kept separate. **Read-only live metadata (2026-11-10)**: `legal_cases` (uuid PK, FKs to `id_uuid`), two overlapping `case_type` CHECKs, global UNIQUE NOT NULL `case_number`, `legal_case_events`/`case_history`/`case_tags` without FKs, anon/authenticated DML grants relying on RLS default-deny, no company tables. **Source-only (this PR, not applied)**: `docs/legal/schema/001_native_legal_foundation.proposal.sql`, `shared/legal/contracts.ts`, ADR `docs/legal/adr/ADR-0001-native-legal-source-and-runtime-ownership.md`, model `docs/legal/LEGAL_NATIVE_MODEL_20261110.md`; proven only on a local PostgreSQL 16 reconstruction (`npm run test:legal-db`). **Unverified**: installed behaviour, central grant mapping, legacy staging contents.
+
+| Decision / affected objects | Reuse alternatives / rationale | Added / changed / retired | Consumer sequence / compatibility owner and removal trigger | PR / evidence |
+| --- | --- | --- | --- | --- |
+| Native legal model on `legal_cases` | Reuse existing matter root; no parallel UI-card tables | Proposed: parties, property links, awards, obligors, evidence requirements/refs, source links; one case_type union; scope_ref, docket identity, revision; append-only journal; runtime role | Server rewiring and migration apply are separate PRs. Compatibility owner: ECC backend. `case_history` retired only after dependency proof | L1 draft PR; source and local tests only |
+## Protected-read authorization context (A1, issue #211) - source only
+
+Evidence classes are separate. **Read-only source references**: the Control Plane current-session contract (`3d9aaf27`) admits a person, account and application only; company/lane memberships exist only as a *proposed* workforce contract; retained PR #155 (`54e42095`) is evidence, not an activation target. **Source-only (this PR)**: `shared/authz/` (admission, resource-grant validation, explicit `scope_ref` binding registry with an empty default, fail-closed read decision with fresh clock readings and a bounded `validUntilMs`, exclusive-lease transaction-local context seam with clean-lease check, default-deny restricted-evidence pin, and discard-on-failure), ADR-0002 and `docs/security/PROTECTED_READ_AND_RESOURCE_AUTHORIZATION_20261111.md`; proven by unit tests, a reusable conformance suite and a local PostgreSQL seam test. **Unverified / not done**: any resource-grant producer, a `scope_ref` registry source, live Control Plane registration, runtime role credentials, and the L1 schema application. Custom `ecc.*` settings filter a trusted server-supplied context and do not authenticate grants; the seam requires an exclusively leased clean connection, refuses superuser/`BYPASSRLS` connections, never uses session-level settings, resets and verifies the session, and discards the connection on any cleanup failure.
+
+| Decision / affected objects | Reuse alternatives / rationale | Added / changed / retired | Consumer sequence / compatibility owner and removal trigger | PR / evidence |
+| --- | --- | --- | --- | --- |
+| Consumer-side protected-read boundary | Reuses the `ReadActorResolver` seam and `sessionScope` epoch; PR #155 transport not reintroduced | Added `shared/authz/*`; no table, role, grant or config | Server binding and registry source are separate PRs owned by Codex; removal trigger: replaced by an accepted producer wiring that passes the same conformance suite | A1 draft PR; source and local tests only |
+
+## Document registry and protected reader (D1) - proposal
+
+Evidence classes are separate. **Read-only live metadata (2026-11-11)**: no document/version/delivery registry exists; candidates `files_new` (0 rows, one association, raw path, permissive authenticated SELECT `true`), `file_assets` (0 rows, raw path and shared link), `file_sync_audit` (0 rows, path-based), `files` (50), `doorloop_raw_files` (3,666), `work_order_files` (0); native `owners.id` integer, `properties.id` bigint, `property_owners` PK `(property_id, owner_id)`. **Source-only (this PR, not applied)**: `docs/documents/schema/001_document_registry.proposal.sql`, `shared/documents/`, `server/lib/documents/` (injected, default-unbound reader built on A1; effective-authorization-state revalidation as the last asynchronous step before delivery, with an A1 authority-context snapshot; exact link evidence; validated port responses), ADR-0003; proven on a private local PostgreSQL reconstruction (`npm run test:documents-db`) and unit tests. **Unverified**: the owner/property to `scope_ref` mapping, resource-grant producer, RLS scope policies (new tables are default-deny with no policy), provider receipts and any live byte delivery.
+
+| Decision / affected objects | Reuse alternatives / rationale | Added / changed / retired | Consumer sequence / compatibility owner and removal trigger | PR / evidence |
+| --- | --- | --- | --- | --- |
+| Document registry (identity, immutable versions, owner-to-property links, verified delivery receipts, minimum classification rule: `financial-tax` section records are `financial_tax`/`restricted` in SQL, and the reader requires `financial_tax` allowed for anything filed there, so restricted material there needs both permissions) | No candidate fits (single association, raw paths/shared links, no versions or receipts); `owners`/`properties`/`property_owners` reused as identity anchors | Proposed: four additive tables, two views, a read-only runtime role; legacy file tables and their grants untouched | Store binding, scope policies and handler are separate PRs (Codex). Legacy tables retire only after dependency proof | D1 draft PR; source and local tests only |
+
+## Combined L1 + D1 database rehearsal - local reconstruction only
+
+Evidence classes are separate. **Catalog-verified metadata** (read-only inspection by Codex, relayed 2026-11-14; not re-queried by this change): `properties.id`, `units.id`, `leases.id` bigint PK; `owners.id`, `tenants.id` integer PK; `id_uuid` on all five uuid NOT NULL with a standalone UNIQUE index (not a PK); `property_owners` property_id/owner_id bigint with PK (property_id, owner_id); `legal_cases.id` uuid PK whose property/unit/tenant/lease uuid references target `id_uuid` with ON DELETE SET NULL; plus the L1 (2026-11-10) and D1 (2026-11-11) observations above. **Reconstructed proof (this PR, local)**: `tests/legal-documents-db/` applies the L1 and D1 proposals, in that order, to one private PostgreSQL 16 database built from those definitions (`npm run test:legal-documents-db`): 55 main, 8 negative-control, 34 rollback and 11 custody checks, plus a 12-check reproduction of one blocker. Detail: `docs/database/COMBINED_LEGAL_DOCUMENTS_DB_REHEARSAL_20261112.md`. **Installed behaviour**: none; nothing was applied. **Unverified**: key-column defaults/identity behaviour, other columns, any scope mapping, backfill.
+
+| Decision / affected objects | Reuse alternatives / rationale | Added / changed / retired | Consumer sequence / compatibility owner and removal trigger | PR / evidence |
+| --- | --- | --- | --- | --- |
+| Combined proof of the two existing proposals; legacy-uuid (L1, `id_uuid`) and native-numeric (D1, `id`) identity families stay separate | No new persistence; no bridge between `id_uuid` and `id`, because equivalence is not verified | None in the database. Added test files and one package script only. L1 foreign keys target `id_uuid`; D1 foreign keys target native numeric keys; no cross-domain object | Matter/document association needs a separately reviewed explicit mapping. **Unresolved acceptance blocker (L1)**: the revision guard blocks the catalog-verified `ON DELETE SET NULL` on all four `legal_cases` references (reproduced; compatibility owner: ECC backend; L1 must not be installed until a separate L1 correction resolves it). L1 rollback remains partial cleanup, never restoration | Combined rehearsal draft PR; local reconstruction only |
+
+## L1 reference protection (follow-up proposal) - source only
+
+Evidence classes are separate. **Catalog-verified metadata** (relayed 2026-11-14, not re-queried here): `legal_cases` property/unit/tenant/lease uuid references target `id_uuid` with ON DELETE SET NULL. **Reconstructed proof (local PG16)**: `npm run test:legal-reference-protection-db` on the combined baseline reproduces the 001 revision-guard conflict and proves the proposed fix (counts in `docs/legal/LEGAL_REFERENCE_PROTECTION_20261114.md`). **Installed behaviour**: none. **Unverified**: live constraint names/deferrability, lock duration, `legal_parties.tenant_id`.
+
+| Decision / affected objects | Reuse alternatives / rationale | Added / changed / retired | Consumer sequence / compatibility owner and removal trigger | PR / evidence |
+| --- | --- | --- | --- | --- |
+| Preserve referenced parents of `legal_cases` (property, unit, tenant, lease) and `legal_matter_properties` (unit, lease) | Rejected: a trigger-depth or revision exemption in `legal_matter_guard` (weakens the revision protocol and still nulls links implicitly); rejected: weakening NULLS NOT DISTINCT or auto-merging links. Chosen: `ON DELETE RESTRICT` plus explicit revisioned unlinking | Proposed `002_legal_reference_protection` (rewrites six FK delete actions, same names/columns/targets; no table, role, grant, trigger or function change) and its guarded partial rollback. A technical reference-preservation rule, not a legal retention determination | Apply 001 then 002 before any runtime use; 002 is a prerequisite for installing 001. Rollback 002 before 001 (the reverse leaves a residual RESTRICT). Rollback custody has two independent rules: populated `legal_matter_properties` unit/lease references always refuse (NULLS NOT DISTINCT hazard, no trigger dependence); populated `legal_cases` references refuse while any trigger runs `legal_matter_guard()` (detected by function, not name; an unexpected `legal_cases_guard` is refused). All relations are schema-qualified (`public.*`, `pg_catalog.*`); shadow/temporary look-alikes are never touched. Compatibility owner: ECC backend; surface `23503` and an unlink path in server/UI separately. `legal_parties.tenant_id` stays SET NULL (open) | Draft PR stacked on #238; source and local tests only |
+
+## L4 evidence linkage - SQL proposal 003 (source only)
+
+Evidence classes are separate. **Catalog-verified metadata** (relayed by Codex, not re-queried here): the corrected combined key shapes; `legal_evidence_refs`, `legal_case_events` and `document_versions` are reconstructed from the L1/D1 proposal SQL, not read from a live catalog. **Reconstructed proof (local PG16)**: `npm run test:legal-evidence-link-db` applies 001, D1, 002 then 003 and proves integrity, integer-safe revisions, journal privacy, exact-definition apply preconditions (all of 002, the enabled revision trigger, the exact 001 journal policy and CHECK), exact-shape rollback custody, concurrency and schema targeting (148 checks, 40 isolated negative controls) (counts in `docs/legal/LEGAL_EVIDENCE_LINKAGE_SQL_20261115.md`). **Installed behaviour**: none. **Not established**: document authorization (SQL integrity is not authorization), every authority producer, live trigger/constraint names, lock duration.
+
+| Decision / affected objects | Reuse alternatives / rationale | Added / changed / retired | Consumer sequence / compatibility owner and removal trigger | PR / evidence |
+| --- | --- | --- | --- | --- |
+| `legal_evidence_refs` pins an immutable D1 `document_versions` row (ADR-0004) | Reused existing evidence refs and D1 versions; rejected a new link table, a copied document registry and any `storage_ref` parsing | Proposed: 2 columns, 1 FK, 1 CHECK, 1 partial unique index (NULLS NOT DISTINCT), 3 triggers, 5 functions (2 SECURITY INVOKER commands), journal dimension `evidence_attachment`, extended evidence-subject mask. **Zero** new tables/views/roles/grants/policies | Apply after 001, D1, 002; roll back 003 first (D1's own rollback is blocked by the FK until then). Server writer, reader, document authority and UI are separate and unbound. Compatibility owner: ECC backend. Rollback refuses bound/withdrawn evidence and attachment journal events | Draft PR stacked on #242; source and local tests only |
+
 ## Verification and open work
 
 - Complete the affected-domain inventory from actual source and verified database evidence when available.
@@ -312,3 +359,78 @@ Nine mounted synthetic lifecycle cases plus six existing focused tests pass; the
 The legal register and matter cards reuse the existing shared QueryClient and session epoch. Keys include epoch, adapter identity, optional test context and resource/matter ID. No placeholder rows survive a key change or refetch; 401/403 and typed denied results participate in the shared purge. A response finishing under an earlier epoch is rejected. Register filters and matter tabs remount with their record/context. Missing, invalid, denied and unconnected detail states are distinct.
 
 This is an unbound frontend projection, not an accepted legal API or authorization issuer. No endpoint, database object, schema, grant or operational writer is added. Native legal contracts remain separately reviewed; the provisional card's single-award fields cannot bind a multi-award producer without explicit mapping. The UI displays unknown cents as unreported and explicit zero as zero cents; it does not infer currency, balance, interest or court deadlines. Source/unit/browser fixtures are synthetic; installed authorization and populated runtime acceptance remain separate gates. No database or provider performance claim is made.
+
+## Owner/property document cards - source implementation 2026-11-11
+
+The actual owner/property Files tabs now mount a shared document view, with
+existing native integer record IDs, five owner sections and five property
+sections. Explicit linked-owner documents are frontend associations, never
+resource grants. No document/version/location registry is declared by the
+current shared/schema.ts source; no table, RPC, grant or persistence is added.
+The default frontend adapter remains unbound with no network/provider access.
+
+The shared QueryClient/session epoch is reused, with keys containing epoch,
+adapter and record kind/ID; no separate persistent cache exists. Metadata
+validation rejects wrong-record, duplicate identity and unknown section/state
+responses. Denials purge existing private data before search/count display.
+Downloads require verified delivery and an adapter-supplied reauthorized Blob
+matching document/version identity. Old-context results cannot start downloads.
+
+The old file router is not mounted, despite defining placeholder file routes.
+Legacy overwrite/share-link helpers and caller-path listing/temp-link helpers
+remain unused. Service-role card reads do not grant document authority. Reuse
+decisions for actual registry candidates and live protected transport remain
+separate acceptance work; no live query, performance or authorization proof.
+See [document implementation record](../documents/OWNER_PROPERTY_DOCUMENTS_20261111.md).
+
+- **Legal award ledger (L5, issue #218):** source-only contracts in `shared/legal/ledger/` (see `docs/legal/LEGAL_AWARD_LEDGER_20261112.md`). No persistence, no SQL, net new database objects: 0. Persisted intake and write authorization remain separate dependencies.
+
+## L4 matter-to-document linkage - design proposal 2026-11-15
+
+ADR [0004](../legal/adr/ADR-0004-matter-document-version-linkage.md) proposes
+reusing legal_evidence_refs with a nullable immutable D1 version FK and explicit
+withdrawal, deriving document metadata from document_versions rather than a
+second registry. A same-row properties.id_uuid -> properties.id join resolves
+property identity; it does not grant authority. Matter access intersects D1 target,
+exact owner/property associations and classification access. Scope mappings and
+all producers remain unbound. D1 current-only downloads cannot silently deliver
+an obsolete pinned exhibit. Initial non-current versions fail stale/unavailable;
+historical delivery is a separate reviewed capability.
+
+This PR adds documentation only: actual tables/columns/FKs/functions/roles/grants
+added or changed = 0; no SQL, read path, cache or writer changed. Future target
+schema delta and proof matrix are explicitly proposals in ADR-0004 and
+[the L4 acceptance matrix](../legal/LEGAL_EVIDENCE_LINKAGE_ACCEPTANCE_20261115.md).
+Existing archive refs are not mapped/backfilled by text. COPY ONLY reconciliation
+is not authenticated delivery or judgment verification. Evidence class: source
+inspection only; no installed, live or PG reconstruction proof for this design.
+
+## L4 evidence read preparation - source only 2026-11-15
+
+`server/lib/legal/evidenceReadPlan.ts` reuses L1/L4 parsers and D1 row/classification
+validation to check a bounded supplied snapshot: same-row property UUID/numeric
+identity, requested matter/evidence, exact owner/property link, explicit record
+status and current pinned version. It emits a non-authoritative `planned` context
+only; no actual query, protected reader, handler, authority, cache, provider or UI
+binding changes. Default-deny classifications and withdrawn/unbound/retired refs
+do not produce plans. Store provenance, live joins, fresh matter/document grants,
+receipts/bytes and final revalidation remain separate gates. Actual database
+objects added/changed: zero. Evidence: synthetic tests and source checks only;
+see [read preparation](../legal/EVIDENCE_READ_PREPARATION_20261115.md). No live,
+installed, query-performance or delivery proof follows from a plan.
+
+
+## Combined release-candidate consumer alignment - 2026-11-15
+
+The assembled source candidate includes the reviewed native L1/L6 legal register
+and multi-award matter card, replacing the earlier provisional single-award UI
+projection. Validation/sanitization occurs before the existing session-scoped
+query cache sees evidence metadata. Lifecycle, award verification/readiness and
+per-evidence confidence stay separate. L5 balances/eligibility remain unbound.
+The owner/property document UI and metadata/byte transport foundation are retained.
+
+This supersedes the provisional-UI description above for this candidate only.
+Actual database objects, grants, producers and live rows changed: zero. The
+combined candidate retains the 001/002/003 and D1 proposals, private PG scripts
+and their source evidence boundaries. It does not apply schemas or constitute
+installed/allowed access proof. See SOURCE_INTEGRATION_20261112.md in docs/legal.

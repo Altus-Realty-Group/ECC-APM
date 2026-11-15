@@ -3,11 +3,12 @@ import { Link } from "wouter";
 import StateNotice from "@/components/ui/StateNotice";
 import type { LegalMatter } from "../types";
 import "./legal.css";
+import { matterTitle, readable, queues } from "../viewModel";
 
 const TABS = ["overview", "timeline", "documents", "judgment", "tasks", "correspondence", "court", "packet", "audit"] as const;
 type Tab = (typeof TABS)[number];
 type Props = { matter: LegalMatter | null; invalid?: boolean; stale?: boolean };
-const readable = (s: string) => s.replace(/-/g, " ");
+
 
 export default function LegalMatterCard({ matter, invalid, stale }: Props) {
   const [tab, setTab] = useState<Tab>("overview");
@@ -24,21 +25,20 @@ export default function LegalMatterCard({ matter, invalid, stale }: Props) {
     if (next === null) return;
     event.preventDefault(); setTab(TABS[next]); buttons.current[next]?.focus();
   };
-  const recordedAmount = matter.awardCents === null ? "Not reported"
-    : `${matter.awardCents.toLocaleString("en-US")} cents (currency not supplied)`;
+  const workflow = matter, root = matter.matter, requirements = queues(workflow);
+  const amountText = (a: LegalMatter["awards"][number]) => a.amount === null ? "Unknown amount"
+    : `${a.amount.currency} ${Math.floor(a.amount.cents / 100).toLocaleString("en-US")}.${String(a.amount.cents % 100).padStart(2, "0")}`;
   return <div className="ecc-legal">
     <Link href="/ops/legal/case-manager" className="ecc-btn ecc-touch">Back to legal matters</Link>
     {stale ? <StateNotice kind="stale" title="Legal matter may be out of date." /> : null}
     <header className="ecc-legal-header">
-      <p className="ecc-legal-eyebrow">Matter / {matter.id}</p>
-      <h1>{matter.caption}</h1>
-      <p>{readable(matter.matterType)} · {readable(matter.lifecycle)}</p>
+      <p className="ecc-legal-eyebrow">Matter / {root.id}</p>
+      <h1>{matterTitle(workflow)}</h1>
+      <p>{readable(root.caseType)} · {readable(root.lifecycle)}</p>
     </header>
     <dl className="ecc-legal-facts">
-      <div><dt>Judgment verification</dt><dd>{matter.awardVerified ? "Verified award" : "Not verified"} · {readable(matter.verification)}</dd></div>
-      <div><dt>Collection readiness</dt><dd>{readable(matter.readiness)}</dd></div>
-      <div><dt>Evidence confidence</dt><dd>{readable(matter.evidenceConfidence)}</dd></div>
-      <div><dt>Next action</dt><dd>{matter.nextAction ?? "Not reported"}</dd></div>
+      <div><dt>Awards</dt><dd>{workflow.awards.length} distinct award identities</dd></div>
+      <div><dt>Open requirements</dt><dd>{requirements.counts.open} open · {requirements.counts.assigned} assigned · {requirements.counts.unassigned} unassigned</dd></div>
     </dl>
     <div className="ecc-legal-tabs" role="tablist" aria-label="Matter sections">
       {TABS.map((id, index) => <button key={id} ref={el => { buttons.current[index] = el; }}
@@ -48,15 +48,28 @@ export default function LegalMatterCard({ matter, invalid, stale }: Props) {
     </div>
     <section className="ecc-legal-panel" role="tabpanel" id={`${prefix}-panel`} aria-labelledby={`${prefix}-${tab}`} tabIndex={0}>
       {tab === "overview" ? <><h2>Matter overview</h2><dl className="ecc-legal-facts">
-        <div><dt>Court</dt><dd>{matter.court ?? "Not reported"}</dd></div>
-        <div><dt>Creditor</dt><dd>{matter.creditor ?? "Not reported"}</dd></div>
-        <div><dt>Source as of</dt><dd>{matter.sourceAsOf ?? "Not reported"}</dd></div>
+        <div><dt>Court reference</dt><dd>{root.courtRef ?? "Not reported"}</dd></div>
+        <div><dt>Docket number</dt><dd>{root.docketNumber ?? "Not reported"}</dd></div>
+        <div><dt>Record revision</dt><dd>{root.revision}</dd></div>
       </dl></> : tab === "judgment" ? <><h2>Judgment review</h2>
-        <p>Recorded award amount: {recordedAmount}.</p>
-        <p>{matter.awardVerified ? "Award verification is reported. Collection balance is not supplied." : "Unverified claims are not receivables."}</p>
-        <p className="ecc-legal-note">An award identity is counted once, regardless of the number of obligors. No collection balance is calculated here.</p>
+        {workflow.awards.length === 0 ? <p>No awards reported.</p> : workflow.awards.map(a => <article className="ecc-legal-award" key={a.id}>
+          <h3>{readable(a.kind)} · {a.id}</h3><p>Recorded award amount: {amountText(a)}</p>
+          <dl className="ecc-legal-facts"><div><dt>Judgment verification</dt><dd>{readable(a.judgmentVerification)}</dd></div>
+            <div><dt>Collection readiness</dt><dd>{readable(a.collectionReadiness)}</dd></div>
+            <div><dt>Obligors</dt><dd>{a.obligors.length} linked parties · award counted once</dd></div></dl>
+        </article>)}
+        <p className="ecc-legal-note">Unverified claims are not receivables. Readiness is not collection approval. Reconciled balances and eligibility are unavailable until an accepted ledger source is connected.</p>
+      </> : tab === "tasks" ? <><h2>Open requirements</h2>
+        {requirements.open.length === 0 ? <p>No open requirements reported.</p> : <ul>{requirements.open.map(r => <li key={r.id}><strong>{r.description}</strong><p>Assigned actor: {r.assignedActor ?? "Unassigned"} · Source date: {r.sourceDate ?? "Unknown"}</p></li>)}</ul>}
+      </> : tab === "court" || tab === "timeline" ? <><h2>Court events</h2>
+        <p className="ecc-legal-note">Dates are source dates. No deadline is calculated.</p>
+        {workflow.courtEvents.length === 0 ? <p>No court events reported.</p> : <ul>{workflow.courtEvents.map(e => <li key={e.id}><strong>{e.date ?? "Date unknown"}</strong><p>Source: {e.source ?? "Not reported"} · Responsible actor: {e.responsibleActor ?? "Unassigned"}</p></li>)}</ul>}
+      </> : tab === "documents" ? <><h2>Public evidence references</h2>
+        {workflow.evidence.length === 0 ? <p>No public evidence references reported.</p> : <ul>{workflow.evidence.map(e => <li key={e.id}>{e.filename ?? "Unnamed evidence"} · Confidence: {e.confidence}</li>)}</ul>}
+        <p className="ecc-legal-note">Document delivery is unavailable until matter-to-document authorization and verified versions are connected.</p>
       </> : <><h2>{tab[0].toUpperCase() + tab.slice(1)}</h2>
         <StateNotice kind="partial" title="This section is not available yet." detail="No accepted source supplies these records. Nothing has been inferred." /></>}
+
     </section>
   </div>;
 }

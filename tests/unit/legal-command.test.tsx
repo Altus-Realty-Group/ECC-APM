@@ -22,9 +22,7 @@ test("unbound legal adapter returns unavailable", async () => {
 
 test("synthetic matters keep awards unknown, not zero", () => {
   for (const m of SYNTHETIC_MATTERS) {
-    assert.equal(m.awardVerified, false);
-    assert.equal(m.awardCents, null);
-    assert.equal(m.awardId, null);
+    for (const a of m.awards) { assert.equal(a.judgmentVerification, "unverified"); assert.equal(a.amount, null); }
   }
 });
 
@@ -36,7 +34,7 @@ test("command view loads and filters by queue", async () => {
   const json = JSON.stringify(tree.toJSON());
   assert.match(json, /EXAMPLE v. SAMPLE/);
   assert.match(json, /EXAMPLE v. DEMO/);
-  const intake = tree.root.findAll((n: any) => n.props && n.props.children === "Intake")[0];
+  const intake = tree.root.findAll((n: any) => n.props && n.props.children === "Unassigned")[0];
   await act(async () => { intake.props.onClick(); });
   const after = JSON.stringify(tree.toJSON());
   assert.match(after, /EXAMPLE v. SAMPLE/);

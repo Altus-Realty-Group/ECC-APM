@@ -49,6 +49,11 @@ once bound. The server supplies withdrawal time. A dedicated reviewed command
 must lock/check the evidence revision, persist the change and append a content-free
 journal event in one transaction. Existing confidence revision checks remain
 intact; attachment never changes confidence or requirement status automatically.
+The existing journal mask currently handles confidence events only. Attachment/
+withdrawal event visibility must receive the same evidence-subject masking, never
+bypass it by using an unrelated dimension. Future journal readers also intersect
+D1 document/classification authority before search/count/metadata; the SQL scope
+filter alone does not establish that intersection. Audit UI remains unbound.
 No direct browser SQL or new runtime grants are authorized by this decision.
 
 ## Property identity and initial scope
@@ -122,7 +127,8 @@ No automatic proposal apply/rollback runs from a source revert.
 
 Expected future object delta: zero new tables, roles, policies or views; two
 columns, one FK, one CHECK, one partial unique index and guarded attachment/
-withdrawal behavior plus journal events. Exact SQL/functions are a separate PR.
+withdrawal behavior plus journal events and strengthening of the existing journal
+visibility mask. Exact SQL/functions/policy changes are a separate PR.
 See [the acceptance matrix](../LEGAL_EVIDENCE_LINKAGE_ACCEPTANCE_20261115.md) for implementation gates.
 No performance or installed-access claim is made. No producer, handler, UI
 binding, file copy, backfill or packet export is implemented here.

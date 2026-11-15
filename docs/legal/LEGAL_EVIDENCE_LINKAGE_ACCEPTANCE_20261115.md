@@ -34,6 +34,7 @@ review before implementation. No live DDL or new grants/policies are authorized.
 | Same version in different matters | Independent refs, independently authorized |
 | Retarget existing attachment / reassigned matter | Refused, no evidence or journal mutation |
 | Withdraw | Explicit actor and expected revision; exactly one event; no delete/implicit restoration |
+| Restricted attachment/withdrawal journal events | Existing evidence-subject mask retained/extended; no hidden IDs or event counts leak |
 | Confidence updates | Existing guard and journal protocol retained |
 | Concurrent attach / retry / reply loss | One durable result; fresh key cannot duplicate an unresolved write |
 | Rollback with bound or withdrawn refs | Refused without changes; no document/version/journal loss |
@@ -59,6 +60,7 @@ accepted. SQL integrity proof cannot stand in for current-session/resource proof
 | Grant, mapping or classification revoked mid-read | Withhold after final reauthorization |
 | Authority expires during final store/provider read | Withhold before delivery |
 | Session changes or denial elsewhere in UI | Existing purge/epoch protection clears prior evidence |
+| Journal listing/search/count | Same matter/document/classification intersection, including attachment/withdrawal events |
 | Required exhibit inaccessible | Packet cannot be complete; no restricted reason details |
 
 UI retains the simple ownership/property layout and public evidence confidence.

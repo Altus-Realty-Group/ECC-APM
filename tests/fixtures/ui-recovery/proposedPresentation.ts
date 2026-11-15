@@ -9,7 +9,7 @@ export type ProposedOccupancyBreakdown = {
   occupiedEligibleUnits: number;
   unknownUnits: number;
   excludedUnits: number;
-  /** Deliberately independent of occupiedEligibleUnits to challenge silent equivalence. */
+  /** Independent of occupiedEligibleUnits. Never derived from occupied units. */
   activeLeases: number;
 };
 
@@ -18,7 +18,7 @@ export const proposedPopulatedOccupancy: ProposedOccupancyBreakdown = {
   occupiedEligibleUnits: 36,
   unknownUnits: 2,
   excludedUnits: 1,
-  activeLeases: 40,
+  activeLeases: 6,
 };
 
 export const proposedZeroOccupancy: ProposedOccupancyBreakdown = {
@@ -37,25 +37,48 @@ export const proposedUnknownOccupancy: ProposedOccupancyBreakdown = {
   activeLeases: 0,
 };
 
+/**
+ * Deterministic lease rows for MRR/coverage assertions.
+ * Known subtotal, unknown rents, recorded zero, and excluded ended leases are distinguished.
+ * Currency is explicit when amount is known.
+ */
+export type ProposedLeaseRow = {
+  id: string;
+  status: "active" | "ended";
+  monthlyRentCents: number | null;
+  currency: string | null;
+};
+
+export const proposedLeaseRows: readonly ProposedLeaseRow[] = [
+  { id: "lease-synth-1", status: "active", monthlyRentCents: 1_200_000, currency: "USD" },
+  { id: "lease-synth-2", status: "active", monthlyRentCents: 1_500_000, currency: "USD" },
+  { id: "lease-synth-3", status: "active", monthlyRentCents: 1_800_000, currency: "USD" },
+  { id: "lease-synth-4", status: "active", monthlyRentCents: null, currency: null },
+  { id: "lease-synth-5", status: "active", monthlyRentCents: null, currency: null },
+  { id: "lease-synth-6", status: "active", monthlyRentCents: 0, currency: "USD" },
+  { id: "lease-synth-ended", status: "ended", monthlyRentCents: 500_000, currency: "USD" },
+];
+
 export type ProposedMrr = {
   scope: string;
   activeLeaseCount: number;
-  knownMonthlyRentCents: number;
-  currency: string;
+  /** null = wholly unknown; 0 = confirmed zero. */
+  knownMonthlyRentCents: number | null;
+  currency: string | null;
   unknownLeaseCount: number;
 };
 
 export const proposedLoadedMrr: ProposedMrr = {
   scope: "portfolio-synth",
-  activeLeaseCount: 36,
+  activeLeaseCount: 6,
   knownMonthlyRentCents: 4_500_000,
   currency: "USD",
-  unknownLeaseCount: 4,
+  unknownLeaseCount: 2,
 };
 
 export const proposedZeroMrr: ProposedMrr = {
   scope: "portfolio-synth",
-  activeLeaseCount: 0,
+  activeLeaseCount: 1,
   knownMonthlyRentCents: 0,
   currency: "USD",
   unknownLeaseCount: 0,
@@ -63,10 +86,10 @@ export const proposedZeroMrr: ProposedMrr = {
 
 export const proposedUnknownMrr: ProposedMrr = {
   scope: "portfolio-synth",
-  activeLeaseCount: 5,
-  knownMonthlyRentCents: 0,
-  currency: "USD",
-  unknownLeaseCount: 5,
+  activeLeaseCount: 3,
+  knownMonthlyRentCents: null,
+  currency: null,
+  unknownLeaseCount: 3,
 };
 
 /** Long synthetic content for layout stress. No real names, addresses or records. */

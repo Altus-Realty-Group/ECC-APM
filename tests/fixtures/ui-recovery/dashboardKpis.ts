@@ -39,11 +39,23 @@ export const unknownDashboardKpis: DashboardKpis = {
   lastUpdatedProblem: null,
 };
 
-export const disconnectedDashboardKpis: DashboardKpis = {
+/** Partial known values; not a disconnected/error outcome. */
+export const partialDataDashboardKpis: DashboardKpis = {
   propertiesTotal: 5,
   unitsTotal: null,
   occupancyRate: null,
   revenue30dCents: 500_000,
+  series: [],
+  lastUpdated: null,
+  lastUpdatedProblem: null,
+};
+
+/** Disconnected/error: no known operating values. */
+export const disconnectedDashboardKpis: DashboardKpis = {
+  propertiesTotal: null,
+  unitsTotal: null,
+  occupancyRate: null,
+  revenue30dCents: null,
   series: [],
   lastUpdated: null,
   lastUpdatedProblem: null,

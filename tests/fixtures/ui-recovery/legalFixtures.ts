@@ -1,8 +1,10 @@
 /**
  * SYNTHETIC REVIEW FIXTURE — NOT OPERATING DATA.
- * Reuses accepted L1 types exactly. Joint awards counted once via totalAwards.
+ * Reuses accepted L1 / L5 / L6 types exactly. Joint awards counted once via totalAwards.
  */
 import type { LegalAward, LegalMatter } from "../../../shared/legal/contracts.ts";
+import type { LedgerProjection } from "../../../shared/legal/ledger/model.ts";
+import type { WorkflowProjection, ProjectionOutcome } from "../../../shared/legal/workflow/projections.ts";
 
 export const populatedMatter: LegalMatter = {
   id: "matter-synth-001",
@@ -59,4 +61,53 @@ export const secondMatterAward: LegalAward = {
   collectionReadiness: "ready",
   revision: 1,
   obligors: [{ partyId: "party-synth-3", liability: "sole" }],
+};
+
+/** Typed L5 LedgerProjection fixture (known, no entries). */
+export const knownLedgerProjection: LedgerProjection = {
+  awardId: jointAward.id,
+  matterId: jointAward.matterId,
+  status: "known",
+  conflict: null,
+  review: [],
+  currency: "USD",
+  principal: jointAward.amount,
+  principalVerified: true,
+  chargedCents: 0,
+  satisfiedCents: 0,
+  netCents: 150_000,
+  outstandingCents: 150_000,
+  unknownEntryIds: [],
+  lastSeq: 0,
+  ledgerDigest: "synth-digest-001",
+  awardRevision: jointAward.revision,
+  creditorPartyId: "party-synth-creditor",
+  obligors: jointAward.obligors,
+  reconciliation: {
+    state: "none",
+    asOf: null,
+    unreconciledEntryIds: [],
+    staleReasons: [],
+  },
+};
+
+/** Typed L6 WorkflowProjection and ready ProjectionOutcome. */
+export const readyWorkflowProjection: WorkflowProjection = {
+  matter: populatedMatter,
+  evidence: [],
+  requirements: [],
+  courtEvents: [],
+  awards: [jointAward],
+};
+
+export const readyProjectionOutcome: ProjectionOutcome = {
+  kind: "ready",
+  projection: readyWorkflowProjection,
+  summary: {
+    publicEvidence: 0,
+    openRequirements: 0,
+    unassignedOpenRequirements: 0,
+    unknownAwards: 0,
+    verifiedMonetaryAwards: 1,
+  },
 };

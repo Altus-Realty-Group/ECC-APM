@@ -103,7 +103,7 @@ test("dashboard: empty payload -> empty notice with retry, all metrics unreporte
   const html = dashboard({});
   assert.match(html, /state-empty/);
   assert.match(html, /Retry record read/);
-  assert.equal((html.match(/Not reported/g) ?? []).length, 4);
+  assert.equal((html.match(/data-testid="kpi\.[^"]+" data-missing="true"/g) ?? []).length, 4);
 });
 
 test("dashboard: stale data is flagged with its timestamp", () => {
@@ -116,12 +116,12 @@ test("dashboard: denied and failed states offer Retry and never show figures", (
   const denied = dashboard(undefined, (qc) =>
     qc.getQueryCache().build(qc, { queryKey: ["dashboard-kpis"] }).setState({ status: "error", error: new HttpError("HTTP 403", 403), fetchStatus: "idle", data: undefined } as any));
   assert.match(denied, /state-denied/);
-  assert.match(denied, /don&#x27;t have access|don't have access/);
+  assert.match(denied, /Portfolio access restricted/);
   assert.match(denied, />Retry</);
   const failed = dashboard(undefined, (qc) =>
     qc.getQueryCache().build(qc, { queryKey: ["dashboard-kpis"] }).setState({ status: "error", error: new Error("HTTP 500"), fetchStatus: "idle", data: undefined } as any));
   assert.match(failed, /state-error/);
-  assert.match(failed, /could not be loaded/);
+  assert.match(failed, /Portfolio data unavailable/);
   assert.equal((failed.match(/data-testid="kpi\.[^"]+" data-missing="true"/g) ?? []).length, 4);
 });
 
@@ -226,7 +226,7 @@ test("dashboard: cached figures are NOT rendered after a denied refresh", () => 
   const cached = normalizeDashboardKpis({ propertiesTotal: 9, unitsTotal: 90, occupancyRate: 0.5, revenue30dCents: 12345, lastUpdated: new Date().toISOString() });
   const html = renderIn(seeded(["dashboard-kpis"], cached, denied403()), "/dashboard", <DashboardPage />);
   assert.match(html, /state-denied/);
-  assert.doesNotMatch(html, /\$123\.45|occupancy-trend/);
+  assert.doesNotMatch(html, /\$123\.45|stroke-dasharray=/);
   assert.equal((html.match(/data-testid="kpi\.[^"]+" data-missing="true"/g) ?? []).length, 4);
 });
 
@@ -236,7 +236,7 @@ test("dashboard: a malformed payload shows a contract error with no figures", ()
   q.setState({ status: "error", error: new ContractError("propertiesTotal must be a non-negative integer"), fetchStatus: "idle", data: undefined } as any);
   const html = renderIn(qc, "/dashboard", <DashboardPage />);
   assert.match(html, /state-error/);
-  assert.match(html, /unexpected format/);
+  assert.match(html, /Portfolio data unavailable/);
   assert.equal((html.match(/data-testid="kpi\.[^"]+" data-missing="true"/g) ?? []).length, 4);
 });
 

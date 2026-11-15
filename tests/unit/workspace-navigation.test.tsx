@@ -17,8 +17,8 @@ test("workspace page switcher includes every implemented navigation destination 
 
 test("occupancy visual distinguishes an unreported rate from confirmed zero and preserves fractional percentages", () => {
   const render = (rate: number | null) => renderToStaticMarkup(<Router ssrPath="/dashboard"><OccupancyPosition rate={rate} /></Router>);
-  assert.doesNotMatch(render(null), /role="img"|0\.0%/);
-  assert.match(render(null), /Occupancy is unavailable/);
+  assert.doesNotMatch(render(null), /stroke-dasharray=|0\.0%/);
+  assert.match(render(null), /Occupancy data unavailable/);
   assert.match(render(0), /Reported occupancy 0\.0 percent/);
   assert.match(render(.925), /Reported occupancy 92\.5 percent/);
   assert.match(render(.925), /stroke-dasharray="92\.5 7\.5"/);

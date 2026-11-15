@@ -11,7 +11,7 @@ import OccupancyHistory from "@/components/recovery/OccupancyHistory";
 import { DASHBOARD_KPI_TEST_IDS } from "../constants/testIds";
 import { deriveDashboardStatus } from "../dashboardStatus";
 import StateNotice from "@/components/ui/StateNotice";
-import { OccupancyPosition } from "../components/CommandCenterPanels";
+import { CommandCenterPanels, OccupancyPosition } from "../components/CommandCenterPanels";
 import CommandWorkSurface from "../components/CommandWorkSurface";
 import type { RecordQuery } from "../commandWork";
 
@@ -34,28 +34,21 @@ export function DashboardView({ query, leases, units, today = "Planning date not
     : status.freshness === "fresh" ? "Source updated" : "Update time unconfirmed";
   const busy = isFetching || leases?.isFetching || units?.isFetching;
   const retry = () => { void refetch(); void leases?.refetch(); void units?.refetch(); };
-  const failureTitle = unbound ? "ECC is not connected to its operating data."
-    : status.failure === "denied" ? "You don't have access to the portfolio summary."
-    : status.contractViolation ? "The portfolio summary came back in an unexpected format."
-    : "The portfolio summary could not be loaded.";
+
 
   return <section className="ecc-dashboard cc-command" aria-labelledby="dashboard-title">
     <header className="cc-heading">
-      <div><p className="cc-overline">Altus Property Management · operations</p><h1 id="dashboard-title">Command center</h1><p className="cc-heading-note">See the signal. Review the record. Move the work forward.</p></div>
+      <div><p className="cc-overline">Altus Property Management · operations</p><h1 id="dashboard-title">Command center</h1><p className="cc-heading-note">Your portfolio. Your priorities. One place.</p></div>
       <div className="cc-heading-actions"><button type="button" className="cc-secondary" onClick={retry} disabled={!!busy}><RefreshCw size={15} aria-hidden="true" />{busy ? "Refreshing…" : "Refresh figures"}</button><Link href="/portfolio/properties" className="cc-primary">Review properties <ArrowUpRight size={16} aria-hidden="true" /></Link></div>
     </header>
 
-    <div className="cc-source-line" data-testid="dashboard-freshness"><span className={"cc-source-dot " + (showFigures ? "is-ready" : "")} aria-hidden="true" /><strong>{sourceStatus}</strong><span>Source: portfolio summary feed. {showFigures ? updatedText : "Figures are not confirmed."}</span></div>
-    <p className="cc-source-note" data-testid="dashboard-provenance">Revenue (30d) is reported revenue, not net operating income or collected cash. Missing occupancy history is unavailable, not a trend. Work orders, invoices and reconciliation are not available until their sources are connected.</p>
-
+    <div className="cc-source-line" data-testid="dashboard-freshness"><span className={"cc-source-dot " + (showFigures ? "is-ready" : "")} aria-hidden="true" /><strong>{sourceStatus}</strong>{showFigures ? <span>{updatedText}</span> : null}</div>
     {status.mode === "failed" || unbound ? <div className="cc-connection-alert" role="alert" data-testid={status.failure === "denied" ? "state-denied" : "state-error"}>
-      <ShieldAlert size={20} aria-hidden="true" /><div><strong>{failureTitle}</strong><p>{unbound ? "The workspace is running, but its protected data connection has not been configured. Retrying or refreshing the browser cannot create that connection. No operating figures are confirmed."
-        : status.failure === "denied" ? "Cached figures are hidden. Confirm your access before retrying."
-        : "No new figures can be confirmed. Retry the read or review the connection status."}</p></div>
+      <ShieldAlert size={18} aria-hidden="true" /><strong>{status.failure === "denied" ? "Portfolio access restricted" : "Portfolio data unavailable"}</strong>
       <button type="button" className="cc-secondary" onClick={retry} disabled={!!busy}>Retry</button>
       <Link href="/systems/integrations" className="cc-secondary">Connection status</Link>
-    </div> : status.mode === "loading" ? <StateNotice kind="loading" title="Loading portfolio summary…" />
-      : status.mode === "empty" ? <StateNotice kind="empty" title="No portfolio summary is available yet." onRetry={retry} retrying={isFetching} /> : null}
+    </div> : status.mode === "loading" ? <StateNotice kind="loading" title="Loading portfolio…" />
+      : status.mode === "empty" ? <StateNotice kind="empty" title="Portfolio data pending" onRetry={retry} retrying={isFetching} /> : null}
 
     {showFigures && status.refreshFailed ? <StateNotice kind={status.refreshFailed} title="Showing the last loaded figures; the latest refresh failed." onRetry={retry} retrying={isFetching} /> : null}
     {showFigures && status.coverage !== "full" ? <p className="cc-source-note" data-testid={status.coverage === "none" ? "state-empty" : "state-partial"}>Some summary values are not reported. Missing values stay unknown; they are not zero.</p> : null}
@@ -73,10 +66,10 @@ export function DashboardView({ query, leases, units, today = "Planning date not
       <Link href="/portfolio/units" className="cc-secondary">Review unit records</Link>
     </nav>
 
-    <div className={"cc-overview-layout" + (unbound && !showFigures ? " cc-overview-no-signal" : "")}>
-      {(!unbound || showFigures) ? <section className="cc-signal cc-portfolio-signal" aria-labelledby="portfolio-signal-title"><header><div><p className="cc-overline">Portfolio signal</p><h2 id="portfolio-signal-title">Occupancy &amp; reported trend</h2></div></header>
-        <div className="cc-portfolio-chart"><OccupancyPosition rate={showFigures ? data.occupancyRate : null} /><div className="cc-occupancy-history">{showFigures ? <OccupancyHistory series={data.series} /> : <p className="cc-inline-state">Occupancy history is unavailable. No historical observations have been confirmed.</p>}</div></div>
-      </section> : null}
+    <div className="cc-overview-layout">
+      <section className="cc-signal cc-portfolio-signal" aria-labelledby="portfolio-signal-title"><header><div><p className="cc-overline">Portfolio signal</p><h2 id="portfolio-signal-title">Occupancy &amp; reported trend</h2></div></header>
+        <div className="cc-portfolio-chart"><OccupancyPosition rate={showFigures ? data.occupancyRate : null} /><div className="cc-occupancy-history"><OccupancyHistory series={showFigures ? data.series : []} /></div></div>
+      </section>
       <aside className="cc-workflow-rail" aria-labelledby="workflow-rail-title"><p className="cc-overline">Operational worklists</p><h2 id="workflow-rail-title">Start with the record</h2><nav aria-label="Portfolio workflows">
         <Link href="/ops/ai/renewal-forecasting"><span><strong>Plan lease reviews</strong><small>Reported end dates and records to verify</small></span><ArrowUpRight size={17} aria-hidden="true" /></Link>
         <Link href="/ops/ai/vacancy-analytics"><span><strong>Review unit availability</strong><small>Reported status, condition and next review</small></span><ArrowUpRight size={17} aria-hidden="true" /></Link>
@@ -85,8 +78,14 @@ export function DashboardView({ query, leases, units, today = "Planning date not
         <Link href="/ops/operations"><span><strong>Open operations</strong><small>Legal, maintenance and ledger availability</small></span><ArrowUpRight size={17} aria-hidden="true" /></Link>
       </nav></aside>
     </div>
+    <CommandCenterPanels summary={showFigures ? data : null} />
     <CommandWorkSurface key={epoch} leases={leases} units={units} today={today} />
-    <details className="cc-capabilities"><summary>Data coverage &amp; additional operating intelligence</summary><p>Cash flow, collections, critical work orders, rent readiness, leasing conversion and city-level occupancy are not connected. They are not estimated from rent, status labels or property counts. Review lease dates and unit records above; unavailable feeds are not an all-clear.</p><Link href="/systems/integrations">Review integration status</Link></details>
+    <details className="cc-capabilities"><summary>About these figures</summary>
+      <p>Source: portfolio summary feed. {showFigures ? "" : "Figures are not confirmed."}</p>
+      <p data-testid="dashboard-provenance">Revenue (30d) is reported revenue, not net operating income or collected cash. Missing occupancy history is unavailable, not a trend. Work orders, invoices and reconciliation are not available until their sources are connected.</p>
+      <p>Financial history, leasing activity and property locations are pending. Unavailable values are not zero.</p>
+      <Link href="/systems/integrations">Connection status</Link>
+    </details>
   </section>;
 }
 

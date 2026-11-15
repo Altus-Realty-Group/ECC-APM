@@ -114,7 +114,7 @@ test("unit label: alias maps, absence is empty, conflict is a contract error", (
   assert.equal(UnitCard.parse(unitCard({ label: "C3" })).unit.unit_label, "C3");
   assert.equal(UnitCard.parse(unitCard({})).unit.unit_label, "");
   assert.equal(UnitCard.parse(unitCard({ label: "C3", unit_label: "C3" })).unit.unit_label, "C3");
-  assert.equal(UnitCard.parse(unitCard({ label: "", unit_label: "C3" })).unit.unit_label, "C3");
+  assert.equal(UnitCard.safeParse(unitCard({ label: "", unit_label: "C3" })).success, false, "explicit empty vs known label conflicts");
   assert.equal(UnitCard.safeParse(unitCard({ label: "C3", unit_label: "D4" })).success, false);
   for (const bad of [5, {}, [], true]) assert.equal(UnitCard.safeParse(unitCard({ label: bad })).success, false);
 });
@@ -128,7 +128,7 @@ test("rent: cents are non-negative integers; absent/null is unknown; zero is pre
   assert.equal(rent({ rent_cents: 0 }), 0);
   assert.equal(rent({ rentCents: 95050 }), 95050);
   assert.equal(rent({ rentCents: 95050, rent_cents: 95050 }), 95050);
-  assert.equal(rent({ rentCents: null, rent_cents: 700 }), 700);
+  assert.equal(LeaseCard.safeParse(lease({ rentCents: null, rent_cents: 700 })).success, false, "explicit null vs known rent conflicts");
   for (const bad of [-1, 10.5, NaN, Infinity, "1000", "", true, {}, []]) {
     assert.equal(LeaseCard.safeParse(lease({ rentCents: bad })).success, false, `rentCents ${String(bad)}`);
     assert.equal(LeaseCard.safeParse(lease({ rent_cents: bad })).success, false, `rent_cents ${String(bad)}`);
@@ -151,7 +151,7 @@ test("dates are exact calendar dates; no times, offsets, locale text or invented
   assert.deepEqual(dates({ start_date: "2026-03-01" }), ["2026-03-01", null]);
   assert.deepEqual(dates({ start: "", end: null }), [null, null]);
   assert.deepEqual(dates({ start: "2026-04-01", start_date: "2026-04-01" }), ["2026-04-01", null]);
-  assert.deepEqual(dates({ start: "", start_date: "2026-04-01" }), ["2026-04-01", null]);
+  assert.equal(LeaseCard.safeParse(lease({ start: "", start_date: "2026-04-01" })).success, false, "explicit empty vs known date conflicts");
   for (const bad of ["2026-02-30", "2025-02-29", "2026-13-01", "2026-00-10", "2026-04-31", "2026-1-1", "01/02/2026", "2026-04-01T00:00:00Z", "2026-04-01T00:00:00+00:00", "2026-04-01 ", " ", "today", 20260401, {}, true]) {
     assert.equal(LeaseCard.safeParse(lease({ start: bad })).success, false, `start ${String(bad)}`);
     assert.equal(LeaseCard.safeParse(lease({ end_date: bad })).success, false, `end_date ${String(bad)}`);
@@ -183,4 +183,94 @@ test("identity validation is unchanged: ids stay required numbers and unit/lease
 test("lease unit label is optional text; other unit fields are not delivered", () => {
   assert.equal(LeaseCard.parse({ ...lease({}), unit: { id: 4 } }).unit?.label, "");
   assert.equal(LeaseCard.safeParse({ ...lease({}), unit: { id: 4, label: 9 } }).success, false);
+});
+
+// ---- Presence-aware alias reconciliation (ECC-R02 correction) -----------------------------------------------------------
+// States per spelling: ABSENT (key missing or undefined), UNKNOWN (explicit null, or "" for text/dates), KNOWN (a value).
+// absent+X -> X; unknown+unknown -> unknown; known+equal known -> known; explicit unknown vs known (either order) or different
+// knowns -> contract error. Recorded zero is KNOWN. Applies to LeaseCard and to UnitCard's nested lease.
+
+const unitWithLease = (over: Record<string, unknown>) => ({ ...unitCard({}), lease: { id: 2, status: "ACTIVE", ...over } });
+const leaseRent = (over: Record<string, unknown>) => LeaseCard.safeParse(lease(over));
+const nestedRent = (over: Record<string, unknown>) => UnitCard.safeParse(unitWithLease(over));
+const ok = (r: { success: boolean }) => r.success;
+
+test("rent: explicit null against a known value conflicts in either order, in both cards", () => {
+  for (const over of [
+    { rent_cents: null, rentCents: 125000 }, { rentCents: null, rent_cents: 125000 },
+    { rent_cents: null, rentCents: 0 }, { rentCents: null, rent_cents: 0 },
+  ]) {
+    assert.equal(ok(leaseRent(over)), false, JSON.stringify(over));
+    assert.equal(ok(nestedRent(over)), false, `nested ${JSON.stringify(over)}`);
+  }
+});
+
+test("rent: absent spelling falls back to the supplied one; two unknowns stay unknown; equal knowns and zero pass", () => {
+  const rentOf = (over: Record<string, unknown>) => {
+    const a = leaseRent(over), b = nestedRent(over);
+    assert.ok(a.success && b.success, JSON.stringify(over));
+    assert.equal(a.data.lease.rent_cents, b.data.lease?.rent_cents);
+    return a.data.lease.rent_cents;
+  };
+  assert.equal(rentOf({ rentCents: 125000 }), 125000);
+  assert.equal(rentOf({ rent_cents: 125000 }), 125000);
+  assert.equal(rentOf({ rent_cents: undefined, rentCents: 7 }), 7, "undefined is absent");
+  assert.equal(rentOf({ rent_cents: null, rentCents: null }), null);
+  assert.equal(rentOf({ rent_cents: null }), null);
+  assert.equal(rentOf({ rentCents: null }), null);
+  assert.equal(rentOf({}), null);
+  assert.equal(rentOf({ rent_cents: 125000, rentCents: 125000 }), 125000);
+  assert.equal(rentOf({ rent_cents: 0, rentCents: 0 }), 0);
+  assert.equal(rentOf({ rentCents: 0 }), 0);
+  assert.equal(ok(leaseRent({ rent_cents: 0, rentCents: 1 })), false);
+  assert.equal(ok(nestedRent({ rent_cents: 1, rentCents: 0 })), false);
+});
+
+test("dates: explicit null or empty against a known date conflicts in either order, for start and end", () => {
+  const spellings: Array<[string, string]> = [["start_date", "start"], ["end_date", "end"]];
+  for (const [canonical, alias] of spellings) {
+    for (const unknown of [null, ""]) {
+      assert.equal(ok(leaseRent({ [canonical]: unknown, [alias]: "2026-01-01" })), false, `${canonical}=${String(unknown)} vs ${alias}`);
+      assert.equal(ok(leaseRent({ [alias]: unknown, [canonical]: "2026-01-01" })), false, `${alias}=${String(unknown)} vs ${canonical}`);
+    }
+  }
+});
+
+test("dates: absent falls back; null and empty are both unknown and agree; equal knowns pass; unequal knowns conflict", () => {
+  const d = (over: Record<string, unknown>) => { const r = leaseRent(over); assert.ok(r.success, JSON.stringify(over)); return [r.data.lease.start_date, r.data.lease.end_date]; };
+  assert.deepEqual(d({ start: "2026-01-01", end_date: "2026-12-31" }), ["2026-01-01", "2026-12-31"]);
+  assert.deepEqual(d({ start_date: "2026-01-01", end: "2026-12-31" }), ["2026-01-01", "2026-12-31"]);
+  assert.deepEqual(d({ start_date: undefined, start: "2026-01-01" }), ["2026-01-01", null]);
+  assert.deepEqual(d({ start_date: null, start: "" }), [null, null]);
+  assert.deepEqual(d({ start_date: "", start: null, end_date: null, end: null }), [null, null]);
+  assert.deepEqual(d({ start_date: null }), [null, null]);
+  assert.deepEqual(d({ end: "" }), [null, null]);
+  assert.deepEqual(d({ start_date: "2026-01-01", start: "2026-01-01" }), ["2026-01-01", null]);
+  assert.equal(ok(leaseRent({ start_date: "2026-01-01", start: "2026-01-02" })), false);
+});
+
+test("calendar validation and unknown-key stripping survive the stricter reconciliation", () => {
+  assert.equal(ok(leaseRent({ start_date: "2026-02-30", start: "2026-02-30" })), false);
+  assert.equal(ok(leaseRent({ start_date: null, start: "2026-02-30" })), false);
+  const l = LeaseCard.parse(lease({ rentCents: 5, rent_cents: 5, start: "2026-01-01", start_date: "2026-01-01", end: null, end_date: "", extra: 1 })) as any;
+  assert.deepEqual(Object.keys(l.lease).sort(), ["end_date", "id", "rent_cents", "start_date", "status"]);
+  assert.deepEqual([l.lease.rent_cents, l.lease.start_date, l.lease.end_date], [5, "2026-01-01", null]);
+});
+
+test("unit label: explicit empty against a known label conflicts either order; absent falls back; two empties are unknown", () => {
+  assert.equal(UnitCard.safeParse(unitCard({ unit_label: "", label: "C3" })).success, false);
+  assert.equal(UnitCard.safeParse(unitCard({ label: "", unit_label: "C3" })).success, false);
+  assert.equal(UnitCard.parse(unitCard({ label: "C3" })).unit.unit_label, "C3");
+  assert.equal(UnitCard.parse(unitCard({ unit_label: "C3", label: undefined })).unit.unit_label, "C3");
+  assert.equal(UnitCard.parse(unitCard({ unit_label: "", label: "" })).unit.unit_label, "");
+  assert.equal(UnitCard.parse(unitCard({ label: "" })).unit.unit_label, "");
+});
+
+test("conflict messages name the field only and never echo a value", () => {
+  const r = LeaseCard.safeParse(lease({ rent_cents: null, rentCents: 987654, start: "2031-07-08", start_date: "" }));
+  assert.equal(r.success, false);
+  const text = JSON.stringify(r.error?.issues);
+  assert.match(text, /rent cents/);
+  assert.match(text, /lease start/);
+  assert.doesNotMatch(text, /987654|2031-07-08/);
 });

@@ -31,17 +31,26 @@ export type PropertyCardData = z.infer<typeof PropertyCard>;
 // The server producer (server/routes/rpc.ts get_unit_card / get_lease_card) names some fields differently from the
 // canonical card shape that pages read: unit `label` (canonical `unit_label`), lease `rentCents` (canonical `rent_cents`)
 // and lease `start` / `end` (canonical `start_date` / `end_date`). Each pair below is an explicit, versioned alias for
-// exactly one canonical field. Both spellings may arrive; if both are present they must agree, otherwise the whole card is a
-// contract error (never a silent winner). Unknown keys are still stripped: there is no passthrough and no raw spread.
+// exactly one canonical field. Either spelling may arrive alone; if both are present they must agree (explicit unknown versus a
+// known value conflicts, see `reconcile`), otherwise the whole card is a contract error (never a silent winner). Unknown keys are still stripped: there is no passthrough and no raw spread.
 // Messages name fields only and never echo a value.
-function reconcile<T>(ctx: z.core.$RefinementCtx<any>, field: string, canonical: T | null | undefined, alias: T | null | undefined): T | null {
-  const a = canonical ?? null;
-  const b = alias ?? null;
-  if (a !== null && b !== null && a !== b) {
-    ctx.issues.push({ code: "custom", message: `${field}: accepted spellings disagree`, input: undefined });
-    return null;
-  }
-  return a ?? b;
+/**
+ * Presence-aware reconciliation of two spellings of one field. Each spelling is in exactly one state:
+ * ABSENT (key missing or undefined), UNKNOWN (explicit null, or "" which is the producer's spelling of no value) or KNOWN.
+ * - ABSENT + anything: the supplied spelling stands (an absent alias may fall back).
+ * - UNKNOWN + UNKNOWN: unknown. KNOWN + equal KNOWN: that value (a recorded 0 is KNOWN).
+ * - UNKNOWN vs KNOWN, in either order, or two different KNOWN values: contract error. An explicit "no value" is never
+ *   silently overridden by the other spelling, and a known value is never silently dropped.
+ * Returns null for unknown, absent-on-both-sides and conflict (the conflict also records an issue).
+ */
+function reconcile<T>(ctx: z.core.$RefinementCtx<any>, field: string, canonical: T | null | "" | undefined, alias: T | null | "" | undefined): T | null {
+  const unknown = (v: unknown) => v === null || v === "";
+  if (canonical === undefined) return unknown(alias) || alias === undefined ? null : (alias as T);
+  if (alias === undefined) return unknown(canonical) ? null : (canonical as T);
+  if (unknown(canonical) && unknown(alias)) return null;
+  if (!unknown(canonical) && !unknown(alias) && canonical === alias) return canonical as T;
+  ctx.issues.push({ code: "custom", message: `${field}: accepted spellings disagree`, input: undefined });
+  return null;
 }
 
 /** Exact calendar date `YYYY-MM-DD` (leap years honoured). No time, offset or locale text: a business date is never shifted by a time zone. */
@@ -58,7 +67,6 @@ export function isCalendarDate(value: string): boolean {
 const wireCents = z.number().int().min(0).nullable().optional();
 // Dates: a calendar date, or "" / null / absent which all mean unknown (null).
 const wireDate = z.union([z.literal(""), z.string().refine(isCalendarDate, "not a calendar date (YYYY-MM-DD)"), z.null()]).optional();
-const dateOrNull = (v: string | null | undefined) => (v === "" || v == null ? null : v);
 
 const UnitIdentity = z
   .object({
@@ -69,7 +77,7 @@ const UnitIdentity = z
   })
   .transform((u, ctx) => ({
     id: u.id,
-    unit_label: reconcile(ctx, "unit label", u.unit_label || null, u.label || null) ?? "",
+    unit_label: reconcile(ctx, "unit label", u.unit_label, u.label) ?? "",
     status: u.status,
   }));
 
@@ -107,8 +115,8 @@ const LeaseTerms = z
     id: l.id,
     status: l.status,
     rent_cents: reconcile(ctx, "rent cents", l.rent_cents, l.rentCents),
-    start_date: reconcile(ctx, "lease start", dateOrNull(l.start_date), dateOrNull(l.start)),
-    end_date: reconcile(ctx, "lease end", dateOrNull(l.end_date), dateOrNull(l.end)),
+    start_date: reconcile(ctx, "lease start", l.start_date, l.start),
+    end_date: reconcile(ctx, "lease end", l.end_date, l.end),
   }));
 
 export const LeaseCard = z.object({

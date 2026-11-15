@@ -14,11 +14,22 @@ Baseline: `main` at `bae05740`. Source only. Supplements the field-binding sheet
 | unit card `lease.rentCents` | (no field) | stripped | `lease.rent_cents` |
 | lease card `unit.label` | `unit.label` (Overview) | stripped | `unit.label` |
 
-Reproduction: `tests/unit/card-field-delivery.test.ts` drives the real router against a loopback fake PostgREST (the `rpc-containment` pattern, no real database or vendor) and parses the actual JSON with the real contracts. Before the change: 11 of 13 fail; after: 13 of 13 pass.
+Reproduction: `tests/unit/card-field-delivery.test.ts` drives the real router against a loopback fake PostgREST (the `rpc-containment` pattern, no real database or vendor) and parses the actual JSON with the real contracts. Original change: 11 of 13 failed before, 13 of 13 pass after. Correction: the 7 reconciliation tests (3 updated, 4 new) failed against the first implementation, which let an explicit `null`/`""` fall back to the other spelling; all 20 pass now.
 
 ## Mapping decision (schema level, resolver unchanged)
 
-The mapping sits in the contract, the one place every card parse passes through, so `src/lib/ecc-resolvers.ts` needed no edit. Each alias maps to exactly one canonical field; both spellings may arrive; if both are present they must agree or the card is a contract error naming the field (never a value). A recorded `0` is a value, not a wildcard. Unknown keys are still stripped; no passthrough.
+The mapping sits in the contract, the one place every card parse passes through, so `src/lib/ecc-resolvers.ts` needed no edit. Each alias maps to exactly one canonical field. Reconciliation is presence-aware: each spelling is ABSENT (key missing or `undefined`), UNKNOWN (explicit `null`, or `""` for text and dates) or KNOWN.
+
+| Canonical | Alias | Result |
+|---|---|---|
+| absent | absent | unknown (`null`; `""` for unit label) |
+| absent | any | the supplied spelling stands (an absent alias may fall back) |
+| unknown | unknown | unknown |
+| known | equal known | that value (recorded `0` is known) |
+| unknown | known | contract error (either order) |
+| known | different known | contract error |
+
+An explicit "no value" is therefore never silently overridden by the other spelling, and a known value is never silently dropped. Errors name the field only, never a value. A recorded `0` is a value, not a wildcard. Unknown keys are still stripped; no passthrough. The same rules cover `LeaseCard` and the lease nested in `UnitCard`.
 
 - **Unit label**: `unit_label` (canonical) or `label`; empty/absent is `""` as before.
 - **Rent**: `rent_cents` or `rentCents`. Integer cents, non-negative (was any number, including fractions and negatives, which would have rendered a wrong amount). Absent or `null` is unknown (`null`). `0` stays `0`. No unit conversion, no dollars, no currency inference.
@@ -37,4 +48,4 @@ Nothing here establishes that a producer is mounted, authorized or live; these c
 
 ## Validation
 
-`npx tsc --noEmit`, `npm run guardrail`, `npm run test:unit` (78 files, 755 tests pass), `git diff --check`. Mutation checks on the new tests (remove conflict check, calendar check, integer check, or treat 0 as absent) each fail the suite. No hosted run is claimed for the head.
+`npx tsc --noEmit`, `npm run guardrail`, `npm run test:unit` (78 files, 762 tests pass), `git diff --check`. Mutation checks (remove the conflict check, the calendar check or the integer check; treat 0 as unknown or `""` as known; let an unknown spelling fall back, in either or one direction; drop the equality check) each fail the suite. No hosted run is claimed for the head.

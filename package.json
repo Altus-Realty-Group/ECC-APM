@@ -16,6 +16,7 @@
     "test:documents-db": "bash tests/documents-db/run.sh",
     "test:legal-documents-db": "bash tests/legal-documents-db/run.sh",
     "test:legal-reference-protection-db": "bash tests/legal-reference-protection-db/run.sh",
+    "test:legal-evidence-link-db": "bash tests/legal-evidence-link-db/run.sh",
     "test:dependencies": "node --import tsx --test tests/dependencies/compatibility.test.mjs",
     "test:unit": "node scripts/run-unit-tests.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",

@@ -404,3 +404,17 @@ schema delta and proof matrix are explicitly proposals in ADR-0004 and
 Existing archive refs are not mapped/backfilled by text. COPY ONLY reconciliation
 is not authenticated delivery or judgment verification. Evidence class: source
 inspection only; no installed, live or PG reconstruction proof for this design.
+
+## L4 evidence read preparation - source only 2026-11-15
+
+`server/lib/legal/evidenceReadPlan.ts` reuses L1/L4 parsers and D1 row/classification
+validation to check a bounded supplied snapshot: same-row property UUID/numeric
+identity, requested matter/evidence, exact owner/property link, explicit record
+status and current pinned version. It emits a non-authoritative `planned` context
+only; no actual query, protected reader, handler, authority, cache, provider or UI
+binding changes. Default-deny classifications and withdrawn/unbound/retired refs
+do not produce plans. Store provenance, live joins, fresh matter/document grants,
+receipts/bytes and final revalidation remain separate gates. Actual database
+objects added/changed: zero. Evidence: synthetic tests and source checks only;
+see [read preparation](../legal/EVIDENCE_READ_PREPARATION_20261115.md). No live,
+installed, query-performance or delivery proof follows from a plan.

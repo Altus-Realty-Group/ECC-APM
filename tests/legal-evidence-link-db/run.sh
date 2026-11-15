@@ -56,8 +56,33 @@ grp_apply_refusals() {
   newdb ar; strict ar -f "$tmp/legal.sql" >/dev/null; gc "003 apply refuses when the D1 registry is missing" "$(refused ar "$A" 'apply the D1 document registry first')"; enddb ar
   newdb ar; gc "003 apply refuses when 001 is missing" "$(refused ar "$A" 'apply 001_native_legal_foundation first')"; enddb ar
   base_build ar; fixtures ar; strict ar -f "$A" >/dev/null; gc "a second apply is refused (already applied)" "$(refused ar "$A" 'already applied or partially present')"; enddb ar
-  refuse "the 001 journal dimension CHECK is missing" "ALTER TABLE legal_case_events DROP CONSTRAINT legal_case_events_dimension_check" 'expected exactly one 001 dimension CHECK'
-  refuse "the journal policy is not the 001 policy" "DROP POLICY legal_case_events_rt ON legal_case_events; CREATE POLICY legal_case_events_rt ON legal_case_events FOR ALL TO ecc_legal_runtime USING (true) WITH CHECK (true)" 'not the 001 journal policy'
+  refuse "the 001 journal dimension CHECK is missing" "ALTER TABLE legal_case_events DROP CONSTRAINT legal_case_events_dimension_check" 'journal dimension CHECK is not exactly the five 001 values'
+  refuse "the journal policy is not the 001 policy" "DROP POLICY legal_case_events_rt ON legal_case_events; CREATE POLICY legal_case_events_rt ON legal_case_events FOR ALL TO ecc_legal_runtime USING (true) WITH CHECK (true)" 'legal_case_events_rt is not exactly the 001 journal policy'
+  refuse "partial 002: legal_cases.unit_id is still ON DELETE SET NULL (one RESTRICT reference is not proof that 002 is installed)" "ALTER TABLE legal_cases DROP CONSTRAINT legal_cases_unit_id_fkey; ALTER TABLE legal_cases ADD CONSTRAINT legal_cases_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES units(id_uuid) ON DELETE SET NULL" 'is not the RESTRICT reference 002 produces'
+  refuse "partial 002: the link-table lease reference is still ON DELETE SET NULL" "ALTER TABLE legal_matter_properties DROP CONSTRAINT legal_matter_properties_lease_id_fkey; ALTER TABLE legal_matter_properties ADD CONSTRAINT legal_matter_properties_lease_id_fkey FOREIGN KEY (lease_id) REFERENCES leases(id_uuid) ON DELETE SET NULL" 'is not the RESTRICT reference 002 produces'
+  refuse "a 002 reference that is RESTRICT but DEFERRABLE" "ALTER TABLE legal_cases DROP CONSTRAINT legal_cases_tenant_id_fkey; ALTER TABLE legal_cases ADD CONSTRAINT legal_cases_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id_uuid) ON DELETE RESTRICT DEFERRABLE" 'is not the RESTRICT reference 002 produces'
+  newdb ar; strict ar -f "$tmp/legal.sql" >/dev/null; strict ar -f "$tmp/documents.sql" >/dev/null; fixtures ar
+  strict ar -c "ALTER TABLE legal_cases DROP CONSTRAINT legal_cases_property_id_fkey; ALTER TABLE legal_cases ADD CONSTRAINT legal_cases_property_id_fkey FOREIGN KEY (property_id) REFERENCES properties(id_uuid) ON DELETE RESTRICT" >/dev/null; b="$(fpall ar)"
+  gc "003 apply refuses when ONLY ONE qualifying property RESTRICT reference exists (002 itself was never applied)" "$(refused ar "$A" 'is not the RESTRICT reference 002 produces')"; gc "refused apply changed nothing (only-one-property-FK)" "$(eq "$b" "$(fpall ar)")"; enddb ar
+  refuse "the revision trigger is missing" "DROP TRIGGER legal_evidence_refs_guard ON legal_evidence_refs" 'expected exactly one trigger bound to legal_evidence_guard'
+  refuse "the revision trigger is DISABLED" "ALTER TABLE legal_evidence_refs DISABLE TRIGGER legal_evidence_refs_guard" 'revision trigger is not an enabled BEFORE UPDATE row trigger'
+  refuse "the revision trigger is ENABLE REPLICA (does not fire in the origin session)" "ALTER TABLE legal_evidence_refs ENABLE REPLICA TRIGGER legal_evidence_refs_guard" 'revision trigger is not an enabled BEFORE UPDATE row trigger'
+  refuse "the revision trigger is wrongly bound to another trigger function" "DROP TRIGGER legal_evidence_refs_guard ON legal_evidence_refs; CREATE TRIGGER legal_evidence_refs_guard BEFORE UPDATE ON legal_evidence_refs FOR EACH ROW EXECUTE FUNCTION public.legal_matter_id_immutable()" 'expected exactly one trigger bound to legal_evidence_guard'
+  refuse "the revision trigger was reshaped to AFTER UPDATE" "DROP TRIGGER legal_evidence_refs_guard ON legal_evidence_refs; CREATE TRIGGER legal_evidence_refs_guard AFTER UPDATE ON legal_evidence_refs FOR EACH ROW EXECUTE FUNCTION public.legal_evidence_guard()" 'revision trigger is not an enabled BEFORE UPDATE row trigger'
+  refuse "the journal policy WITH CHECK was changed to false (the original restriction must be refused, not replaced)" "DROP POLICY legal_case_events_rt ON legal_case_events; CREATE POLICY legal_case_events_rt ON legal_case_events FOR ALL TO ecc_legal_runtime USING (EXISTS (SELECT 1 FROM public.legal_cases m WHERE m.id = legal_case_id AND public.legal_scope_ok(m.scope_ref)) AND (dimension IS DISTINCT FROM 'evidence_confidence' OR EXISTS (SELECT 1 FROM public.legal_evidence_refs e WHERE e.id = subject_id))) WITH CHECK (false)" 'legal_case_events_rt is not exactly the 001 journal policy'
+  refuse "the journal policy USING was changed to true" "DROP POLICY legal_case_events_rt ON legal_case_events; CREATE POLICY legal_case_events_rt ON legal_case_events FOR ALL TO ecc_legal_runtime USING (true) WITH CHECK (EXISTS (SELECT 1 FROM public.legal_cases m WHERE m.id = legal_case_id AND public.legal_scope_ok(m.scope_ref)))" 'legal_case_events_rt is not exactly the 001 journal policy'
+  refuse "the journal policy lost its evidence-subject mask" "DROP POLICY legal_case_events_rt ON legal_case_events; CREATE POLICY legal_case_events_rt ON legal_case_events FOR ALL TO ecc_legal_runtime USING (EXISTS (SELECT 1 FROM public.legal_cases m WHERE m.id = legal_case_id AND public.legal_scope_ok(m.scope_ref))) WITH CHECK (EXISTS (SELECT 1 FROM public.legal_cases m WHERE m.id = legal_case_id AND public.legal_scope_ok(m.scope_ref)))" 'legal_case_events_rt is not exactly the 001 journal policy'
+  refuse "the journal policy WITH CHECK no longer requires scope (true)" "DROP POLICY legal_case_events_rt ON legal_case_events; CREATE POLICY legal_case_events_rt ON legal_case_events FOR ALL TO ecc_legal_runtime USING (EXISTS (SELECT 1 FROM public.legal_cases m WHERE m.id = legal_case_id AND public.legal_scope_ok(m.scope_ref)) AND (dimension IS DISTINCT FROM 'evidence_confidence' OR EXISTS (SELECT 1 FROM public.legal_evidence_refs e WHERE e.id = subject_id))) WITH CHECK (true)" 'legal_case_events_rt is not exactly the 001 journal policy'
+  refuse "an extra journal policy exists" "CREATE POLICY zz_extra ON legal_case_events FOR SELECT TO ecc_legal_runtime USING (true)" 'legal_case_events_rt is not exactly the 001 journal policy'
+  refuse "the dimension CHECK allows an extra value" "ALTER TABLE legal_case_events DROP CONSTRAINT legal_case_events_dimension_check; ALTER TABLE legal_case_events ADD CONSTRAINT legal_case_events_dimension_check CHECK (dimension IS NULL OR dimension IN ('lifecycle','judgment_verification','collection_readiness','evidence_confidence','other','smuggled'))" 'journal dimension CHECK is not exactly the five 001 values'
+  refuse "the dimension CHECK lost a value" "ALTER TABLE legal_case_events DROP CONSTRAINT legal_case_events_dimension_check; ALTER TABLE legal_case_events ADD CONSTRAINT legal_case_events_dimension_check CHECK (dimension IS NULL OR dimension IN ('lifecycle','judgment_verification','collection_readiness','evidence_confidence'))" 'journal dimension CHECK is not exactly the five 001 values'
+  refuse "the dimension CHECK was weakened to true" "ALTER TABLE legal_case_events DROP CONSTRAINT legal_case_events_dimension_check; ALTER TABLE legal_case_events ADD CONSTRAINT legal_case_events_dimension_check CHECK (true)" 'journal dimension CHECK is not exactly the five 001 values'
+  # the stated attack: disable the revision trigger, then try to apply 003 and attach with no revision bump
+  base_build ar; fixtures ar; strict ar -c "ALTER TABLE legal_evidence_refs DISABLE TRIGGER legal_evidence_refs_guard" >/dev/null
+  gc "003 refuses to install over a DISABLED revision trigger" "$(refused ar "$A" 'revision trigger is not an enabled BEFORE UPDATE row trigger')"
+  o="$(strict ar -c "BEGIN; SELECT set_config('ecc.actor','tester',true); UPDATE legal_evidence_refs SET document_version_id='$V1' WHERE id='$E1'; COMMIT" 2>&1 || true)"
+  gc "so the direct attachment UPDATE with no revision bump cannot succeed: there is no binding column and the row is unchanged" "$(and "$(echo "$o" | grep -q 'document_version_id' && echo 1 || echo 0)" "$([ "$(psqlx ar -c "select revision from legal_evidence_refs where id='$E1'")" = 1 ] && echo 1 || echo 0)")"
+  enddb ar
   refuse "a partial earlier apply left a column behind" "ALTER TABLE legal_evidence_refs ADD COLUMN withdrawn_at timestamptz" 'already applied or partially present'
 }
 grp_rollback() {
@@ -97,6 +122,23 @@ grp_rollback() {
   gc "that refusal changed nothing" "$(eq "$b" "$(fpall rb6)")"
   gc "correct order: 003 rollback, then D1 rollback succeed" "$(and "$(okf rb6 "$R")" "$(okf rb6 "$tmp/documents_rb.sql")")"
   enddb rb6
+  # R5: a tampered install is refused with the complete schema and every row preserved
+  tamper() { # name setup pattern
+    mkfull rt5 "$A"; strict rt5 -c "$2" >/dev/null; b="$(fpall rt5)"
+    gc "ROLLBACK SHAPE: $1 is refused" "$(refused rt5 "$R" "$3")"; gc "refused rollback ($1) preserved the complete schema and every row" "$(eq "$b" "$(fpall rt5)")"; enddb rt5; }
+  tamper "a journal policy whose WITH CHECK was changed to false" "DROP POLICY legal_case_events_rt ON legal_case_events; CREATE POLICY legal_case_events_rt ON legal_case_events FOR ALL TO ecc_legal_runtime USING (EXISTS (SELECT 1 FROM public.legal_cases m WHERE m.id = legal_case_id AND public.legal_scope_ok(m.scope_ref)) AND (dimension IS NULL OR dimension NOT IN ('evidence_confidence','evidence_attachment') OR EXISTS (SELECT 1 FROM public.legal_evidence_refs e WHERE e.id = subject_id))) WITH CHECK (false)" 'not exactly the 003 journal policy'
+  tamper "a journal policy with USING true" "DROP POLICY legal_case_events_rt ON legal_case_events; CREATE POLICY legal_case_events_rt ON legal_case_events FOR ALL TO ecc_legal_runtime USING (true /* evidence_attachment */) WITH CHECK (EXISTS (SELECT 1 FROM public.legal_cases m WHERE m.id = legal_case_id AND public.legal_scope_ok(m.scope_ref)))" 'not exactly the 003 journal policy'
+  tamper "a journal policy whose mask lost the attachment dimension" "DROP POLICY legal_case_events_rt ON legal_case_events; CREATE POLICY legal_case_events_rt ON legal_case_events FOR ALL TO ecc_legal_runtime USING (EXISTS (SELECT 1 FROM public.legal_cases m WHERE m.id = legal_case_id AND public.legal_scope_ok(m.scope_ref)) AND (dimension IS DISTINCT FROM 'evidence_confidence' OR EXISTS (SELECT 1 FROM public.legal_evidence_refs e WHERE e.id = subject_id))) WITH CHECK (EXISTS (SELECT 1 FROM public.legal_cases m WHERE m.id = legal_case_id AND public.legal_scope_ok(m.scope_ref)))" 'not exactly the 003 journal policy'
+  tamper "a weakened withdrawal CHECK (true)" "ALTER TABLE legal_evidence_refs DROP CONSTRAINT legal_evidence_refs_withdrawal_requires_version_chk; ALTER TABLE legal_evidence_refs ADD CONSTRAINT legal_evidence_refs_withdrawal_requires_version_chk CHECK (true)" 'withdrawal CHECK is not exactly'
+  tamper "a changed index predicate" "DROP INDEX legal_evidence_refs_binding_uq; CREATE UNIQUE INDEX legal_evidence_refs_binding_uq ON legal_evidence_refs (matter_id, requirement_id, document_version_id) NULLS NOT DISTINCT WHERE document_version_id IS NOT NULL AND withdrawn_at IS NULL" 'binding index is not exactly'
+  tamper "a binding index with NULLS DISTINCT semantics" "DROP INDEX legal_evidence_refs_binding_uq; CREATE UNIQUE INDEX legal_evidence_refs_binding_uq ON legal_evidence_refs (matter_id, requirement_id, document_version_id) WHERE document_version_id IS NOT NULL" 'binding index is not exactly'
+  tamper "a binding index with different key columns" "DROP INDEX legal_evidence_refs_binding_uq; CREATE UNIQUE INDEX legal_evidence_refs_binding_uq ON legal_evidence_refs (matter_id, document_version_id) NULLS NOT DISTINCT WHERE document_version_id IS NOT NULL" 'binding index is not exactly'
+  tamper "a foreign key with ON UPDATE CASCADE" "ALTER TABLE legal_evidence_refs DROP CONSTRAINT legal_evidence_refs_document_version_fk; ALTER TABLE legal_evidence_refs ADD CONSTRAINT legal_evidence_refs_document_version_fk FOREIGN KEY (document_version_id) REFERENCES document_versions(id) ON DELETE RESTRICT ON UPDATE CASCADE" 'foreign key is not exactly'
+  tamper "a foreign key with ON DELETE CASCADE" "ALTER TABLE legal_evidence_refs DROP CONSTRAINT legal_evidence_refs_document_version_fk; ALTER TABLE legal_evidence_refs ADD CONSTRAINT legal_evidence_refs_document_version_fk FOREIGN KEY (document_version_id) REFERENCES document_versions(id) ON DELETE CASCADE" 'foreign key is not exactly'
+  tamper "a journal trigger with a changed WHEN clause" "DROP TRIGGER legal_evidence_refs_link_journal ON legal_evidence_refs; CREATE TRIGGER legal_evidence_refs_link_journal AFTER UPDATE ON legal_evidence_refs FOR EACH ROW WHEN (OLD.withdrawn_at IS DISTINCT FROM NEW.withdrawn_at) EXECUTE FUNCTION public.legal_evidence_link_journal()" 'three 003 triggers are not exactly'
+  tamper "a DISABLED link guard trigger" "ALTER TABLE legal_evidence_refs DISABLE TRIGGER legal_evidence_refs_link_guard" 'three 003 triggers are not exactly'
+  tamper "a journal trigger reshaped to BEFORE UPDATE" "DROP TRIGGER legal_evidence_refs_link_journal ON legal_evidence_refs; CREATE TRIGGER legal_evidence_refs_link_journal BEFORE UPDATE ON legal_evidence_refs FOR EACH ROW WHEN (OLD.document_version_id IS DISTINCT FROM NEW.document_version_id OR OLD.withdrawn_at IS DISTINCT FROM NEW.withdrawn_at) EXECUTE FUNCTION public.legal_evidence_link_journal()" 'three 003 triggers are not exactly'
+  tamper "a dimension CHECK with an extra value" "ALTER TABLE legal_case_events DROP CONSTRAINT legal_case_events_dimension_check; ALTER TABLE legal_case_events ADD CONSTRAINT legal_case_events_dimension_check CHECK (dimension IS NULL OR dimension IN ('lifecycle','judgment_verification','collection_readiness','evidence_confidence','evidence_attachment','other','smuggled'))" 'dimension CHECK is not exactly the six'
   # R7: unexpected shapes are refused, not understood
   base_build rb7a; fixtures rb7a
   gc "003 rollback refuses when 003 was never applied" "$(refused rb7a "$R" 'does not carry the 003 columns')"; enddb rb7a
@@ -106,7 +148,7 @@ grp_rollback() {
   gc "that refusal changed nothing" "$(eq "$b" "$(fpall rb7)")"
   enddb rb7
   mkfull rb8 "$A"; strict rb8 -c "DROP INDEX legal_evidence_refs_binding_uq; CREATE UNIQUE INDEX legal_evidence_refs_binding_uq ON legal_evidence_refs (matter_id, requirement_id, document_version_id) WHERE document_version_id IS NOT NULL" >/dev/null; b="$(fpall rb8)"
-  gc "003 rollback refuses a binding index that lost NULLS NOT DISTINCT (not the 003 form)" "$(refused rb8 "$R" 'not in the expected form')"
+  gc "003 rollback refuses a binding index that lost NULLS NOT DISTINCT (not the 003 form)" "$(refused rb8 "$R" 'binding index is not exactly')"
   gc "that refusal changed nothing" "$(eq "$b" "$(fpall rb8)")"
   enddb rb8
 }
@@ -190,7 +232,7 @@ reset_g() { GP=0; GT=0; GFAILS=""; }
 run_group() { reset_g; "$1" "$2" "$3" >/dev/null 2>&1 || true; }
 
 # ================================================================ 1) the real proposal files, every group
-for g in main apply_refusals rollback conc shadow; do "grp_$g" "$tmp/link.sql" "$tmp/link_rb.sql"; done
+for g in main apply_refusals rollback conc shadow; do bp=$GP; bt=$GT; "grp_$g" "$tmp/link.sql" "$tmp/link_rb.sql"; echo "[legal-evidence-link-db]   group $g: $((GP-bp))/$((GT-bt))"; done
 real_pass=$GP; real_total=$GT
 
 # ================================================================ 2) negative controls: the SAME group must fail with exactly one protection removed
@@ -201,6 +243,22 @@ neg() {   # name which(link|rb) group sed-script expected-substring
   sed "$script" "$src" > "$tmp/m_$name.sql"; chmod 644 "$tmp/m_$name.sql"
   if cmp -s "$src" "$tmp/m_$name.sql"; then echo "FAIL: mutant $name changed nothing (vacuous control)"; return; fi
   if [ "$which" = link ]; then a="$tmp/m_$name.sql"; else r="$tmp/m_$name.sql"; fi
+  GP=0; GT=0; out="$("grp_$group" "$a" "$r" 2>&1 || true)"
+  if echo "$out" | grep '^FAIL' | grep -qF -- "$expect"; then npass=$((npass+1)); else echo "FAIL: negative control $name was NOT caught (expected a failing check containing: $expect)"; echo "$out" | { grep '^FAIL' || true; } | head -3 | sed 's/^/    /'; fi
+}
+negx() {   # name which(link|rb) group "python regex (DOTALL)" "replacement" expected-substring
+  local name="$1" which="$2" group="$3" pat="$4" rep="$5" expect="$6" a="$tmp/link.sql" r="$tmp/link_rb.sql" src out; ntotal=$((ntotal+1))
+  if [ "$which" = link ]; then src="$tmp/link.sql"; else src="$tmp/link_rb.sql"; fi
+  python3 -I -c 'import re,sys; s=open(sys.argv[1]).read(); n=re.subn(sys.argv[2], sys.argv[3], s, flags=re.S); sys.exit(3) if n[1]!=1 else open(sys.argv[4],"w").write(n[0])' "$src" "$pat" "$rep" "$tmp/m_$name.sql" || { echo "FAIL: mutant $name does not apply exactly once (vacuous control)"; return; }
+  chmod 644 "$tmp/m_$name.sql"; if [ "$which" = link ]; then a="$tmp/m_$name.sql"; else r="$tmp/m_$name.sql"; fi
+  GP=0; GT=0; out="$("grp_$group" "$a" "$r" 2>&1 || true)"
+  if echo "$out" | grep '^FAIL' | grep -qF -- "$expect"; then npass=$((npass+1)); else echo "FAIL: negative control $name was NOT caught (expected a failing check containing: $expect)"; echo "$out" | { grep '^FAIL' || true; } | head -3 | sed 's/^/    /'; fi
+}
+negr() {   # name which(link|rb) group "literal old" "literal new" expected-substring   (literal replacement; the old text must exist)
+  local name="$1" which="$2" group="$3" old="$4" new="$5" expect="$6" a="$tmp/link.sql" r="$tmp/link_rb.sql" src out; ntotal=$((ntotal+1))
+  if [ "$which" = link ]; then src="$tmp/link.sql"; else src="$tmp/link_rb.sql"; fi
+  python3 -I -c 'import sys; s=open(sys.argv[1]).read(); sys.exit(3) if sys.argv[2] not in s else open(sys.argv[4],"w").write(s.replace(sys.argv[2], sys.argv[3]))' "$src" "$old" "$new" "$tmp/m_$name.sql" || { echo "FAIL: mutant $name does not apply (text not found: vacuous control)"; return; }
+  chmod 644 "$tmp/m_$name.sql"; if [ "$which" = link ]; then a="$tmp/m_$name.sql"; else r="$tmp/m_$name.sql"; fi
   GP=0; GT=0; out="$("grp_$group" "$a" "$r" 2>&1 || true)"
   if echo "$out" | grep '^FAIL' | grep -qF -- "$expect"; then npass=$((npass+1)); else echo "FAIL: negative control $name was NOT caught (expected a failing check containing: $expect)"; echo "$out" | { grep '^FAIL' || true; } | head -3 | sed 's/^/    /'; fi
 }
@@ -218,13 +276,41 @@ neg m10_commands_security_definer link main "s/LANGUAGE plpgsql SET search_path 
 neg m11_unbound_row_may_be_withdrawn link main "/IF OLD.document_version_id IS NULL AND NEW.withdrawn_at IS NOT NULL THEN/,/END IF;/d;/ADD CONSTRAINT legal_evidence_refs_withdrawal_requires_version_chk/,/CHECK (withdrawn_at IS NULL OR document_version_id IS NOT NULL);/d" 'unbound ref cannot be withdrawn'
 neg m12_rollback_ignores_bound_evidence rb rollback "/IF n > 0 THEN RAISE EXCEPTION 'rollback refused: % evidence reference/d" 'BOUND'
 neg m13_rollback_ignores_journal_custody rb rollback "/IF n > 0 THEN RAISE EXCEPTION 'rollback refused: % attachment\/withdrawal journal event/d" 'journal custody'
-neg m14_rollback_skips_trigger_shape_check rb rollback "/IF (SELECT count(\*) FROM pg_catalog.pg_trigger t WHERE t.tgrelid = 'public.legal_evidence_refs'::regclass AND NOT t.tgisinternal/,/END IF;/d" 'wrong function'
+neg m14_rollback_skips_trigger_shape_check rb rollback "/IF (SELECT count(\*) FROM pg_catalog.pg_trigger l, pg_catalog.pg_trigger e/,/END IF;/d" 'wrong function'
 neg m15_apply_alter_unqualified link shadow "s/ALTER TABLE public.legal_evidence_refs ADD COLUMN/ALTER TABLE legal_evidence_refs ADD COLUMN/" 'SHADOW apply (look-alike schema first)'
 neg m16_apply_lock_unqualified link shadow "s/LOCK TABLE public.legal_evidence_refs, public.legal_case_events/LOCK TABLE legal_evidence_refs, legal_case_events/" 'SEQUENCES'
 neg m17_rollback_count_unqualified rb shadow "s/FROM public.legal_evidence_refs WHERE document_version_id IS NOT NULL OR withdrawn_at IS NOT NULL/FROM legal_evidence_refs WHERE document_version_id IS NOT NULL OR withdrawn_at IS NOT NULL/" 'EMPTY look-alike'
 neg m18_functions_resolve_actor_via_search_path link shadow "s/ SET search_path = pg_catalog, pg_temp//g;s/public\.legal_actor()/legal_actor()/g" 'look-alike legal_actor'
 neg m19_apply_catalog_unqualified link shadow "s/pg_catalog\.pg_attribute/pg_attribute/g" 'look-alike catalog tables'
 neg m20_concurrent_replay_not_serialised link conc "s/SELECT \* INTO r FROM public.legal_evidence_refs WHERE id = p_evidence_id FOR UPDATE;/SELECT * INTO r FROM public.legal_evidence_refs WHERE id = p_evidence_id;/" 'CONCURRENT'
+
+# --- v2 controls: each removes exactly ONE of the new protections
+negr m21_apply_accepts_partial_002 link apply_refusals "('legal_cases','unit_id','units'), ('legal_cases','tenant_id','tenants'), ('legal_cases','lease_id','leases'),
+      ('legal_matter_properties','property_id','properties'), ('legal_matter_properties','unit_id','units'), ('legal_matter_properties','lease_id','leases')) v(child, col, parent)" "('legal_matter_properties','property_id','properties')) v(child, col, parent)" 'partial 002'
+negr m22_apply_ignores_trigger_enablement link apply_refusals "AND t.tgtype = 19 AND t.tgenabled = 'O' AND t.tgnargs = 0 AND t.tgqual IS NULL" "AND t.tgtype = 19 AND t.tgnargs = 0 AND t.tgqual IS NULL" 'DISABLED'
+negr m23_apply_ignores_trigger_shape link apply_refusals "AND t.tgtype = 19 AND t.tgenabled = 'O' AND t.tgnargs = 0 AND t.tgqual IS NULL" "AND t.tgenabled = 'O' AND t.tgnargs = 0 AND t.tgqual IS NULL" 'reshaped to AFTER UPDATE'
+negr m24_apply_ignores_trigger_binding link apply_refusals "IF n <> 1 THEN RAISE EXCEPTION 'evidence linkage refused: expected exactly one trigger bound to legal_evidence_guard() on legal_evidence_refs, found % (no changes made)', n; END IF;" "" 'wrongly bound'
+negr m25_apply_compares_policy_by_substring link apply_refusals "AND pg_catalog.pg_get_expr(l.polwithcheck, l.polrelid) IS NOT DISTINCT FROM replace(pg_catalog.pg_get_expr(e.polwithcheck, e.polrelid), 'zz_exp_legal_case_events', 'legal_case_events')) THEN" "AND true) THEN" 'WITH CHECK was changed to false'
+negr m26_apply_ignores_policy_using link apply_refusals "AND pg_catalog.pg_get_expr(l.polqual, l.polrelid) IS NOT DISTINCT FROM replace(pg_catalog.pg_get_expr(e.polqual, e.polrelid), 'zz_exp_legal_case_events', 'legal_case_events')" "AND true" 'USING was changed to true'
+negr m27_apply_accepts_any_dimension_check link apply_refusals "AND pg_catalog.pg_get_constraintdef(l.oid) = pg_catalog.pg_get_constraintdef(e.oid)) THEN" "AND pg_catalog.pg_get_constraintdef(l.oid) ~ 'evidence_confidence') THEN" 'extra value'
+negr m28_apply_ignores_extra_policy link apply_refusals "IF (SELECT count(*) FROM pg_catalog.pg_policy p WHERE p.polrelid = 'public.legal_case_events'::regclass) <> 1
+     OR NOT EXISTS" "IF NOT EXISTS" 'extra journal policy'
+negr m29_command_overflow_not_bounded link main "OR p_expected_revision > 2147483646 THEN
+    RAISE EXCEPTION 'legal: invalid attachment request'" "THEN
+    RAISE EXCEPTION 'legal: invalid attachment request'" 'integer bounds'
+negr m30_rollback_ignores_policy_with_check rb rollback "AND pg_catalog.pg_get_expr(l.polwithcheck, l.polrelid) IS NOT DISTINCT FROM replace(pg_catalog.pg_get_expr(e.polwithcheck, e.polrelid), 'zz_exp_legal_case_events', 'legal_case_events')) THEN" "AND true) THEN" 'WITH CHECK was changed to false'
+negr m31_rollback_ignores_policy_using rb rollback "AND pg_catalog.pg_get_expr(l.polqual, l.polrelid) IS NOT DISTINCT FROM replace(pg_catalog.pg_get_expr(e.polqual, e.polrelid), 'zz_exp_legal_case_events', 'legal_case_events')" "AND true" 'USING true'
+negr m32_rollback_ignores_withdrawal_check rb rollback "AND pg_catalog.pg_get_constraintdef(l.oid) = pg_catalog.pg_get_constraintdef(e.oid)) <> 1 THEN" "AND true) <> 1 THEN" 'weakened withdrawal CHECK'
+negr m33_rollback_ignores_index_predicate rb rollback "AND pg_catalog.pg_get_expr(l.indpred, l.indrelid) IS NOT DISTINCT FROM pg_catalog.pg_get_expr(e.indpred, e.indrelid)) <> 1 THEN" "AND true) <> 1 THEN" 'changed index predicate'
+negr m34_rollback_ignores_null_semantics rb rollback "l.indnullsnotdistinct = e.indnullsnotdistinct" "true" 'NULLS DISTINCT semantics'
+negx m35_rollback_ignores_index_keys rb rollback 'AND l\.indnkeyatts = 3 AND l\.indnatts = e\.indnatts AND lc\.relam = ec\.relam\s+AND \(SELECT array_agg.*?a\.attnum = k\.attnum\)\s+= \(SELECT array_agg.*?a\.attnum = k\.attnum\)' 'AND lc.relam = ec.relam' 'different key columns'
+negr m36_rollback_ignores_fk_actions rb rollback "AND c.confdeltype = 'r' AND c.confupdtype = 'a' AND c.confmatchtype = 's' AND NOT c.condeferrable AND c.convalidated) <> 1 THEN" "AND c.confdeltype = 'r') <> 1 THEN" 'ON UPDATE CASCADE'
+negr m37_rollback_ignores_trigger_when rb rollback "AND substring(pg_catalog.pg_get_triggerdef(l.oid) from ' FOR EACH ROW.*') = substring(pg_catalog.pg_get_triggerdef(e.oid) from ' FOR EACH ROW.*')) <> 3 THEN" "AND true) <> 3 THEN" 'changed WHEN clause'
+negr m38_rollback_ignores_trigger_enablement rb rollback "AND l.tgenabled = 'O' AND l.tgnargs = 0" "AND l.tgnargs = 0" 'DISABLED link guard'
+negr m39_rollback_ignores_trigger_timing rb rollback "AND l.tgfoid = e.tgfoid AND l.tgtype = e.tgtype" "AND l.tgfoid = e.tgfoid" 'reshaped to BEFORE UPDATE'
+negr m40_rollback_accepts_any_dimension_check rb rollback "AND pg_catalog.pg_get_constraintdef(l.oid) = pg_catalog.pg_get_constraintdef(e.oid)) THEN
+    RAISE EXCEPTION 'rollback refused: the journal dimension CHECK" "AND pg_catalog.pg_get_constraintdef(l.oid) ~ 'evidence_attachment') THEN
+    RAISE EXCEPTION 'rollback refused: the journal dimension CHECK" 'dimension CHECK with an extra value'
 GP=$GP_SAVE; GT=$GT_SAVE
 
 echo "[legal-evidence-link-db] real proposal: ${real_pass}/${real_total} checks (main + apply refusals + rollback + concurrency + schema shadows), negative controls ${npass}/${ntotal}"

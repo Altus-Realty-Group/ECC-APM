@@ -45,22 +45,39 @@ journal is append-only. It also refuses an install that is not exactly what 003 
 and original 001 policy text; a re-apply works) and preserves every journal row. D1's own rollback cannot run while the 003 foreign key exists (a dependency error, safe, no change). Rolling back 001 first (its tables must
 be empty) leaves the extended journal CHECK and the five functions as residuals until 003's rollback runs, which then skips the dropped table and policy.
 
+## v2 corrections (this revision)
+
+**Contract (`shared/legal/evidenceLink.ts`).**
+- *Nullable fields are required.* `requirementId`, `documentVersionId` and `withdrawnAt` must be PRESENT on a parsed row; omitted or `undefined` is refused, only an explicit `null` is the legacy shape. Before, a bound row with `withdrawnAt` dropped parsed as an
+  active binding and entered the packet manifest.
+- *Instants are real or rejected.* Strict RFC 3339 with an explicit zone (`Z` or `+/-HH:MM`); impossible dates (Feb 30, Apr 31, Feb 29 in 1900 or 2025), month 13, hour 24, second 60 and zone-less values are rejected, never normalized to a neighbouring day (`2026-02-30` used to become March 2).
+  Leap years (2000, 2024) and valid offsets are accepted and converted exactly to UTC.
+- *Revisions match the column.* Rows 1..2147483647 (PostgreSQL integer). A request's expected revision is 1..2147483646, because it writes `expected + 1`; the successor is a checked addition. Values up to `Number.MAX_SAFE_INTEGER` are rejected. Both a transition
+  at the upper boundary and its replay (row at 2147483647, expected 2147483646) are valid; a row already at the maximum cannot be advanced. SQL mirrors this: the commands refuse `expected > 2147483646` with `22023` instead of overflowing.
+
+**Apply preconditions (003).** It now verifies ALL of 002 (each of the seven references exactly as 002 produces them: single column, target `id_uuid`, `RESTRICT`, no ON UPDATE action, not deferrable, validated), the revision trigger (exactly one trigger bound to `legal_evidence_guard()`,
+a BEFORE UPDATE row trigger, enabled in the origin session), and the EXACT 001 journal CHECK (the five values) and policy (command, roles, permissive flag, USING **and** WITH CHECK, one policy only). The expected forms are built by the same server on transient temp tables (named `zz_exp_*`, dropped
+immediately) and compared by deparsed text, so there is no substring matching. Anything else refuses atomically; an altered WITH CHECK is refused, never replaced. Consequence: a disabled revision trigger can no longer be installed over, so a direct attachment UPDATE with no revision bump cannot succeed.
+
+**Rollback shape (003).** Before removing or restoring anything it validates the exact foreign key (target, columns, delete/update actions, match, deferrability, validity), the withdrawal CHECK expression, the binding index (unique, valid, ordered key columns, partial predicate and
+NULLS NOT DISTINCT semantics), all three trigger definitions (function, timing, events, enablement, WHEN) and the six-value journal CHECK and complete journal policy. A tampered install is refused with the complete schema and every row preserved. The documented valid cleanup after a lone 001 rollback is retained.
+
 ## Proof (private PostgreSQL 16 reconstruction, local only)
 
 Runs on the corrected combined reconstruction (catalog-verified key shapes relayed by Codex; reconstructed rows).
 
-| Section | Checks |
+| Group | Checks |
 | --- | --- |
-| Main combined-state suite: legacy unbound, object delta, insert bypass (owner and role), valid attach, shared version across requirements and matters, duplicates incl. NULL requirement, replays, invalid versions, stale/omitted/skipped revisions, actor/scope/context, immutability, confidence guard, withdrawal, atomicity, journal privacy, isolation | 36 |
-| Apply refusals (002/D1/001 missing, second apply, changed CHECK, changed policy, partial earlier apply) with unchanged-schema proof | 10 |
-| Rollback: bound, withdrawn, journal custody, exact inverse, journal preserved, wrong order residuals and cleanup, D1 dependency order, unexpected trigger and index shapes | 21 |
-| Concurrency (real parallel sessions): same slot on two refs, lost-reply retry, two versions on one ref, rollback racing an attach | 5 |
-| Schema targeting: look-alike schema, TEMP relations, sequences, catalog tables and a look-alike `legal_actor()` ahead in search_path, populated and empty, apply, rollback and the commands | 12 |
-| **Total on the real proposal** | **84/84** |
-| Negative controls (the same group must fail with ONE protection removed): insert guard, retarget check, journal mask, NULLS NOT DISTINCT, server withdrawal time, journal trigger, actor requirement, other-field protection, replay detection, SECURITY DEFINER, unbound-withdraw protection, rollback bound/journal/shape checks, unqualified ALTER/LOCK/count/catalog, search_path resolution, row-lock serialization | 20/20 |
+| Main combined-state suite: legacy unbound, object delta, insert bypass, attach, shared versions, duplicates incl. NULL requirement, replays, invalid versions, stale/omitted/skipped revisions, **integer-boundary revisions**, actor/scope/context, immutability, confidence guard, withdrawal, atomicity, journal privacy, isolation | 38 |
+| Apply refusals with unchanged-schema proof: missing 001/D1/002, partial 002 (three shapes), only-one-property-FK, revision trigger missing/disabled/replica/wrongly bound/reshaped, journal policy USING/WITH CHECK/mask/extra policy altered, dimension CHECK extra/missing/true, disabled-trigger attack | 46 |
+| Rollback: bound, withdrawn, journal custody, exact inverse, journal preserved, wrong-order residuals and cleanup (retained), D1 dependency order, unexpected shapes, **tampered policy (WITH CHECK, USING, mask), CHECK, index predicate/keys/null semantics, FK actions, trigger WHEN/enablement/timing, dimension CHECK** | 47 |
+| Concurrency (real parallel sessions) | 5 |
+| Schema targeting: look-alike schema, TEMP relations, sequences, catalog tables, look-alike `legal_actor()` | 12 |
+| **Total on the real proposal** | **148/148** |
+| Negative controls (the same group must fail with ONE protection removed; 20 for the original behaviour, 20 for v2: partial-002 detection, trigger enablement/shape/binding, policy USING/WITH CHECK/extra policy, CHECK equality, command bound, and each rollback shape comparison) | 40/40 |
 
-Pure contract (`shared/legal/evidenceLink.ts`, 16 unit tests): request parsing (canonical uuids only; no filename/path/URL/digest/`storageRef`; no caller withdrawal time), derived state, attach/withdraw plans with replay, the binding
-key (an unassigned requirement is a real key part), conflict search, manifest deduplication by immutable version (active bindings only), content-free journal events, and the explicit authority gate.
+Against the first revision of the SQL the same suite scores 86/148 and catches 19/40 controls (the v2 checks are what fail), so the reproductions are kept as executable evidence.
+Pure contract: `tests/unit/legal/evidence-link.test.ts` (25) and `evidence-link-controls.test.ts` (9: each loads a copy of the module with one protection removed and must fail the same behaviour checks).
 
 ## Activation gates (all remain open)
 

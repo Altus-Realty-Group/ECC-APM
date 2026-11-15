@@ -125,6 +125,31 @@ INSERT INTO results SELECT 'unknown version 23503; NULL/zero/missing expected re
   :'o1'='ERR:23503' AND :'o2'='ERR:22023' AND :'o3'='ERR:22023' AND :'o4'='ERR:22023' AND :'o5'='ERR:40001' AND nullif(:'o6','')::boolean AND nullif(:'o7','')::boolean
   AND (SELECT document_version_id IS NULL AND revision=1 FROM legal_evidence_refs WHERE id='00000000-0000-4000-8000-00000000e103') AND (SELECT count(*)=0 FROM legal_case_events WHERE subject_id='00000000-0000-4000-8000-00000000e103');
 
+-- ===== R3: integer-safe revisions. expected + 1 must fit the integer column; a row at the maximum can still be attached to once and then replayed =====
+INSERT INTO legal_evidence_refs (id, matter_id, requirement_id, ref_kind, storage_ref) VALUES
+  ('00000000-0000-4000-8000-00000000e106','00000000-0000-4000-8000-0000000f0b01',NULL,'doc','n-edge');
+ALTER TABLE legal_evidence_refs DISABLE TRIGGER legal_evidence_refs_guard;      -- test setup only: park the row one step below the integer maximum
+UPDATE legal_evidence_refs SET revision = 2147483646 WHERE id='00000000-0000-4000-8000-00000000e106';
+ALTER TABLE legal_evidence_refs ENABLE TRIGGER legal_evidence_refs_guard;
+SET ROLE ecc_legal_runtime;
+SELECT set_config('ecc.scope_refs','scopeB',false) AS c1 \gset
+SELECT pg_temp.outcome($$SELECT legal_attach_evidence_version('00000000-0000-4000-8000-00000000e106','00000000-0000-4000-8000-0000000001b1',2147483647)$$) AS o1 \gset
+SELECT pg_temp.outcome($$SELECT legal_attach_evidence_version('00000000-0000-4000-8000-00000000e106','00000000-0000-4000-8000-0000000001b1',2147483646)$$) AS o2 \gset
+SELECT pg_temp.outcome($$SELECT legal_attach_evidence_version('00000000-0000-4000-8000-00000000e106','00000000-0000-4000-8000-0000000001b1',2147483646)$$) AS o3 \gset
+SELECT pg_temp.outcome($$SELECT legal_withdraw_evidence_version('00000000-0000-4000-8000-00000000e106',2147483647)$$) AS o4 \gset
+SELECT pg_temp.outcome($$SELECT legal_withdraw_evidence_version('00000000-0000-4000-8000-00000000e106',2147483648)$$) AS o5 \gset
+SELECT pg_temp.expect_err($$UPDATE legal_evidence_refs SET withdrawn_at=now(), revision=2147483647 WHERE id='00000000-0000-4000-8000-00000000e106'$$,'22003') AS o6 \gset
+SELECT set_config('ecc.scope_refs','scopeA',false) AS c1 \gset
+RESET ROLE;
+INSERT INTO results SELECT 'integer bounds: expected revision 2147483647 (no successor) is refused 22023, never an overflow; a row at 2147483646 attaches once (to the maximum 2147483647) and replays as already_attached',
+  :'o1'='ERR:22023' AND :'o2'='attached' AND :'o3'='already_attached'
+  AND (SELECT revision=2147483647 AND document_version_id='00000000-0000-4000-8000-0000000001b1' FROM legal_evidence_refs WHERE id='00000000-0000-4000-8000-00000000e106')
+  AND (SELECT count(*)=1 FROM legal_case_events WHERE subject_id='00000000-0000-4000-8000-00000000e106' AND dimension='evidence_attachment');
+INSERT INTO results SELECT 'a row at the integer maximum cannot be advanced: withdraw with expected 2147483647 is 22023, an expected value beyond the integer type cannot even be passed (42883), and a direct UPDATE fails closed (22003); nothing changes',
+  :'o4'='ERR:22023' AND :'o5'='ERR:42883' AND nullif(:'o6','')::boolean
+  AND (SELECT revision=2147483647 AND withdrawn_at IS NULL FROM legal_evidence_refs WHERE id='00000000-0000-4000-8000-00000000e106')
+  AND (SELECT count(*)=1 FROM legal_case_events WHERE subject_id='00000000-0000-4000-8000-00000000e106' AND dimension='evidence_attachment');
+
 -- ===== actor, scope and context: unavailable is indistinguishable and changes nothing =====
 SET ROLE ecc_legal_runtime;
 SELECT set_config('ecc.actor','',false) AS c1 \gset
@@ -231,11 +256,11 @@ SELECT set_config('ecc.scope_refs','scopeA',false) AS c1 \gset
 RESET ROLE;
 INSERT INTO results SELECT 'restricted evidence cannot be attached without the restricted-evidence context (42501), and with it both the attachment and the withdrawal succeed',
   :'o1'='ERR:42501' AND :'o2'='attached' AND :'o3'='withdrawn';
-INSERT INTO results SELECT 'journal mask: with restricted evidence on the runtime role sees its 7 attachment events (matter B''s is out of scope); with it off the 2 events of the restricted ref disappear (count AND ids), leaving 5',
+INSERT INTO results SELECT 'journal mask: with restricted evidence on the runtime role sees its 7 attachment events (matter B''s are out of scope); with it off the 2 events of the restricted ref disappear (count AND ids), leaving 5',
   :vis_on=7 AND :e3_on=2 AND :vis_off=5 AND :e3_off=0 AND :vis_types_off=5;
-INSERT INTO results SELECT 'a wrong-scope role sees only its own matter''s attachment event (1) and none of the scopeA evidence; a no-context role sees no journal row at all',
-  :vis_b=1 AND :e3_b=0 AND :vis_none=0;
-INSERT INTO results SELECT 'the owner (no RLS) can still see all events: the mask is a runtime-role boundary, not a deletion', (SELECT count(*)=8 FROM legal_case_events WHERE dimension='evidence_attachment');
+INSERT INTO results SELECT 'a wrong-scope role sees only its own matter''s attachment events (2) and none of the scopeA evidence; a no-context role sees no journal row at all',
+  :vis_b=2 AND :e3_b=0 AND :vis_none=0;
+INSERT INTO results SELECT 'the owner (no RLS) can still see all events: the mask is a runtime-role boundary, not a deletion', (SELECT count(*)=9 FROM legal_case_events WHERE dimension='evidence_attachment');
 
 -- ===== isolation, custody and default-deny unchanged by 003 =====
 INSERT INTO results SELECT 'privileges are exactly as before 003 for both runtime roles, anon and authenticated; no new table, role, view, policy or grant',

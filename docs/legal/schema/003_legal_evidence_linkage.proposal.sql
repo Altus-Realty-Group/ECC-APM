@@ -12,35 +12,81 @@
 --   * journal dimension 'evidence_attachment' (the CHECK is extended in place) and the existing evidence-subject mask in legal_case_events_rt is extended to it.
 --   * two reviewed commands, legal_attach_evidence_version / legal_withdraw_evidence_version (SECURITY INVOKER: they add NO privilege; the caller's own RLS applies).
 -- Existing rows stay UNBOUND whatever their storage_ref, filename, restricted or confidence say. storage_ref is never parsed into an identity. No backfill.
--- Apply order: 001, D1, 002, then this file (it refuses otherwise). One-time apply, one transaction (run with ON_ERROR_STOP): a refusal leaves no change.
+-- Apply order: 001, D1, 002, then this file. It verifies ALL six 002 references, the enabled revision trigger and the EXACT 001 journal policy/CHECK, and refuses otherwise. One-time apply, one transaction (run with ON_ERROR_STOP): a refusal leaves no change.
 -- SCHEMA TARGETING: every relation and function is schema-qualified (public.*, pg_catalog.*) and the new functions pin search_path.
 BEGIN;
 DO $$
-DECLARE n int;
+DECLARE
+  spec record; k record; n int; col_attnum int2; pk_attnum int2;
 BEGIN
   IF to_regclass('public.legal_evidence_refs') IS NULL OR to_regclass('public.legal_case_events') IS NULL OR to_regclass('public.legal_evidence_requirements') IS NULL
-     OR to_regprocedure('public.legal_evidence_guard()') IS NULL OR to_regprocedure('public.legal_actor()') IS NULL THEN
+     OR to_regclass('public.legal_cases') IS NULL OR to_regclass('public.legal_matter_properties') IS NULL
+     OR to_regprocedure('public.legal_evidence_guard()') IS NULL OR to_regprocedure('public.legal_actor()') IS NULL OR to_regprocedure('public.legal_scope_ok(text)') IS NULL THEN
     RAISE EXCEPTION 'evidence linkage refused: apply 001_native_legal_foundation first (no changes made)';
   END IF;
   IF to_regclass('public.document_versions') IS NULL THEN RAISE EXCEPTION 'evidence linkage refused: apply the D1 document registry first (no changes made)'; END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint c WHERE c.conrelid = 'public.legal_cases'::regclass AND c.contype = 'f' AND c.confdeltype = 'r'
-                 AND c.confrelid = 'public.properties'::regclass) THEN
-    RAISE EXCEPTION 'evidence linkage refused: apply 002_legal_reference_protection first (no changes made)';
-  END IF;
   IF EXISTS (SELECT 1 FROM pg_catalog.pg_attribute a WHERE a.attrelid = 'public.legal_evidence_refs'::regclass AND a.attname IN ('document_version_id','withdrawn_at') AND NOT a.attisdropped)
      OR to_regprocedure('public.legal_attach_evidence_version(uuid,uuid,integer)') IS NOT NULL THEN
     RAISE EXCEPTION 'evidence linkage refused: already applied or partially present (no changes made)';
   END IF;
-  -- the journal dimension CHECK must be exactly the one 001 created (identified by column and definition, never by name)
+
+  -- 1. ALL of 002 must be installed, each reference in exactly the RESTRICT shape 002 produces (one qualifying foreign key is not evidence of the rest).
+  FOR spec IN SELECT * FROM (VALUES
+      ('legal_cases','property_id','properties'), ('legal_cases','unit_id','units'), ('legal_cases','tenant_id','tenants'), ('legal_cases','lease_id','leases'),
+      ('legal_matter_properties','property_id','properties'), ('legal_matter_properties','unit_id','units'), ('legal_matter_properties','lease_id','leases')) v(child, col, parent)
+  LOOP
+    SELECT attnum INTO col_attnum FROM pg_catalog.pg_attribute WHERE attrelid = ('public.'||spec.child)::regclass AND attname = spec.col AND NOT attisdropped;
+    SELECT attnum INTO pk_attnum  FROM pg_catalog.pg_attribute WHERE attrelid = ('public.'||spec.parent)::regclass AND attname = 'id_uuid' AND NOT attisdropped;
+    SELECT count(*) INTO n FROM pg_catalog.pg_constraint c WHERE c.conrelid = ('public.'||spec.child)::regclass AND c.contype = 'f' AND col_attnum = ANY (c.conkey);
+    IF n <> 1 THEN RAISE EXCEPTION 'evidence linkage refused: %.% is in % foreign key definition(s); 002 is not fully applied (no changes made)', spec.child, spec.col, n; END IF;
+    SELECT * INTO k FROM pg_catalog.pg_constraint c WHERE c.conrelid = ('public.'||spec.child)::regclass AND c.contype = 'f' AND col_attnum = ANY (c.conkey);
+    IF k.conkey <> ARRAY[col_attnum] OR k.confrelid <> ('public.'||spec.parent)::regclass OR k.confkey <> ARRAY[pk_attnum]
+       OR k.confupdtype <> 'a' OR k.confmatchtype <> 's' OR k.condeferrable OR NOT k.convalidated OR k.conparentid <> 0 OR k.confdeltype <> 'r' THEN
+      RAISE EXCEPTION 'evidence linkage refused: %.% is not the RESTRICT reference 002 produces (found delete action %); apply 002_legal_reference_protection first (no changes made)', spec.child, spec.col, k.confdeltype;
+    END IF;
+  END LOOP;
+
+  -- 2. The revision trigger must exist, be bound to legal_evidence_guard(), be a BEFORE UPDATE row trigger and be ENABLED (origin). A disabled or rebound guard
+  --    would let a direct attachment UPDATE skip the revision protocol while still being journalled.
+  SELECT count(*) INTO n FROM pg_catalog.pg_trigger t
+    WHERE t.tgrelid = 'public.legal_evidence_refs'::regclass AND NOT t.tgisinternal AND t.tgfoid = 'public.legal_evidence_guard()'::regprocedure::oid;
+  IF n <> 1 THEN RAISE EXCEPTION 'evidence linkage refused: expected exactly one trigger bound to legal_evidence_guard() on legal_evidence_refs, found % (no changes made)', n; END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_trigger t
+      WHERE t.tgrelid = 'public.legal_evidence_refs'::regclass AND NOT t.tgisinternal AND t.tgfoid = 'public.legal_evidence_guard()'::regprocedure::oid
+        AND t.tgtype = 19 AND t.tgenabled = 'O' AND t.tgnargs = 0 AND t.tgqual IS NULL) THEN
+    RAISE EXCEPTION 'evidence linkage refused: the revision trigger is not an enabled BEFORE UPDATE row trigger (disabled, replica-only or reshaped; no changes made)';
+  END IF;
+
+  -- 3. The journal CHECK and policy must be EXACTLY the 001 definitions (USING and WITH CHECK, command, roles, permissive). The expected forms are built by this server
+  --    on transient temp tables of the same names (pg_temp is always first, but every other statement here is schema-qualified) and compared by deparsed text.
+  CREATE TEMP TABLE zz_exp_legal_case_events (legal_case_id uuid, dimension text, subject_id uuid,
+    CONSTRAINT exp_dimension_chk CHECK (dimension IS NULL OR dimension IN ('lifecycle','judgment_verification','collection_readiness','evidence_confidence','other'))) ON COMMIT DROP;
+  ALTER TABLE pg_temp.zz_exp_legal_case_events ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY exp_rt ON pg_temp.zz_exp_legal_case_events FOR ALL TO ecc_legal_runtime
+    USING (EXISTS (SELECT 1 FROM public.legal_cases m WHERE m.id = legal_case_id AND public.legal_scope_ok(m.scope_ref))
+           AND (dimension IS DISTINCT FROM 'evidence_confidence'
+                OR EXISTS (SELECT 1 FROM public.legal_evidence_refs e WHERE e.id = subject_id)))
+    WITH CHECK (EXISTS (SELECT 1 FROM public.legal_cases m WHERE m.id = legal_case_id AND public.legal_scope_ok(m.scope_ref)));
+  IF (SELECT count(*) FROM pg_catalog.pg_policy p WHERE p.polrelid = 'public.legal_case_events'::regclass) <> 1
+     OR NOT EXISTS (SELECT 1 FROM pg_catalog.pg_policy l, pg_catalog.pg_policy e
+        WHERE l.polrelid = 'public.legal_case_events'::regclass AND l.polname = 'legal_case_events_rt'
+          AND e.polrelid = 'pg_temp.zz_exp_legal_case_events'::regclass AND e.polname = 'exp_rt'
+          AND l.polcmd = e.polcmd AND l.polpermissive = e.polpermissive AND l.polroles = e.polroles
+          AND pg_catalog.pg_get_expr(l.polqual, l.polrelid) IS NOT DISTINCT FROM replace(pg_catalog.pg_get_expr(e.polqual, e.polrelid), 'zz_exp_legal_case_events', 'legal_case_events')
+          AND pg_catalog.pg_get_expr(l.polwithcheck, l.polrelid) IS NOT DISTINCT FROM replace(pg_catalog.pg_get_expr(e.polwithcheck, e.polrelid), 'zz_exp_legal_case_events', 'legal_case_events')) THEN
+    RAISE EXCEPTION 'evidence linkage refused: legal_case_events_rt is not exactly the 001 journal policy (USING or WITH CHECK differs; no changes made)';
+  END IF;
   SELECT count(*) INTO n FROM pg_catalog.pg_constraint c
     WHERE c.conrelid = 'public.legal_case_events'::regclass AND c.contype = 'c'
-      AND c.conkey = ARRAY[(SELECT attnum FROM pg_catalog.pg_attribute WHERE attrelid = c.conrelid AND attname = 'dimension')]
-      AND pg_catalog.pg_get_constraintdef(c.oid) ~ 'evidence_confidence' AND pg_catalog.pg_get_constraintdef(c.oid) !~ 'evidence_attachment';
-  IF n <> 1 THEN RAISE EXCEPTION 'evidence linkage refused: expected exactly one 001 dimension CHECK on legal_case_events, found % (no changes made)', n; END IF;
-  -- the journal policy must be exactly the 001 policy (one policy, the runtime role, confidence-only evidence mask)
-  SELECT count(*) INTO n FROM pg_catalog.pg_policies p WHERE p.schemaname = 'public' AND p.tablename = 'legal_case_events' AND p.policyname = 'legal_case_events_rt'
-    AND p.cmd = 'ALL' AND p.roles = ARRAY['ecc_legal_runtime']::name[] AND p.qual ~ 'evidence_confidence' AND p.qual !~ 'evidence_attachment';
-  IF n <> 1 THEN RAISE EXCEPTION 'evidence linkage refused: legal_case_events_rt is not the 001 journal policy (no changes made)'; END IF;
+      AND c.conkey = ARRAY[(SELECT attnum FROM pg_catalog.pg_attribute WHERE attrelid = c.conrelid AND attname = 'dimension')];
+  IF n <> 1 OR NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint l, pg_catalog.pg_constraint e
+        WHERE l.conrelid = 'public.legal_case_events'::regclass AND l.contype = 'c'
+          AND l.conkey = ARRAY[(SELECT attnum FROM pg_catalog.pg_attribute WHERE attrelid = l.conrelid AND attname = 'dimension')]
+          AND e.conrelid = 'pg_temp.zz_exp_legal_case_events'::regclass AND e.conname = 'exp_dimension_chk'
+          AND pg_catalog.pg_get_constraintdef(l.oid) = pg_catalog.pg_get_constraintdef(e.oid)) THEN
+    RAISE EXCEPTION 'evidence linkage refused: the journal dimension CHECK is not exactly the five 001 values (no changes made)';
+  END IF;
+  DROP TABLE pg_temp.zz_exp_legal_case_events;
 END $$;
 LOCK TABLE public.legal_evidence_refs, public.legal_case_events IN ACCESS EXCLUSIVE MODE;
 
@@ -134,14 +180,14 @@ CREATE POLICY legal_case_events_rt ON public.legal_case_events FOR ALL TO ecc_le
   WITH CHECK (EXISTS (SELECT 1 FROM public.legal_cases m WHERE m.id = legal_case_id AND public.legal_scope_ok(m.scope_ref)));
 
 -- 5. Reviewed commands. SECURITY INVOKER: the caller's own table privileges and RLS decide visibility and success; the functions grant nothing.
---    Each takes the expected revision, locks the row, and returns a fixed word: an exact replay (same version/withdrawal at expected + 1) is a no-op, never a
+--    Each takes the expected revision (1..2147483646, so expected + 1 always fits the integer column), locks the row, and returns a fixed word: an exact replay (same version/withdrawal at expected + 1) is a no-op, never a
 --    second row, revision or event; anything else is a conflict. Unavailable (wrong scope, no context, no such row) is one indistinguishable 42501.
 CREATE FUNCTION public.legal_attach_evidence_version(p_evidence_id uuid, p_version_id uuid, p_expected_revision integer) RETURNS text
 LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
 DECLARE r public.legal_evidence_refs%ROWTYPE;
 BEGIN
   PERFORM public.legal_actor();
-  IF p_evidence_id IS NULL OR p_version_id IS NULL OR p_expected_revision IS NULL OR p_expected_revision < 1 THEN
+  IF p_evidence_id IS NULL OR p_version_id IS NULL OR p_expected_revision IS NULL OR p_expected_revision < 1 OR p_expected_revision > 2147483646 THEN
     RAISE EXCEPTION 'legal: invalid attachment request' USING ERRCODE = '22023';
   END IF;
   SELECT * INTO r FROM public.legal_evidence_refs WHERE id = p_evidence_id FOR UPDATE;
@@ -160,7 +206,7 @@ LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
 DECLARE r public.legal_evidence_refs%ROWTYPE;
 BEGIN
   PERFORM public.legal_actor();
-  IF p_evidence_id IS NULL OR p_expected_revision IS NULL OR p_expected_revision < 1 THEN
+  IF p_evidence_id IS NULL OR p_expected_revision IS NULL OR p_expected_revision < 1 OR p_expected_revision > 2147483646 THEN
     RAISE EXCEPTION 'legal: invalid withdrawal request' USING ERRCODE = '22023';
   END IF;
   SELECT * INTO r FROM public.legal_evidence_refs WHERE id = p_evidence_id FOR UPDATE;

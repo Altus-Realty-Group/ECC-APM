@@ -418,3 +418,19 @@ receipts/bytes and final revalidation remain separate gates. Actual database
 objects added/changed: zero. Evidence: synthetic tests and source checks only;
 see [read preparation](../legal/EVIDENCE_READ_PREPARATION_20261115.md). No live,
 installed, query-performance or delivery proof follows from a plan.
+
+
+## Combined release-candidate consumer alignment - 2026-11-15
+
+The assembled source candidate includes the reviewed native L1/L6 legal register
+and multi-award matter card, replacing the earlier provisional single-award UI
+projection. Validation/sanitization occurs before the existing session-scoped
+query cache sees evidence metadata. Lifecycle, award verification/readiness and
+per-evidence confidence stay separate. L5 balances/eligibility remain unbound.
+The owner/property document UI and metadata/byte transport foundation are retained.
+
+This supersedes the provisional-UI description above for this candidate only.
+Actual database objects, grants, producers and live rows changed: zero. The
+combined candidate retains the 001/002/003 and D1 proposals, private PG scripts
+and their source evidence boundaries. It does not apply schemas or constitute
+installed/allowed access proof. See SOURCE_INTEGRATION_20261112.md in docs/legal.

@@ -30,7 +30,7 @@ and validated-string branches resolve them without weakening date validation.
 
 ## Validation boundary
 
-Combined local unit suite: 681/681, including the bridge that runs the 14 Python
+Initial integration local unit suite: 681/681, including the bridge that runs the 14 Python
 reconciliation tests. Typecheck and guardrail/build pass. These are synthetic
 source checks. No operational data was queried or modified for this integration.
 The integration head requires its own hosted Verify and browser proof; prior
@@ -42,15 +42,15 @@ not combined-tree or installed database proof. No installed database proof is
 claimed.
 
 The document UI's transport factory accepts bounded pages and verifies bytes,
-but no real HTTP transport/store/provider is bound. The legal card still uses
-the provisional frontend projection; native multi-award/ledger/workflow binding
-is remaining UI work. A planning eligibility result never authorizes collection.
+but no real HTTP transport/store/provider is bound. The native legal register/card now consumes validated L1/L6 projections, separate
+award identities and requirement queues. L5 balance/eligibility binding still needs
+an accepted producer. A planning eligibility result never authorizes collection.
 
 ## Remaining work before operational acceptance
 
 | Work | Required evidence / dependency | Owner |
 | --- | --- | --- |
-| Native legal card/register integration | Explicit L1/L5/L6 mapping, per-currency amounts, unknown/partial values, task and event states, desktop/mobile journeys | Codex |
+| Native legal UI live binding | L1/L6 source mapping and synthetic journeys are integrated; accepted producer, L5 balances/eligibility and live journeys remain | Codex |
 | Matter-to-document and party/court evidence linkage | Reviewed associations and classification; party capacities cannot be inferred from award liability; document access alone is not matter authority | Codex, with model support |
 | Internal attorney packet | Accepted ledger and evidence inputs; protected completeness preflight, immutable snapshot/manifest, artifact hashes and audit; inaccessible required evidence blocks completeness without disclosure | Claude/Grok structure support; Codex integration |
 | Persisted workbook intake | Existing offline preview plus authorized idempotent staging, conflict/revision matching and reviewed matter identity | Codex |
@@ -75,3 +75,38 @@ retained. No new workflow, matrix, dependency, vendor call or service is added.
 Revert the integration source commit or the relevant component PR commits. No
 production data, applied schema or file operation exists to undo. Reverting
 source must never run the proposal rollback scripts automatically.
+
+## Combined release candidate - 2026-11-15
+
+This candidate includes the existing integration plus the following exact reviewed
+source heads, retaining their history. Nothing is applied or connected by merging
+these source trees. The combined candidate needs its own hosted checks and browser
+receipts; passing component heads do not prove the combined tree.
+
+| Family | Exact source head | Source PR |
+| --- | --- | --- |
+| Native legal UI | `5aee7066cb8b3b6dd417032e11a7d81d77ce238c` | #240 |
+| Private immutable-version manifest | `14cc97a1ddd80c5fdc10520cad68b961e7d7371f` | #239 |
+| Combined DB reconstruction | `2226fe421f1c8291b2ab702e053316df876c2a02` | #238 |
+| Reference protection | `6ecd51c7e3fea7ee8890be5919f919e0965b8b4f` | #241 |
+| Evidence version-link model and exact SQL preconditions | `3d86efd7bf4db1ded0778846d1b8a3372fa89baa` | #243 |
+| Non-authoritative evidence read preparation | `c8f10b7cabfc7886d7e5af88e40c23982e61fc9b` | #244 |
+
+ADR-0004 and its acceptance matrix (#242) are retained through the model lineage.
+All legal/document SQL files remain unapplied proposals. The current runtime
+manifest has no active app binding. Candidate discovery found ECC-APM (v1.0),
+replId `75cc12d4-f5f6-4751-b198-3a4ad61ccd0c`; a discovered title/ID is not proof
+of its repository, branch, clean worktree or running process. The old import-
+pending record is historical evidence, not proof that no workspace exists. No
+active binding or runtime synchronization is inferred from that discovery.
+
+The reviewable candidate is a fixture/source milestone, not operational go-live.
+Fresh DoorLoop capture, promotion/reconciliation, verified runtime alignment,
+protected data routes, reviewed schema/backfill and authenticated COPY ONLY
+delivery remain required. No old sync workflow, privileged endpoint or provider
+job is reactivated. Original legal folders are never moved or deleted.
+
+Combined candidate local validation: 742/742 unit tests, typecheck, guardrail/build,
+16/16 dependency checks and diff check pass. The candidate requires fresh hosted
+Verify and scoped browser receipts. PostgreSQL server binaries are unavailable
+on this host; no independent combined installed/PG proof is asserted.

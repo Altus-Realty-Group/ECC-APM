@@ -57,9 +57,9 @@ try {
     await page.goto("http://127.0.0.1:4181/ops/legal/case-manager", { waitUntil: "networkidle" });
     await expect(page.getByRole("heading", { name: "Legal command", exact: true })).toBeVisible();
     await expect(page.locator(".ecc-legal-list li")).toHaveCount(3);
-    await expect(page.getByLabel("Loaded legal record summary")).toContainText("Verified award identities1");
-    await expect(page.getByLabel("Loaded legal record summary")).toContainText("Matters with unreported amounts1");
-    await page.getByRole("button", { name: "Intake", exact: true }).click();
+    await expect(page.getByLabel("Loaded legal record summary")).toContainText("Verified monetary awards1");
+    await expect(page.getByLabel("Loaded legal record summary")).toContainText("Awards with unknown amounts2");
+    await page.getByRole("button", { name: "Unassigned", exact: true }).click();
     await expect(page.locator(".ecc-legal-list li")).toHaveCount(1);
     await page.getByRole("button", { name: "All loaded", exact: true }).click();
     await page.getByLabel("Search legal matters").fill("SYNTHETIC JOINT");
@@ -83,14 +83,23 @@ try {
     await page.keyboard.press("End"); await expect(page.getByRole("tab", { name: "Audit", exact: true })).toBeFocused();
     await page.keyboard.press("Home"); await expect(page.getByRole("tab", { name: "Overview", exact: true })).toBeFocused();
     await page.getByRole("tab", { name: "Judgment", exact: true }).click();
-    await expect(page.getByRole("tabpanel")).toContainText("Recorded award amount: 0 cents");
+    await expect(page.getByRole("tabpanel")).toContainText("Recorded award amount: USD 0.00");
     await page.reload();
     await expect(page.getByRole("heading", { name: "EXAMPLE v. DEMO" })).toBeVisible();
     await page.goto("http://127.0.0.1:4181/ops/legal/matters/zero?id=m-001");
     await expect(page.getByRole("heading", { name: "EXAMPLE v. DEMO" })).toBeVisible();
     await page.goto("http://127.0.0.1:4181/ops/legal/matters/m-001");
     await page.getByRole("tab", { name: "Judgment", exact: true }).click();
-    await expect(page.getByRole("tabpanel")).toContainText("Recorded award amount: Not reported");
+    await expect(page.getByRole("tabpanel")).toContainText("Recorded award amount: Unknown amount");
+    await page.getByRole("tab", { name: "Tasks", exact: true }).click();
+    await expect(page.getByRole("tabpanel")).toContainText("Assemble evidence");
+    await expect(page.getByRole("tabpanel")).toContainText("Unassigned");
+    await page.getByRole("tab", { name: "Court", exact: true }).click();
+    await expect(page.getByRole("tabpanel")).toContainText("Date unknown");
+    await expect(page.getByRole("tabpanel")).toContainText("Synthetic docket source");
+    await page.getByRole("tab", { name: "Documents", exact: true }).click();
+    await expect(page.getByRole("tabpanel")).toContainText("Public synthetic order");
+    await expect(page.getByRole("tabpanel")).not.toContainText("PRIVATE SYNTHETIC EVIDENCE");
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "Matter overflow");
     const matterShell = await shellGeometry();
     await page.screenshot({ path: path.join(artifacts, `legal-${width}-matter.png`) });
@@ -103,7 +112,7 @@ try {
     await page.goto("http://127.0.0.1:4181/ops/legal/matters/zero");
     // These buttons only drive fixture states. Keyboard activation avoids collision
     // with the real shell's fixed skip link; operating controls still use real clicks.
-    for (const [mode, expected] of [["unavailable", "Legal workspace is not available."], ["denied", "You don't have access to this legal matter."], ["error", "Synthetic load failure"], ["loading", "Loading legal matter…"]]) {
+    for (const [mode, expected] of [["unavailable", "Legal workspace is not available."], ["denied", "You don't have access to this legal matter."], ["error", "Legal records could not be loaded."], ["conflict", "Legal records conflict. Review is required."], ["loading", "Loading legal matter…"]]) {
       await page.locator(`[data-mode="${mode}"]`).press("Enter");
       await expect(page.getByText(expected, { exact: true })).toBeVisible();
       await expect(page.getByRole("heading", { name: "EXAMPLE v. DEMO" })).toHaveCount(0);

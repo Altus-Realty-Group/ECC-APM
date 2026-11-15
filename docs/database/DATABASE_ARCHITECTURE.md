@@ -103,6 +103,15 @@ Evidence classes are separate. **Catalog-verified metadata** (relayed by Codex, 
 | --- | --- | --- | --- | --- |
 | `legal_evidence_refs` pins an immutable D1 `document_versions` row (ADR-0004) | Reused existing evidence refs and D1 versions; rejected a new link table, a copied document registry and any `storage_ref` parsing | Proposed: 2 columns, 1 FK, 1 CHECK, 1 partial unique index (NULLS NOT DISTINCT), 3 triggers, 5 functions (2 SECURITY INVOKER commands), journal dimension `evidence_attachment`, extended evidence-subject mask. **Zero** new tables/views/roles/grants/policies | Apply after 001, D1, 002; roll back 003 first (D1's own rollback is blocked by the FK until then). Server writer, reader, document authority and UI are separate and unbound. Compatibility owner: ECC backend. Rollback refuses bound/withdrawn evidence and attachment journal events | Draft PR stacked on #242; source and local tests only |
 
+## L4 protected evidence read - source only
+
+ADR [0005](../legal/adr/ADR-0005-protected-evidence-read.md) fixes the dependency and authorization order for ONE evidence download; `server/lib/legal/evidenceReader.ts` implements it against injected, default-deny ports
+(technical record: `docs/legal/EVIDENCE_PROTECTED_READ_20261116.md`). Actual tables, columns, constraints, functions, roles, grants, policies, queries and caches added or changed = **0**; no SQL ran. The reader reuses the A1 context
+validation, `planEvidenceRead` (unchanged), the L4 evidence contracts and the D1 reader's verified delivery and byte integrity. It adds only three legal-side ports (`evidence.load`, `properties.rows`, `pinned.resolve`), whose
+production binders are separate: they must run under the A1 transaction-local database seam, use the same-row `properties.id_uuid`-to-`id` join and apply the 003 binding, withdrawal and document-status semantics.
+Evidence class: source and unit tests with synthetic ports only; no installed, live or PostgreSQL proof for this change. The version-existence oracle is closed by ordering (target authority before version resolution; the
+version id is never taken from the browser). Unverified: every authority producer, the scope registry and owner/property mappings, the classification policy, provider receipts and any live delivery.
+
 ## Verification and open work
 
 - Complete the affected-domain inventory from actual source and verified database evidence when available.

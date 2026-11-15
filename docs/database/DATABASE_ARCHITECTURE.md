@@ -376,3 +376,23 @@ separate acceptance work; no live query, performance or authorization proof.
 See [document implementation record](../documents/OWNER_PROPERTY_DOCUMENTS_20261111.md).
 
 - **Legal award ledger (L5, issue #218):** source-only contracts in `shared/legal/ledger/` (see `docs/legal/LEGAL_AWARD_LEDGER_20261112.md`). No persistence, no SQL, net new database objects: 0. Persisted intake and write authorization remain separate dependencies.
+
+## L4 matter-to-document linkage - design proposal 2026-11-15
+
+ADR [0004](../legal/adr/ADR-0004-matter-document-version-linkage.md) proposes
+reusing legal_evidence_refs with a nullable immutable D1 version FK and explicit
+withdrawal, deriving document metadata from document_versions rather than a
+second registry. A same-row properties.id_uuid -> properties.id join resolves
+property identity; it does not grant authority. Matter access intersects D1 target,
+exact owner/property associations and classification access. Scope mappings and
+all producers remain unbound. D1 current-only downloads cannot silently deliver
+an obsolete pinned exhibit. Initial non-current versions fail stale/unavailable;
+historical delivery is a separate reviewed capability.
+
+This PR adds documentation only: actual tables/columns/FKs/functions/roles/grants
+added or changed = 0; no SQL, read path, cache or writer changed. Future target
+schema delta and proof matrix are explicitly proposals in ADR-0004 and
+[the L4 acceptance matrix](../legal/LEGAL_EVIDENCE_LINKAGE_ACCEPTANCE_20261115.md).
+Existing archive refs are not mapped/backfilled by text. COPY ONLY reconciliation
+is not authenticated delivery or judgment verification. Evidence class: source
+inspection only; no installed, live or PG reconstruction proof for this design.

@@ -5,7 +5,11 @@ text=(root/'ECC_UI_RECOVERY_AND_REBUILD_PLAN.md').read_text()
 existing_path=root/'experience-review-register.csv'
 existing={r['design_id']:r for r in csv.DictReader(existing_path.open())} if existing_path.exists() else {}
 records=[]
+section=None
 for line in text.splitlines():
+ if line.startswith("## "):
+  match=re.match(r"## (\d+)\.",line);section=int(match.group(1)) if match else None
+ if section not in {3,4,5,6,7}:continue
  if not line.startswith('|'):continue
  cells=[x.strip() for x in line.strip('|').split('|')]
  first=cells[0]
@@ -32,6 +36,17 @@ for row in records:
 for id,old in existing.items():
  if not any(r[0]==id for r in records):
   records.append([old[k] for k in ['design_id','surface_or_location','purpose_or_contents','data_or_behavior','links_or_requirement']]+['REMOVAL NEEDS REVIEW',old['required_states'],old['required_viewports'],old['source_sha_and_evidence'],old['dion_decision']])
+def review_batch(id):
+ if id.startswith(('CC','G')) or id=='P01':return 'Command Center baseline'
+ if id.startswith(('PR-','UN-')) or id in {'P02','P03','P23','P24'}:return 'Property and Unit'
+ if id.startswith(('LE-','TE-')) or id in {'P04','P05','P25','P26'}:return 'Lease and Tenant'
+ if id.startswith('OW-') or id in {'P06','P27'}:return 'Ownership'
+ if id.startswith(('LR','L0')) or id in {'P13','P14'}:return 'Legal'
+ return 'Backlog' if id.startswith('PL') else 'Other operating slice'
+for row in records:
+ old=existing.get(row[0],{})
+ unchanged=all(str(row[i])==old.get(k) for i,k in enumerate(['design_id','surface_or_location','purpose_or_contents','data_or_behavior','links_or_requirement'])) and row[6]==old.get('required_states') and row[7]==old.get('required_viewports') and row[5]!='REMOVAL NEEDS REVIEW'
+ row.extend([old.get('codex_visual_review','PENDING') if unchanged else 'PENDING',review_batch(row[0])])
 with (root/'experience-review-register.csv').open('w',newline='') as f:
- w=csv.writer(f);w.writerow(['design_id','surface_or_location','purpose_or_contents','data_or_behavior','links_or_requirement','approval','required_states','required_viewports','source_sha_and_evidence','dion_decision']);w.writerows(records)
+ w=csv.writer(f);w.writerow(['design_id','surface_or_location','purpose_or_contents','data_or_behavior','links_or_requirement','approval','required_states','required_viewports','source_sha_and_evidence','dion_decision','codex_visual_review','visual_review_batch']);w.writerows(records)
 print('review_items',len(records),'planned',sum(r[0].startswith('PL') for r in records))

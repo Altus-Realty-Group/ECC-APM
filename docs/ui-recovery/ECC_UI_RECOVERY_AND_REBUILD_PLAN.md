@@ -1,7 +1,8 @@
 # ECC whole-app UI recovery and rebuild plan
 
 **Product owner:** Dion DePaoli. **Design and integration owner:** Codex.
-**Status:** proposed execution blueprint; current UI rejected; no page or tab is visually approved by this document.
+**Revision:** 2 — incorporates Gemini, Grok and Claude reviews and Dion's navigation, color, information-help and approval directives.
+**Status:** stored execution blueprint; current UI rejected; neither this plan nor source checks approve a page visually.
 **Inventory baseline:** ECC-APM `bae057406b728cb0840a1c3afcd55f5bb6767876`, 2026-11-15.
 
 This is the UI execution supplement to the [existing product master plan](../roadmaps/ECC_SUPERIORITY_IMPLEMENTATION_MASTER_PLAN_V1.md), not a replacement product architecture. It records Dion's direction to recover the original experience, improve it, and specify the whole application before rebuilding further. Control Plane implementation is excluded from this campaign; existing access boundaries remain in force.
@@ -21,7 +22,7 @@ The code audit found recoverable visual source and separate data-delivery defect
 | `add75b1b` | Disconnected occupancy/history deliberately hidden | Retain chart frames with a concise unavailable state |
 | `b7b46b38` | Unsupported property contacts/dates/overview fields removed | Recover the information architecture and establish field delivery |
 | Current card contracts | Narrow schemas strip fields requested by views; lease/unit wire names disagree | Repair the accepted reader mappings and contracts before claiming restored content |
-| `/portfolio/properties/:id` | Registered placeholder distinct from the real property card | Audit inbound links, then redirect to the canonical card |
+| `/portfolio/properties/:id` | Registered placeholder distinct from the real property card | Record duplicate-route defect; preserve its path and behavior during the navigation freeze. A redirect requires separate Dion authorization |
 | Historical dashboard data hook | Random cash flow/collection traces, fixed leasing counts, inferred occupancy/readiness | Recover design, never those data generators |
 
 The source inventory contains **33 explicit routes plus fallback, 20 available navigation destinations, 38 declared unavailable destinations, five asset-card families, one legal-matter card family, 256 TSX modules, 588 source UI object declarations and 98 API-path references**. The latter counts include dormant source, not 588 working mounted features.
@@ -31,15 +32,17 @@ All **38 retained ZIP snapshots** were inventoried without execution: **2,728 vi
 ## 2. Fixed product rules
 
 1. A daily operator sees portfolio health, work requiring attention, the responsible record, and a clear next action. No debugging essays in ordinary page content.
-2. Black, white and gold, with neutral supporting tones. No orange. One token system and one active shell/card pattern.
+2. Black, white and gold frame the Altus interface. Charts use meaningful semantic and categorical colors: green profit/positive cash flow, red loss/adverse variance, and distinguishable accessible blue/teal/purple series. No orange. Brand styling must never force a grey-and-gold chart set.
 3. Recover first, then improve. Before removing an object, record its stable design ID, replacement, inbound links and Dion's disposition. Never silently reduce a page to satisfy a narrow API.
-4. Keep the intended map, chart, table and card regions during loading, missing data or failure. Suppress unauthorized/stale values; do not erase the experience. A short local status belongs inside the affected region.
-5. Definitions and provenance belong in an information control, chart tooltip, expandable details or administrator view. Operators still need visible date/period/currency and a concise freshness label.
+4. Preserve each agreed component in the visual design. For the operating release choose real data, a designed concise pending state, or explicit deferral per panel. Do not ship a wall of empty frames. Suppress unauthorized/stale values; never fill missing feeds with synthetic data in production.
+5. Use compact accessible “i” information controls for optional definitions/provenance. No unnecessary developer text, instructional paragraphs or collections of text boxes. Keep only necessary labels, period/currency, concise status and an actionable error visible. Engineering diagnostics stay in restricted technical views.
 6. Every enabled control has a real result, destination or download. No toast-only success, dead Edit/PDF buttons, fake assignments or fake communications.
 7. Database first, accepted API fallback second, calculation last. Unknown is not zero. A chart cannot manufacture history, coordinates, obligations, payments, readiness or approvals.
 8. Native record identity drives links. UUID legal/property references and numeric document/portfolio keys require verified joins. Names, addresses and Dropbox folders are not identity or authorization.
 9. Preserve all current useful behavior: search, sorting, CSV safeguards, keyboard focus, related-record links, session clearing and denied-cache suppression.
-10. A populated and an unavailable-state visual review are both required. A page is not approved because the failure message is accurate.
+10. Codex performs the final internal visual/interaction review before Dion sees a review slice. Dion retains final approval. Shared-pattern state testing is comprehensive; Dion reviews complete vertical slices rather than thousands of individual matrix cells.
+11. Navigation is frozen: no changes to sidebar groups, labels, icons, order, visibility, available/disabled status, page destinations, route paths, redirects, page switcher or existing tab navigation. No new links/routes/tabs or removal/hiding/reordering of existing tabs without a separate Dion decision. Improve content inside the existing destinations.
+12. Build visual review fixtures and data integration in parallel. Synthetic data is isolated, typed, deterministic, visibly labelled and absent from operating bundles/readers. Visual approval is separate from live data acceptance.
 
 ## 3. Information architecture and operator journeys
 
@@ -47,8 +50,8 @@ All **38 retained ZIP snapshots** were inventoried without execution: **2,728 vi
 
 | ID | Object / placement | Why it exists | Behavior / destination |
 |---|---|---|---|
-| G01 | Left navigation; compact icon rail on narrow screens | Stable domain orientation | One expanded group; accessible names; active page indicated; no dead links |
-| G02 | Workspace bar above content | Current record/domain context | Breadcrumb links, page switcher, clear current context; no duplicate giant brand header |
+| G01 | Existing left navigation, including its current narrow-screen behavior | Stable domain orientation | FROZEN: retain exact structure, labels, icons, order, visibility and destinations |
+| G02 | Existing workspace bar above content | Current record/domain context | FROZEN: retain existing switcher, labels and destinations; only in-page content may be redesigned |
 | G03 | Search/command deck | Reach records quickly | Search only authorized record types; result → canonical card; no access expansion |
 | G04 | Page title + primary action | Explain the operator's current job | One dominant title; primary action changes by page and permission |
 | G05 | Page-local filters and period | Define what the operator is seeing | Visible selected scope; reset; URL/back/return restoration |
@@ -64,7 +67,7 @@ Primary journey: **Command Center → filtered register → asset card → relev
 
 Cross-record journey: **Owner → property → unit → lease → tenant**, with reverse links and all parties shown where many-to-many relationships exist. A single primary tenant must not hide other tenants. Legal matters link through verified associations, not matching text.
 
-Business facts must survive ordinary refresh and navigation through their canonical reader. Drafts and temporary selections must be clearly local until a governed save exists. Tab selection and parent return context should be URL/history state; private record content should not be placed in URLs or browser storage.
+Business facts must survive ordinary refresh and navigation through their canonical reader. Drafts and temporary selections must be clearly local until a governed save exists. Preserve existing navigation/tab behavior and return context during this campaign. Future deep-link or history changes are proposals requiring separate authorization; private record content must not be placed in URLs or browser storage.
 
 ## 4. Command Center: restore the visual operating desk
 
@@ -105,7 +108,7 @@ The exact path/entry map is [routes.csv](routes.csv). The table below specifies 
 | `/portfolio/leases` / P04 | Status/expiration KPIs, horizon chart, register with parties/property/unit/rent/start/end/status | Review commitments; row → lease | Preserve search and loaded MRR; disclose loaded scope; MRR is not collected revenue |
 | `/portfolio/tenants` / P05 | Tenant/contact register, linked tenancy, balance/communication status when sourced | Find person and current/historical tenancy; → tenant/lease | Preserve search/contact fields; no inferred risk or payment behavior |
 | `/portfolio/owners` / P06 | Ownership/company grouping, contact directory, property/unit counts and portfolio links | Review ownership and agreements; → owner/company context | Add ownership organization without inventing company identity; contact/portfolio data must map explicitly |
-| `/portfolio/properties/:id` / P07 | Canonical redirect to `/card/property/:id` after inbound-link audit | One property experience | Remove routed placeholder; preserve valid identities and parent return context |
+| `/portfolio/properties/:id` / P07 | Preserve the existing destination during the navigation freeze | Track known duplicate placeholder | No redirect, route replacement or navigation change in this campaign; record remediation proposal separately |
 | `/ops/operations` / P08 | Cross-domain work queues, owner/status/date filters, exception KPIs; linked legal/work order/ledger records | Choose and complete the next action | Replace notice walls with visual work areas; reconcile the old unverified `legalCases` registry with native L1/L6, never activate a parallel legacy case source |
 | `/ops/maintenance/work-orders` / P09 | Priority/status/age KPIs, work-order queue, schedule/assignee/vendor, estimates/actuals, evidence | Triage and follow work; → work-order detail/property/unit | Build real detail destination and governed actions before enabling create/assign/close |
 | `/ops/accounting/tenant-ledgers` / P10 | Tenant/lease search; posted charges/payments/credits/adjustments, running balance, statement period | Explain balance; → lease/tenant/source transaction/DoorLoop where accepted | Bind actual posted entries; no recurring charges synthesized from lease terms; payment execution remains DoorLoop |
@@ -139,11 +142,11 @@ The exact path/entry map is [routes.csv](routes.csv). The table below specifies 
 
 Top: linked breadcrumbs and Back to the same register state; record title/address/status; compact scope/freshness; up to four relevant KPIs. Below: stable tab bar and wide working pane. Right rail: related records, key dates, location/contact, pinned verified documents and next actions relevant to the selected tab. Collapse the rail below content on mobile. A title/status must not impersonate a permission or legal conclusion.
 
-Use one `CardShell` implementation, not parallel `AssetCardShell`, per-entity dormant `Tabs` and ad hoc rails. Recover good visual elements from `Hero.tsx`, `HeroBlock.tsx`, `RightRail.tsx`, `Details.tsx`, `Linked.tsx`, `Activity.tsx`; migrate deliberately, then retire duplicates after link/import verification.
+Use one visual card pattern inside the existing card destinations and existing tab arrays. Do not change tabs, labels, order or navigation while consolidating internals. Recover good visual elements from `Hero.tsx`, `HeroBlock.tsx`, `RightRail.tsx`, `Details.tsx`, `Linked.tsx`, `Activity.tsx`; migrate deliberately, then retire duplicates after link/import verification.
 
 Actions: Review source / Download / Edit / Create work / Draft correspondence only when their real reader or writer exists. Edits need field validation, revision/conflict handling, save/reload proof and audit. PDF requires a real rendered output. Missing workflows keep a compact disabled affordance only where helpful, not a pretend success.
 
-Every tab below is a **target requirement**, not a claim that the current implementation already works. Current mounted property tabs are Overview/Financials/Legal/Files. Other four currently add Related. Their old seven-tab modules survive but do not own current tab state. The target consolidates Details into Overview and Linked into Related; restores Activity explicitly; adds maintenance/communications where the job requires them. Tab IDs are stable deep links; labels and locations are uniform.
+Every tab below is a **target requirement**, not a claim that the current implementation already works. Current mounted property tabs are Overview/Financials/Legal/Files. Other four currently add Related. Their old seven-tab modules survive but do not own current tab state. The target capability IDs below are a content inventory, not authorization to add, remove, rename, hide or reorder tabs. In the first release improve the content of the existing Overview, Related (where already mounted), Financials, Legal and Files tabs. Future Activity, maintenance, renewal, communications and agreement capabilities stay deferred or are designed as in-page sections for review. Existing local tab behavior remains unchanged; new deep links need separate authorization.
 
 | Card / tab ID | What it shows and why | Data required | Links / actions |
 |---|---|---|---|
@@ -256,7 +259,7 @@ Matter permission and document permission must both succeed. The `storage_ref` s
 
 ## 8. All 38 planned destinations: specify, do not leave invisible scope
 
-These are product backlog requirements, not working routes. Existing stub files do not satisfy them. Add navigation only with an implemented, reviewed journey. Consolidate duplicate views into tabs where stated instead of creating page count for its own sake.
+These are product backlog requirements, not working routes or commitments for the next release. Existing stub files do not satisfy them. Navigation is frozen: preserve all existing available and unavailable entries exactly; do not activate, hide, regroup or relabel them. Proposed consolidation or new destinations require a separate Dion decision. Priority tiers below govern the backlog, not navigation changes.
 
 | Path | Intended page/components/data | Why / drilldown |
 |---|---|---|
@@ -360,8 +363,8 @@ Static import reachability is **not proof of mounting**. Repeated rows create mo
 
 | Component family | Plan destination / disposition | Why and acceptance |
 |---|---|---|
-| Sidebar, WorkspaceBar, navigation registry | G01–G05; extend | Stable domain/record orientation and return context |
-| CardShell, HeroBlock, Panel, FieldRow, RelatedRecord | Shared asset-card system; reuse/extend | One visual pattern; actual field bindings; links survive state changes |
+| Sidebar, WorkspaceBar, navigation registry | G01–G05; preserve unchanged | Frozen navigation; use existing shell in every visual prototype and review |
+| CardShell, HeroBlock, Panel, FieldRow, RelatedRecord | Shared asset-card presentation; reuse/extend internals | Existing tab arrays and destinations unchanged; real field bindings and readable detail |
 | Dormant per-entity Hero/RightRail/Details/Linked/Activity/Tabs | Compare to PR/UN/LE/TE/OW target tab IDs; migrate best elements | Recover lost information architecture; remove duplicates only after coverage proof |
 | KPI cards/ticker, ring, sparkline, chart container | CC01/02/07/08; consolidate | Consistent periods/units, real charts and accessible values |
 | Portfolio map, city tables, financial/leasing/action components | CC03–09; recover and improve | Original visual inventory with corrected data and real drilldowns |
@@ -377,43 +380,86 @@ Static import reachability is **not proof of mounting**. Repeated rows create mo
 | Old stub pages in accounting/AI/work/growth/investor/integration trees | Section 8 target pages; forensic reuse only | A filename/placeholder is not a complete product; verify each control/data path |
 | Toast/error/dev banner utilities | Feedback and developer-only diagnostics | Raw debug content must never dominate production operator UI |
 
-## 12. Rebuild sequence: targeted PRs, no parallel redesign from memory
+## 12. Priorities, parallel execution and bounded PRs
 
-Each slice starts from accepted dependencies, references the IDs above and lists exact objects preserved/changed. Claude and Grok may advise/structure/audit; Codex owns final UI and integration per Dion. External assignments must be separate copy/paste prompts in chat; no assignment/status-only GitHub comments or monitoring churn.
+### Advice incorporated
 
-| Slice | Deliverable / principal files | Dependency / exit proof |
+| Adviser | Adopted change | Boundary |
 |---|---|---|
-| UI-00 | This blueprint, full source/archive inventories, visual review set | Source coverage counted; all gaps explicit; no UI approval implied |
-| UI-01 | Historical visual reconciliation: 165 unique archived visual contents + Git baselines, selected renderable comparisons | Map each original major object to retained/recovered/improved/retired; inspect no secret-bearing configuration; no wholesale archive execution |
-| UI-02 | Shared shell/card/table/chart tokens, readable states and parent/tab URL context | G01–G12 approved with representative actual cards and tables; one active pattern |
-| UI-03 | Command Center CC01–13; refine draft #247 against blueprint | Original areas visible; loaded + disconnected + denied + mobile review; no invented operating series |
-| DATA-01 | Bounded DoorLoop core capture and Imported → Working reconciliation in ingestion owner | Account/resource admission, durable bounded run, real completeness/unknown/duplicate proof; no global scheduler gamble |
-| DATA-02 | Portfolio/card reader contract and mapping corrections | Every visible field reconciled to actual source; label/rent/date/ownership joins proven; no broad raw passthrough |
-| UI-04 | Five portfolio registers, search/filter/map/table/tile and meaningful summaries | P02–06, loaded/partial/empty/error/denied; row → correct card → exact return context |
-| UI-05 | Property + unit cards and rails/tabs | PR/UN IDs, exact field bindings, related parties, documents/work associations; all tab states reviewed |
-| UI-06 | Lease + tenant cards, renewal/ledger/comms sections | LE/TE IDs; all parties, dates/rent, posted finance; actual drafts/delivery semantics |
-| UI-07 | Ownership/company organization, owner card and agreement coverage | OW IDs; verified property_owners and D1 exact links; ownership folder plan preserved |
-| LEGAL-01 | Native register/matter presentation and protected evidence reader integration | LR/L IDs, multi-award/unknown/permission/restricted/pinned-version proof; no automatic send or legal conclusion |
-| UI-08 | Operations/work-order and ledger workspaces | P08–10, real owner/status/record actions, posted balances; unavailable producer does not count as finished |
-| UI-09 | Vacancy/renewal visual worklists | P11/P12; current date/status tools retained; future analytics only with accepted evidence |
-| UI-10 | Reporting library/designer/issued output and correspondence | P15–19; working CSV retained; new save/PDF/send only with backend authority and reload/delivery proof |
-| UI-11 | Data Hub/integration status/admin separation | P20–22/A01–05; current Supabase collector reflected truthfully; legacy admin token/source controls reviewed |
-| UI-12 | Remaining section 8 product modules in bounded domain slices | Each new destination has full page/card/data/action plan and user visual review before navigation activation |
-| UI-13 | Whole-app acceptance and release candidate | Every page/tab/component disposition accounted for; visual + functional + real-data evidence, approval then exact runtime alignment |
+| Gemini | Parallel visual and data tracks; typed isolated fixtures; mobile density from the first prototype; complete-slice reviews | No synthetic records in production or invented accepted API contracts; no recurring review automation created |
+| Grok | Command Center is the first visual gate; occupancy/MRR/award definitions fixed early; living field/review artifacts; existing legal/document boundaries retained | Later presentation slices do not establish a competing design baseline before CC acceptance or explicit deferral |
+| Claude | Clickable pixels before more specification; explicit live/pending/defer decision per panel; proportional QA; time-boxed archaeology; core journeys first | No automatic tab hiding or navigation changes: Dion's later navigation freeze overrides that suggestion |
+| Dion | Existing navigation unchanged; semantic graph colors; no developer-text clutter; “i” help; Codex reviews UI before Dion | All worker handoffs are reviewed source/fixtures, not final UI approval |
 
-No rebuilding unrelated source in Claude/Grok lanes. No merge/publish of UI-03 merely because its unit tests pass. Source design, contract changes, live data admission, schema installation and release remain separate reviewable changes.
+### Three first-release daily journeys
 
-## 13. Visual and functional acceptance: the approval register
+1. **Portfolio triage:** Command Center → existing Properties/Units register → property/unit card → relevant source records → return to the same review context.
+2. **Lease/tenant review:** expiration or balance signal → existing Leases/Tenants destination → lease/tenant card → actual ledger, agreement or approved correspondence context.
+3. **Ownership/evidence review:** existing Owners destination → owner/property card → management agreement and classified Files/Legal context. Protected reads must work before real documents are delivered.
 
-For **every routed page and every target card tab**, record stable design ID, source SHA, viewport, data state, screenshot, interaction, expected versus observed result, data reconciliation and Dion's approval/disposition. The [experience review register](experience-review-register.csv) contains the individual review rows. Initial status for every row is **NOT APPROVED**. The register must cover the 38 planned destinations as they become designed; they cannot silently disappear from scope.
+These are the working priorities based on the established ECC operating requirements; they do not imply observed user-frequency analytics. Maintenance and accounting are the next operational priorities. The 38 planned destinations remain visible in the backlog, ranked by value, without activating navigation.
 
-Required states: populated representative data; confirmed empty; partial/unknown; zero; loading; failed/refresh failed; denied/revoked/session change; stale/conflict; narrow desktop/tablet/390px phone; long names and realistic row volume. Test actual sort/search/filter/chart selection/row navigation/back/tab URL/download, and all writes through save/reload/conflict/retry where implemented.
+### Value tiers
 
-Charts need legible measured geometry, axes/legend/period, selectable filters, null/zero distinction, accessible observation tables and reconciled totals. A screenshot of an empty axis frame does not establish a working financial chart. A synthetic chart screenshot is labelled synthetic and never substituted for reconciled operating data.
+| Tier | Included scope | Release treatment |
+|---|---|---|
+| NOW | Command Center visual baseline; current registers and existing card-tab contents; core field mappings; bounded data preparation | First reviewable increment; visuals and data proceed in parallel |
+| NEXT | Operational work orders, posted tenant ledger/collections, vacancy/renewal worklists, owner agreement/statement delivery, legal evidence retrieval | Build after shared visual baseline and required producer/reader acceptance |
+| LATER | Rich reporting/PDF persistence, actual communications delivery, vendors, projects, deposits/payment plans, assisted-program records and source-backed analytics | Separate complete domain slices; no placeholder feature-count claims |
+| PARKED | Investor portal, model logs, automated routing/intelligence, marketing/automation and cross-app expansion without accepted producer/owner | Inventory retained; not part of recovery release and no new navigation |
 
-Forms need field meaning/units, pre-commit preview where consequential, clear save/cancel/undo behavior and durable result. Hidden/disabled capability must state its business status concisely, without SDK names, schema discussion, connection implementation or deployment directions.
+The detailed [targeted PR worklist](TARGETED_PRS.md) assigns each bounded slice and permitted paths. Claude handles contract/data and protected-reader foundations; Grok handles typed fixtures, metric/control structure and adversarial verification; Codex owns presentation, consolidation and integration. External Claude/Grok prompts are separate copy/paste blocks delivered in chat, never assignment/status-only GitHub comments. Do not claim either agent started until Dion sends the prompt and the agent returns evidence.
 
-Release blocks: unexplained removed object; dead action; raw developer prose; unresolved data-field stripping; fake charts/pins/counts; misleading verified-empty state; wrong-party link; restricted-data leak; unreconciled financial definitions; unavailable critical workflow; missing page/tab visual review. Passing CI is necessary engineering evidence, not Dion's design approval.
+### Parallel tracks and gates
+
+- **Visual track:** first create a clickable Command Center prototype with the exact existing navigation, realistic isolated typed fixtures, semantic chart colors, desktop and 390px layouts, and working in-prototype filters/drilldowns. Use `c940fa7b`/`8ed250bc` as the initial visual baseline. Time-box additional archive comparison to two focused sessions of at most 90 minutes each; record unresolved candidates instead of blocking the prototype on all 165 variants.
+- **Data track:** review actual DoorLoop capture/account/resource gates and field delivery independently. Existing collector work is reused. Correct reader names/units/joins; no live SQL, provider activation or global scheduler enablement follows from a visual request.
+- **Structure/test track:** build deterministic typed fixture factories and metric definitions, navigation invariance checks, and a reusable information-control/state harness. Accepted contracts are reused exactly. Unsupported visual data uses a clearly named proposed presentation fixture, never a claimed backend contract.
+- **First visual gate:** Codex rejects incomplete/unattractive/cluttered results internally, then Dion reviews the whole Command Center. Later UI designs may be prepared structurally but do not set a competing production baseline before this gate passes or Dion explicitly defers it.
+- **Card delivery gate:** show representative populated cards synthetically for design; bind real values only after DATA field acceptance. Preserve existing tab navigation. Deferred producers do not justify blank text-heavy releases or removing planned information needs.
+- **Protected files gate:** existing #245 is an unmounted public-only reader foundation, not complete Files delivery. Slot the accepted authority producers, matter/document/property identity joins, document store/provider binder, legal evidence binder and browser transport binder before real PR-DOC/OW-DOC/L03/L08 activation. Reconfirm current PR/head/status before reuse.
+- **Review batches:** complete vertical slices (Command Center, Property+Unit, Lease+Tenant, Ownership, Legal) at the end of each ready increment. Offer Tuesday/Friday reviews only if useful to Dion; no fixed cadence or automation is assumed and no daily work waits for a calendar slot.
+- **Separation of change types:** recovery PRs preserve objects and routes; improvements are separately labelled. Consolidation names every old component, data mapping and control that moves, supplies equivalence evidence, and retires duplicates only after the replacement is accepted.
+
+### Panel release decisions
+
+The clickable prototype displays all CC01–CC13 with a permanent synthetic-review label. The operating release cannot use those fixtures. For each panel, Codex proposes LIVE / DESIGNED PENDING / DEFERRED using the table below; Dion approves that decision with the visual slice. No new navigation is created for deferred drilldowns.
+
+| Panel IDs | First-release proposal | Minimum real-data requirement |
+|---|---|---|
+| CC01 | LIVE when summary/card totals reconcile; otherwise one designed pending KPI state | Accepted scoped property/unit/occupancy/revenue observations |
+| CC02 | Individually LIVE only with proper sources; otherwise DEFER operational metric tiles as a group | Inspection-backed readiness, posted collections, actual critical work records |
+| CC03 | LIVE with verified locations; otherwise designed location panel + existing property-register link, or defer by Dion's visual decision | Verified coordinates and property identities; no guessed pins |
+| CC04 | LIVE for actual review records; unsupported exception categories DEFER | Real actor/status/date/source; no fabricated priority |
+| CC05 | LIVE only with reconciled posted financial series; otherwise DEFER from operating release | Income/expense/NOI same currency/period/basis |
+| CC06 | DEFER until actual leasing activity exists | Deduplicated lead/tour/application/approval/signature cohort |
+| CC07 | LIVE only with accepted occupied-unit denominator; otherwise designed pending gauge | Occupied/eligible/unknown units; no active-lease substitute |
+| CC08 | LIVE only with real observations; otherwise DEFER historical plot | Source history at labelled dates; never derived from current occupancy |
+| CC09 | LIVE with reconciled city/unit joins; otherwise DEFER | Same population and definition as portfolio totals, exclusions explained |
+| CC10–CC12 | LIVE from valid accepted loaded leases/units; otherwise one designed pending review workspace | Actual dates/status/identity and same filtered records behind each chart |
+| CC13 | Small “i” controls placed by relevant metrics; no permanent essay panel | Short business definition, scope and source/as-of, no engineering setup text |
+
+Deferral changes content within the current page, never the sidebar, route or tab navigation. The deferred object remains in the recovery register so it cannot be forgotten. A screen of empty chart frames is not an accepted release.
+
+## 13. Design review and proportionate proof
+
+The [experience register](experience-review-register.csv) retains all 174 design items and their dispositions. It is traceability, not a requirement for 174 separate approval conversations. Every review item starts NOT APPROVED. Codex performs the final internal design gate; Dion gives final user approval for each complete vertical slice.
+
+| Proof layer | Required coverage | Reviewer |
+|---|---|---|
+| Shared patterns | Full loading/empty/partial/unknown/zero/failure/denied/session/stale/conflict matrix once per genuinely shared pattern; desktop and 390px; targeted tablet | Automated tests + Codex |
+| Unique page/card behavior | Representative populated and disconnected state, primary interactions, long content and relevant high-risk boundaries | Codex with measured browser evidence |
+| Financial/authorization/document behavior | Full relevant money, rounding, null/zero, wrong-identity, denial/revocation, later-page failure and exact-version cases on each independent boundary | Technical review; never waived by visual similarity |
+| Dion review | Complete desktop/mobile vertical slice with realistic labelled fixtures, clear before/after and a short unresolved-decision list | Dion, after Codex internal acceptance |
+| Live acceptance | Source → authorized reader → parser → page/chart → drilldown → refresh with actual reconciled records | Codex/data owner; separately from synthetic design approval |
+
+Charts need measured geometry, axes/legend/period, readable semantic colors, reactive filters, null/zero distinction and accessible values. Color conveys meaning, not decoration: profit/positive cash flow green, loss/adverse variance red. Do not classify every expense as loss. Use blue/teal/purple categorical series with explicit legends, signs, labels and line/pattern differences so color is not the only cue. Gold remains a brand/selection accent rather than the mandatory data color. No orange. Final tokens must pass contrast and color-vision checks in light/dark states actually used.
+
+Optional explanations use a small “i” icon beside the relevant label: hover **and keyboard focus** reveal help; tap/click works on touch; Escape dismisses; the target is accessible and large enough without an oversized visible box. Use a shared accessible tooltip/popover, not browser-title-only help. Essential labels, amounts, units, active scope and actionable errors remain visible. No developer terms, token/configuration instructions, raw JSON or data-architecture lectures on operating pages. No walls of framed explanatory text.
+
+Forms prove validation, save/cancel, conflict/retry and durable reload where writes exist. A control with no real workflow is not enabled. Existing tabs/navigation remain unchanged; unavailable tab contents get a designed compact local state, not a new tab-hiding scheme.
+
+Release blocks: unapproved navigation changes; unattractive or text-heavy UI; unexplained removed objects; dead actions; synthetic operating data; lost field mappings; misleading empty states; wrong-party links; restricted leaks; unreconciled financial definitions; critical unavailable workflows; missing Codex internal gate or Dion slice approval. Passing CI is necessary engineering evidence, never visual approval.
 
 ## 14. Review set and remaining evidence
 

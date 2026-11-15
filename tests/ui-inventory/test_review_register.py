@@ -22,7 +22,7 @@ class ReviewEvidenceTests(unittest.TestCase):
         (folder / 'ECC_UI_RECOVERY_AND_REBUILD_PLAN.md').write_text(PLAN)
         rows = self.run_generator(root)
         row = next(r for r in rows if r['design_id'] == 'CC01')
-        row.update(approval='SYNTHETIC_APPROVAL', source_sha_and_evidence='fixture-source', dion_decision='synthetic-test-decision')
+        row.update(approval='SYNTHETIC_APPROVAL', source_sha_and_evidence='fixture-source', dion_decision='synthetic-test-decision', codex_visual_review='SYNTHETIC_CODEX_PASS')
         with (folder / 'experience-review-register.csv').open('w', newline='') as handle:
             writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
             writer.writeheader()
@@ -34,6 +34,7 @@ class ReviewEvidenceTests(unittest.TestCase):
             self.fixture(root)
             row = next(r for r in self.run_generator(root) if r['design_id'] == 'CC01')
             self.assertEqual(row['approval'], 'SYNTHETIC_APPROVAL')
+            self.assertEqual(row['codex_visual_review'], 'SYNTHETIC_CODEX_PASS')
             self.assertEqual(row['source_sha_and_evidence'], 'fixture-source')
 
     def test_changed_spec_requires_review_and_keeps_prior_decision(self):
@@ -44,6 +45,7 @@ class ReviewEvidenceTests(unittest.TestCase):
             plan.write_text(PLAN.replace('| CC01 / top full-width | Portfolio KPI cards |', '| CC01 / top full-width | Revised fixture panel |'))
             row = next(r for r in self.run_generator(root) if r['design_id'] == 'CC01')
             self.assertEqual(row['approval'], 'NOT APPROVED')
+            self.assertEqual(row['codex_visual_review'], 'PENDING')
             self.assertIn('synthetic-test-decision', row['dion_decision'])
             self.assertEqual(row['source_sha_and_evidence'], 'fixture-source')
 

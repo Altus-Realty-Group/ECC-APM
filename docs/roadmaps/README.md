@@ -29,3 +29,7 @@ No roadmap authorizes mutations to Supabase, deployments, vendor accounts, secre
 Dion authorized the restart campaign on 2026-10-12. Use `ECC_RESTART_PLAN_2026-10-12.md` as its execution addendum, including complete disposition of every old PR. Strategic direction remains the master plan.
 
 Current lanes: Claude frontend integrity #113; Grok retained repository hygiene #104 and all-PR disposition; ChatGPT CI proof repair #114 and campaign review. External agents require manual startup prompts through Dion; PR records alone do not establish delivery or activity. Read current heads and delivery receipts before continuing. Old PR #82 is superseded by #114; its branch is preserved.
+
+## Whole-app UI recovery execution — 2026-11-15
+
+Dion rejected the current UI and directed recovery of the original visual work, improvement across every page/card/tab, and a complete data/component/link blueprint before the broader rebuild. Use [ECC UI recovery execution index](../ui-recovery/README.md) and its [full plan](../ui-recovery/ECC_UI_RECOVERY_AND_REBUILD_PLAN.md). It supplements the existing master plan; source checks and a running Preview are not visual approval. Draft #247 is partial recovery, unmerged and unapproved.

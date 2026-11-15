@@ -28,9 +28,13 @@ Store only the version key. Derive document identity, digest, size, media type
 and provider identity through that immutable version. Do not store another
 copy of those facts or a separately editable document_id. One evidence ref
 binds at most one version; many refs may point to the same registered version.
-A partial unique index on (matter_id, document_version_id), where the version
-is non-null, prevents repeated attachments for one matter, including withdrawn
-ones. A repeat is an idempotent request or a conflict, never a new duplicate.
+A partial unique index on (matter_id, requirement_id, document_version_id),
+NULLS NOT DISTINCT and restricted to non-null versions, prevents repeated
+attachments for the SAME requirement (including an explicitly unassigned/null
+requirement), including withdrawn ones. A repeat is an idempotent request or a
+conflict, never a new duplicate. The same registered version may support several
+requirements using separate evidence refs; bytes and document identities are not
+copied. Packet manifests deduplicate by immutable version identity.
 A replacement uses a NEW registered version and a new evidence ref; it does
 not retarget an existing attachment. Reusing a withdrawn attachment is not an
 implicit restore operation.
@@ -44,7 +48,7 @@ New evidence refs must begin unbound. Direct INSERT with a version or withdrawal
 is refused, so the INSERT path cannot bypass guarded attachment and its journal.
 The future writer permits one null-to-version attachment and one null-to-time
 withdrawal, each with the expected evidence revision, required trusted actor,
-current matter authority and document authority. Version and matter are immutable
+current matter authority and document authority. Version, matter and requirement association are immutable
 once bound. The server supplies withdrawal time. A dedicated reviewed command
 must lock/check the evidence revision, persist the change and append a content-free
 journal event in one transaction. Existing confidence revision checks remain

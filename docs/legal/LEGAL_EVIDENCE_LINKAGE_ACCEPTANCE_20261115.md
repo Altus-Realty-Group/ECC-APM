@@ -30,9 +30,10 @@ review before implementation. No live DDL or new grants/policies are authorized.
 | Direct INSERT with bound/withdrawn fields | Refused; no insert-path journal/revision bypass |
 | Valid attachment | Exact registered version, expected revision, required actor and transaction journal |
 | Unknown version / wrong requirement matter | FK/composite-matter refusal, no row/journal change |
-| Duplicate version for same matter | Exact replay is no-op or explicit conflict; never duplicate rows/events |
+| Same version for same matter/requirement (including null requirement) | Exact replay is no-op or explicit conflict; never duplicate rows/events |
+| Same version for different requirements | Distinct evidence refs allowed without copying bytes; packet version manifest deduplicates |
 | Same version in different matters | Independent refs, independently authorized |
-| Retarget existing attachment / reassigned matter | Refused, no evidence or journal mutation |
+| Retarget existing attachment / reassigned matter or requirement | Refused, no evidence or journal mutation |
 | Withdraw | Explicit actor and expected revision; exactly one event; no delete/implicit restoration |
 | Restricted attachment/withdrawal journal events | Existing evidence-subject mask retained/extended; no hidden IDs or event counts leak |
 | Confidence updates | Existing guard and journal protocol retained |

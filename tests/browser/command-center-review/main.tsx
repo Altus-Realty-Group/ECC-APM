@@ -9,6 +9,7 @@ import {NAV_SECTIONS} from '../../../src/config/navigation';
 import '../../../src/styles/index.css';
 import '../../../src/styles/workspace.css';
 import './review.css';
+import {PropertyReview} from './PropertyReview';
 import {financials,financialPlotY,financeNet,money,netTone,properties,scopeProperties,scopedFigures,scopedLeaseReviews,stages,summary,type ReviewMode,type ReviewProperty} from './model';
 const navigation=memoryLocation({path:'/dashboard',record:true});
 function Hint({label,children}:{label:string;children:React.ReactNode}){
@@ -18,15 +19,18 @@ function Hint({label,children}:{label:string;children:React.ReactNode}){
 function PanelTitle({eyebrow,title,help,action}:{eyebrow:string;title:string;help?:string;action?:React.ReactNode}){return <header className="rv-panel-head"><div><small>{eyebrow}</small><h2>{title}{help?<Hint label={title}>{help}</Hint>:null}</h2></div>{action}</header>;}
 function Prototype(){
  const [location,navigate]=useLocation(),[mode,setMode]=useState<ReviewMode>('populated'),[city,setCity]=useState('All cities'),[period,setPeriod]=useState(6),[selected,setSelected]=useState<ReviewProperty|null>(null),[queue,setQueue]=useState('All reviews'),[stage,setStage]=useState(4);
+ const [drafts,setDrafts]=useState<Record<number,Record<string,string>>>({});
+ const propertyMatch=/^\/card\/property\/(\d+)$/.exec(location);
+ const reviewProperty=propertyMatch&&mode==='populated'?scopeProperties(city,mode).find(p=>p.id===Number(propertyMatch[1])):null;
  const dialog=useRef<HTMLDialogElement>(null),rows=scopeProperties(city,mode),figures=scopedFigures(city,mode),known=mode==='populated';
  const chart=financials.slice(-period),income=chart.reduce((s,r)=>s+r.income,0),expense=chart.reduce((s,r)=>s+r.expenses,0),net=income-expense;
- useEffect(()=>{setSelected(null);dialog.current?.close();},[mode]);
+ useEffect(()=>{setSelected(null);dialog.current?.close();if(mode!=='populated')setDrafts({});},[mode]);
  const openProperty=(p:ReviewProperty)=>{if(!known)return;setSelected(p);dialog.current?.showModal();};
  const isFinance=queue==='Financial periods',isLease=['Past end','0–30 days','31–60 days','61–90 days'].includes(queue),leaseRows=scopedLeaseReviews(city,mode,queue);
  const activeTitle=NAV_SECTIONS.flatMap(s=>s.path?[{path:s.path,title:s.title}]:s.children??[]).find(p=>p.path===location)?.title??'Record review';
  return <><div className="rv-review-bar"><strong>VISUAL REVIEW · SYNTHETIC DATA</strong><label>Review state<select value={mode} onChange={e=>setMode(e.target.value as ReviewMode)}><option value="populated">Populated</option><option value="unknown">Data pending</option><option value="denied">Access restricted</option></select></label></div>
  <div id="ecc-app"><div className="ecc-shell"><Sidebar/><main className="ecc-main" id="main" tabIndex={-1}><WorkspaceBar/><div className="ecc-workspace-content">
- {location!=='/dashboard'?<section className="rv-destination"><h1>{activeTitle}</h1><p>This visual review covers the Command Center.</p><button className="rv-button" onClick={()=>navigate('/dashboard')}>Return to Command Center</button></section>:<section className="rv-command">
+ {reviewProperty?<PropertyReview key={reviewProperty.id} property={reviewProperty} drafts={drafts[reviewProperty.id]??{}} onDraft={(purpose,value)=>setDrafts(previous=>({...previous,[reviewProperty.id]:{...previous[reviewProperty.id],[purpose]:value}}))} onReturn={()=>navigate('/dashboard')}/>:location!=='/dashboard'?<section className="rv-destination"><h1>{activeTitle}</h1><p>This visual review covers the Command Center.</p><button className="rv-button" onClick={()=>navigate('/dashboard')}>Return to Command Center</button></section>:<section className="rv-command">
  <div className="rv-heading"><div><div className="rv-eyebrow">ALTUS PROPERTY MANAGEMENT</div><h1>Command Center</h1><p>A clear view of your portfolio.</p></div><div className="rv-controls"><label className="rv-filter">Portfolio<select aria-label="Portfolio city" value={city} onChange={e=>{setCity(e.target.value);setSelected(null);dialog.current?.close();}}>{['All cities','Hammond','Gary','Merrillville'].map(v=><option key={v}>{v}</option>)}</select></label><span className="rv-asof">As of Nov 15, 2026</span></div></div>
  {!known?<div className="rv-state" role="status">{mode==='denied'?'Access restricted':'Portfolio data pending'}</div>:null}
  <div className="rv-kpis">

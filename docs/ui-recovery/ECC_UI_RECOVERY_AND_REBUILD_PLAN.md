@@ -1,5 +1,7 @@
 # ECC whole-app UI recovery and rebuild plan
 
+> Current detailed addendum: [Full Recovery and Build Plan revision 1.2](ECC_APM_Full_Recovery_and_Build_Plan.md), [43-finding consolidation](ECC_APM_Advisor_Consolidation_and_Design_Decisions.md), and [UI review/change safety](UI_REVIEW_AND_CHANGE_SAFETY.md). Read these for the next visual revision. This source-inventory execution program and its existing boundaries remain; no design is approved by this link.
+
 **Product owner:** Dion DePaoli. **Design and integration owner:** Codex.
 **Revision:** 2 — incorporates Gemini, Grok and Claude reviews and Dion's navigation, color, information-help and approval directives.
 **Status:** stored execution blueprint; current UI rejected; neither this plan nor source checks approve a page visually.

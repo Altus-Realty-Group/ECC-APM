@@ -37,6 +37,28 @@ export const proposedUnknownOccupancy: ProposedOccupancyBreakdown = {
   activeLeases: 0,
 };
 
+/** Confirmed zero occupied on a positive, fully known denominator. */
+export const proposedConfirmedZeroOccupancy: ProposedOccupancyBreakdown = {
+  eligibleUnits: 10,
+  occupiedEligibleUnits: 0,
+  unknownUnits: 0,
+  excludedUnits: 0,
+  activeLeases: 0,
+};
+
+/**
+ * Proposed test-only occupancy rate with explicit coverage semantics.
+ * Not an accepted contract. Zero eligible denominator or wholly unknown coverage returns null
+ * (never NaN, never a false 0%). Confirmed zero occupied on a positive fully-known denominator returns 0.
+ * Otherwise returns occupiedEligible / eligible.
+ */
+export function proposedOccupancyRate(o: ProposedOccupancyBreakdown): number | null {
+  if (o.eligibleUnits === 0) return null;
+  if (o.unknownUnits === o.eligibleUnits) return null;
+  if (o.occupiedEligibleUnits === 0 && o.unknownUnits === 0 && o.excludedUnits === 0) return 0;
+  return o.occupiedEligibleUnits / o.eligibleUnits;
+}
+
 /**
  * Deterministic lease rows for MRR/coverage assertions.
  * Known subtotal, unknown rents, recorded zero, and excluded ended leases are distinguished.

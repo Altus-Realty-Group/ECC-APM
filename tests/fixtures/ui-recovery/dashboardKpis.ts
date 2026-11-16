@@ -19,10 +19,11 @@ export const populatedDashboardKpis: DashboardKpis = {
   lastUpdatedProblem: null,
 };
 
+/** Zero counts and money; occupancyRate is null because zero units cannot establish 0% occupancy. */
 export const zeroDashboardKpis: DashboardKpis = {
   propertiesTotal: 0,
   unitsTotal: 0,
-  occupancyRate: 0,
+  occupancyRate: null,
   revenue30dCents: 0,
   series: [],
   lastUpdated: "2026-11-15T16:00:00.000Z",

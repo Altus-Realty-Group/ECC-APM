@@ -146,6 +146,20 @@ access grant but did not identify a company membership relation in the
 inspected ECC schemas. The legacy grant has no company or connection
 binding and cannot serve as this authority.
 
+The November 18 read-only Supabase check inspected column names for the
+installed authorization candidates. It read no membership or grant rows.
+
+| Installed relation | Observed scope | Consequence for ECC |
+| --- | --- | --- |
+| `public.client_company_members` (Control Plane) | Client, company, member role, primary flag and creation time | No person or revocation column. Covers the client/company relationship. |
+| `public.control_plane_audience_memberships` (Control Plane) | Person, audience, standing, effective and ended times | No company column. Covers audience membership. |
+| `public.control_plane_application_clients` (Control Plane) | Application client registration | Identifies the application client. |
+| `ecc_working.access_grant` (AltusCommandCenter) | Subject, resource, optional entity, grantor and grant/revocation times | No company or provider connection column. |
+
+These checks leave the authoritative person-to-company record unresolved.
+The pilot denies when that record is unavailable or names a different
+company from the verified property binding.
+
 The merged [Control Plane decision contract](https://github.com/Altus-Realty-Group/altus-control-plane/pull/177)
 returns a decision for one property. A1 expects a current-session company-grant
 list with person, account, application, company and grant metadata. A

@@ -135,5 +135,37 @@ keep any live evidence aggregate-only.
 No UI binding, service-role fallback, runtime or data mutation is part of this
 checkpoint. The existing unbound consumer and A1 proof stay in place.
 
+### Authority split and interface requirements
+
+Control Plane supplies verified ECC client identity and the current person,
+account and application session. ECC owns the canonical property-to-company
+and provider-connection binding, and the effective-dated, revocable property
+read grant. Company membership must come from a verified organizational
+authority. The AltusCommandCenter catalog inspection found the legacy Working
+access grant but did not identify a company membership relation in the
+inspected ECC schemas. The legacy grant has no company or connection
+binding and cannot serve as this authority.
+
+The merged [Control Plane decision contract](https://github.com/Altus-Realty-Group/altus-control-plane/pull/177)
+returns a decision for one property. A1 expects a current-session company-grant
+list with person, account, application, company and grant metadata. A
+property decision does not supply that list or its revision semantics.
+Keep both boundaries fail-closed until the interface is accepted. The
+consumer must independently verify all of these inputs before selecting
+a read context:
+
+| Verified input | Required keys or constraints |
+| --- | --- |
+| Company membership | Canonical company ID, current person, environment, effective time, expiry and revocation. The source and operator must be identified before an adapter is bound. |
+| ECC property binding | Canonical ECC property ID and authorized company, with exact provider connection and evidence. Treat missing, retired, conflicting or ambiguous bindings as denied. |
+| ECC property read grant | Current person, company, exact property, environment, attested ECC client, read action, effective time, expiry, revocation and a governed grant revision. |
+| Field and runtime proof | Explicit field allow-list, scoped reader role, exact runtime commit, and a successful read plus wrong-scope and revoked-session denials. |
+
+Use the approved company-grant representation for company admission and an
+independently verified ECC property binding plus property permission for
+data access. Any adapter must carry existing verified account and revision
+evidence from its authority. An allow decision, provider identifier or
+company label alone cannot establish an ECC database read scope.
+
 ## 10. Rollback
 Revert this PR. It adds source, tests and documents only; no schema, role, grant, configuration or deployment exists to undo.

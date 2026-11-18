@@ -109,5 +109,31 @@ Accepted resource-grant producer and the governed `scope_ref` registry source; C
 a bound server transport (PR #155 transport is not reintroduced here); dedicated non-bypass runtime role and its credentials; applying
 the L1 schema (PR #223) and wiring `ecc_legal_runtime`; final UI/integration acceptance (Codex); live allowed/denied/revoked journeys.
 
-## 9. Rollback
+## 9. Single-property read acceptance checkpoint (2026-11-18)
+
+Decision: keep the property read unbound while the issuer and producer evidence
+below is missing. This section records readiness only. It changes no contract,
+adapter, or route.
+
+| Boundary | Verified source or receipt | Required evidence to proceed |
+| --- | --- | --- |
+| Current session | [Control Plane federation contract](https://github.com/Altus-Realty-Group/altus-control-plane/blob/ac283b27bb3ac2c604d330655502b1f37ae8e38c/docs/contracts/control_session_federation_v1.contract.md) and [host composition](https://github.com/Altus-Realty-Group/altus-control-plane/blob/ac283b27bb3ac2c604d330655502b1f37ae8e38c/services/control_plane_host/function_app.py). The mapped current-session handler proves admission. The delegation routes from [CP #163](https://github.com/Altus-Realty-Group/altus-control-plane/pull/163) are default-disabled Field App-to-Construction Manager source. | A resource-grant issuer expressly covering the current ECC session, with registered ECC client and current hosted authorization proof. The November 16 [CP migration/staging receipt](https://github.com/Altus-Realty-Group/altus-control-plane/issues/41) recorded zero clients or grants and no consumer activation. |
+| Company and property scope | [A1](https://github.com/Altus-Realty-Group/ECC-APM/pull/229) validates the proposed company-grant envelope and explicit verified company binding. The existing [generic reader](../../server/lib/readBoundary.ts) separately requires verified canonical property IDs. | A governed mapping from the issuer's authorized scope to one canonical ECC property and its provider connection. Company admission alone conveys no property permission. The first read uses exactly one reviewed property, through a dedicated scoped runtime role. |
+| Authoritative rows | [DoorLoop #129](https://github.com/Altus-Realty-Group/doorloop-sync-backend/pull/129) delivers field accounting. [Existing property projection](../recovery/PROPERTIES_PROJECTION_20261017.md) is source evidence of the ECC wire shape. | Installed and authorized property read producer, matching field and freshness contract, exact canonical ID and source lineage, and a bounded allow-list. An accounting receipt tracks field dispositions. It does not authorize a user or promote a property into Working. |
+| Current runtime | [Workspace selection #252](https://github.com/Altus-Realty-Group/ECC-APM/pull/252) and [runtime guide #253](https://github.com/Altus-Realty-Group/ECC-APM/pull/253) identify the ECC workspace and preserve the disconnected backend boundary. | Exact reviewed host and commit identity, bound scoped runtime role, and an accepted existing ECC response shape before any frontend reads are connected. |
+
+**Pilot proof.** Start with one read-only property operation once the evidence
+above exists. Resolve the current session and grant afresh. Validate the explicit
+binding before invoking the data port. Prove the allowed read and verify the
+same canonical property and allowed fields against the producer. Prove that an
+unregistered or wrong application, wrong company, wrong property, missing
+binding, expiry or revocation emits no row and no identifying metadata. Repeat
+on a reused pooled connection with a changed session to prove no prior scope or
+response survives. Use synthetic actors and properties in source tests and
+keep any live evidence aggregate-only.
+
+No UI binding, service-role fallback, runtime or data mutation is part of this
+checkpoint. The existing unbound consumer and A1 proof stay in place.
+
+## 10. Rollback
 Revert this PR. It adds source, tests and documents only; no schema, role, grant, configuration or deployment exists to undo.

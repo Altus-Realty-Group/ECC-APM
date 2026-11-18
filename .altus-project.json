@@ -7,12 +7,33 @@
     "defaultBranch": "main"
   },
   "replit": {
-    "apps": [],
+    "apps": [
+      {
+        "replId": "75cc12d4-f5f6-4751-b198-3a4ad61ccd0c",
+        "title": "ECC-APM (v1.0)",
+        "role": "frontend",
+        "branch": "VERIFY",
+        "intendedBranch": "main",
+        "publishing": {
+          "policy": "gated",
+          "approvalOwner": "Dion",
+          "requires": [
+            "verified GitHub commit alignment",
+            "verified runtime process alignment",
+            "fresh no-drift comparison",
+            "no intervening runtime activity",
+            "explicit exact-release publication authorization"
+          ]
+        },
+        "active": true
+      }
+    ],
     "pendingImport": {
       "name": "ECC-APM (v1.0)",
       "sourceBranch": "main",
       "role": "frontend",
-      "status": "AWAITING_OWNER_IMPORT"
+      "status": "OWNER_CONFIRMED_WORKSPACE_FOUND",
+      "replId": "75cc12d4-f5f6-4751-b198-3a4ad61ccd0c"
     },
     "historicalApps": [
       {
@@ -37,9 +58,9 @@
     ]
   },
   "evidence": {
-    "status": "FRESH_IMPORT_PENDING",
-    "date": "2026-10-13",
-    "source": "Dion requested a new Replit workspace imported from GitHub as ECC-APM (v1.0).",
-    "limits": "No new workspace ID or live runtime proof exists. The old binding is historical only."
+    "status": "BOUND_OBSERVATION_ONLY",
+    "date": "2026-11-17",
+    "source": "Replit connector discovery returned this exact workspace ID and title; Dion selected ECC-APM (v1.0) as the current frontend in this session.",
+    "limits": "Workspace selection only. Origin, checked-out branch/SHA, running process, deployed environment and database role are unverified. VERIFY blocks synchronization and publication."
   }
 }

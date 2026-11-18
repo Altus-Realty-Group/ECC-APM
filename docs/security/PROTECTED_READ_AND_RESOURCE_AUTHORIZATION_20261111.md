@@ -137,14 +137,14 @@ checkpoint. The existing unbound consumer and A1 proof stay in place.
 
 ### Authority split and interface requirements
 
-Control Plane supplies verified ECC client identity and the current person,
-account and application session. ECC owns the canonical property-to-company
-and provider-connection binding, and the effective-dated, revocable property
-read grant. Company membership must come from a verified organizational
-authority. The AltusCommandCenter catalog inspection found the legacy Working
+Control Plane owns company membership at the product level under the
+[approved ECC roadmap](https://github.com/Altus-Realty-Group/ECC-APM/blob/8e29eda9cdd1ac8fe0375a94e9e65e1ac8425ace/docs/roadmaps/ECC_SUPERIORITY_IMPLEMENTATION_MASTER_PLAN_V1.md).
+It also supplies verified ECC client identity and the current person, account
+and application session. ECC owns the canonical property-to-company and
+provider-connection binding, and the effective-dated, revocable property
+read grant. The AltusCommandCenter catalog inspection found the legacy Working
 access grant but did not identify a company membership relation in the
-inspected ECC schemas. The legacy grant has no company or connection
-binding and cannot serve as this authority.
+inspected ECC schemas. The legacy grant has no company or connection binding.
 
 The November 18 read-only Supabase check inspected column names for the
 installed authorization candidates. It read no membership or grant rows.
@@ -156,8 +156,10 @@ installed authorization candidates. It read no membership or grant rows.
 | `public.control_plane_application_clients` (Control Plane) | Application client registration | Identifies the application client. |
 | `ecc_working.access_grant` (AltusCommandCenter) | Subject, resource, optional entity, grantor and grant/revocation times | No company or provider connection column. |
 
-These checks leave the authoritative person-to-company record unresolved.
-The pilot denies when that record is unavailable or names a different
+The remaining decisions are which registry issues canonical company UUIDs
+and which governed role can verify, record and revoke membership. The catalog
+checks leave the implementing relation unresolved. The pilot denies when the
+authoritative person-to-company record is unavailable or names a different
 company from the verified property binding.
 
 The merged [Control Plane decision contract](https://github.com/Altus-Realty-Group/altus-control-plane/pull/177)
@@ -170,7 +172,7 @@ a read context:
 
 | Verified input | Required keys or constraints |
 | --- | --- |
-| Company membership | Canonical company ID, current person, environment, effective time, expiry and revocation. The source and operator must be identified before an adapter is bound. |
+| Company membership | An approved canonical company UUID issuer and an authoritative Control Plane record for the verified session person UUID, company UUID and environment. Verify standing, effective time, expiry and revocation, and name the governed role that can record and revoke it. |
 | ECC property binding | Canonical ECC property ID and authorized company, with exact provider connection and evidence. Treat missing, retired, conflicting or ambiguous bindings as denied. |
 | ECC property read grant | Current person, company, exact property, environment, attested ECC client, read action, effective time, expiry, revocation and a governed grant revision. |
 | Field and runtime proof | Explicit field allow-list, scoped reader role, exact runtime commit, and a successful read plus wrong-scope and revoked-session denials. |
@@ -180,6 +182,15 @@ independently verified ECC property binding plus property permission for
 data access. Any adapter must carry existing verified account and revision
 evidence from its authority. An allow decision, provider identifier or
 company label alone cannot establish an ECC database read scope.
+
+Before activating the pilot, retain the reviewed issuer and membership
+administration decisions, the exact deployed Control Plane adapter and ECC
+client registration for the target environment, and the reviewed evidence
+for the matching ECC property binding and read grant. Verify one authorized
+read through the scoped runtime role. In the same deployment, verify denial
+for a different company or property, absent or revoked membership, a revoked
+session, and an unavailable authority. Record the results against the exact
+runtime revision without disclosing record data or grant credentials.
 
 ## 10. Rollback
 Revert this PR. It adds source, tests and documents only; no schema, role, grant, configuration or deployment exists to undo.

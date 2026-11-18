@@ -2,18 +2,23 @@
 
 Empire Command Center for Altus Property Management. Canonical source: [Altus-Realty-Group/ECC-APM](https://github.com/Altus-Realty-Group/ECC-APM), repository ID 1058195656.
 
-## Fresh Replit import
+## Current Replit workspace
 
-1. Import this GitHub repository, branch `main`, into a **new** Replit workspace named **ECC-APM (v1.0)**.
-2. Click **Run** (the checked-in **ECC-APM** workflow). The checked-in startup installs locked dependencies when necessary and starts the frontend on port 5000, exposed through port 80.
-3. Open the preview. No secrets, database, vendor integration or old Replit resources are required for frontend startup.
-If Replit retains an import-generated placeholder workflow, open **Tools -> Shell**, run `npm run start:replit`, and open **Preview**. The Console message asking you to configure Workflows means startup was not attempted. Select **ECC-APM** as the Run workflow after synchronizing the reviewed GitHub configuration. Replit Agent does not perform startup under the runtime observation rules.
+Dion selected [ECC-APM (v1.0)](https://replit.com/@AltusDion/ECC-APM-v10) as the active frontend. The [project manifest](.altus-project.json) records this workspace for read-only runtime diagnosis. The intended branch is `main`. The observed branch remains `VERIFY` until the origin, checked-out commit and running process are verified. Synchronization and publication remain gated on exact release evidence.
 
-4. Record the new workspace URL/ID before binding or publishing it. `.altus-project.json` intentionally has no active runtime binding.
+The checked-in **ECC-APM** Run workflow starts Vite on port 5000, exposed through port 80. Startup installs locked dependencies when necessary and runs only the frontend. `server/index.ts` and all database and vendor integrations require their own reviewed configuration.
 
-The fresh workspace is a frontend foundation. `/api` and `/bff` return explicit JSON `503 BACKEND_NOT_CONNECTED`; they do not contact the old staging service or manufacture business data. Dashboard/data features will remain unavailable until backend ownership, authentication and contracts are verified and connected in a reviewed GitHub change. Historical transfer/accounting/admin placeholders remain quarantined. A successful import is not operational or production acceptance.
+The frontend returns JSON `503 BACKEND_NOT_CONNECTED` for `/api` and `/bff` while no verified backend is mounted. Portfolio records and other data features require the [protected read integration](https://github.com/Altus-Realty-Group/ECC-APM/issues/211), including current-session and resource authorization, and [legacy access containment](https://github.com/Altus-Realty-Group/doorloop-sync-backend/issues/107) before live record promotion. The [release work order](https://github.com/Altus-Realty-Group/ECC-APM/issues/213) tracks exact-source, authorized and denied runtime journeys, and live refresh acceptance. Historical transfer, accounting and admin placeholders remain quarantined.
 
-Do not import old secrets, restore caches, run legacy repair/snapshot scripts, extract recovery archives or attach old databases. The Run command does not start `server/index.ts`, vendor sync jobs or database clients.
+## Fresh Replit import for an approved replacement
+
+Only use this procedure when a replacement workspace has been authorized.
+
+1. Import this GitHub repository on `main` to the approved replacement workspace.
+2. Select the checked-in **ECC-APM** workflow and click **Run**. If the import creates a placeholder workflow, open **Tools → Shell**, run `npm run start:replit` and open **Preview**.
+3. Record the replacement workspace URL and ID for review before changing the active binding or publishing.
+
+Keep historical secrets, caches, repair and snapshot scripts, archives and old databases out of the replacement workspace.
 
 ## Local development and verification
 

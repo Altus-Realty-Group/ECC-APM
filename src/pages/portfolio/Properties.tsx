@@ -29,12 +29,21 @@ const PROPERTY_SURFACE_CONFIG: CommandSurfaceConfig = {
   rowHref: (id) => `/card/property/${id}`,
 };
 
+type Activity = "all" | "active" | "inactive" | "unreported";
+
+function activityOf(value: unknown): Exclude<Activity, "all"> {
+  if (value === true) return "active";
+  if (value === false) return "inactive";
+  return "unreported";
+}
+
 type PropertiesQuery = Pick<ReturnType<typeof useAllProperties>,
   "data" | "isLoading" | "isFetching" | "isError" | "isSuccess" | "error" | "refetch">;
 
 /** The routed page and render regressions share this exact presentation boundary. */
 export function PropertiesSurface({ query }: { query: PropertiesQuery }) {
   const [q, setQ] = useState("");
+  const [activity, setActivity] = useState<Activity>("all");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { isLoading, isFetching, error, refetch } = query;
@@ -48,7 +57,8 @@ export function PropertiesSurface({ query }: { query: PropertiesQuery }) {
   const rows = useMemo(() => {
     if (!ready || !data) return [];
 
-    const mapped: CommandSurfaceRow[] = data.map((prop: any) => {
+    const shown = activity === "all" ? data : data.filter((prop: any) => activityOf(prop.active) === activity);
+    const mapped: CommandSurfaceRow[] = shown.map((prop: any) => {
       const address = [prop.street_1, prop.city, prop.state].filter(Boolean).join(", ");
       return {
         id: String(prop.id),
@@ -67,7 +77,7 @@ export function PropertiesSurface({ query }: { query: PropertiesQuery }) {
     return mapped.filter((row) =>
       [row.primary, row.secondary, row.id, row.segment].join(" ").toLowerCase().includes(needle),
     );
-  }, [data, q, ready]);
+  }, [activity, data, q, ready]);
   const selectedRows = rows.filter((row) => selectedIds.includes(row.id));
 
   return (
@@ -75,19 +85,36 @@ export function PropertiesSurface({ query }: { query: PropertiesQuery }) {
       <div className="ecc-command-surface-layout">
         <div>
           <EccCommandPalette config={PROPERTY_SURFACE_CONFIG} onFocusSearch={() => searchInputRef.current?.focus()} />
-          {ready ? <CanonicalDenseTableShell
-            rows={rows}
-            config={PROPERTY_SURFACE_CONFIG}
-            loading={isLoading || (isFetching && rows.length === 0)}
-            error={error ?? undefined}
-            onRetry={() => { void refetch(); }}
-            retrying={isFetching}
-            search={q}
-            onSearchChange={setQ}
-            searchInputRef={searchInputRef}
-            selectedIds={selectedIds}
-            onSelectionChange={(ids) => setSelectedIds(Array.from(new Set(ids)))}
-          /> : (
+          {ready ? <>
+            <label className="ecc-command-search">
+              <span>Reported property activity</span>
+              <select aria-label="Reported property activity" value={activity} onChange={(event) => {
+                const next = event.currentTarget.value;
+                if (next === "all" || next === "active" || next === "inactive" || next === "unreported") {
+                  setActivity(next);
+                  setSelectedIds([]);
+                }
+              }}>
+                <option value="all">All activity statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="unreported">Unreported</option>
+              </select>
+            </label>
+            <CanonicalDenseTableShell
+              rows={rows}
+              config={PROPERTY_SURFACE_CONFIG}
+              loading={isLoading || (isFetching && rows.length === 0)}
+              error={error ?? undefined}
+              onRetry={() => { void refetch(); }}
+              retrying={isFetching}
+              search={q}
+              onSearchChange={setQ}
+              searchInputRef={searchInputRef}
+              selectedIds={selectedIds}
+              onSelectionChange={(ids) => setSelectedIds(Array.from(new Set(ids)))}
+            />
+          </> : (
             <section className="ecc-command-surface ecc-object">
               <h1 className="ecc-command-surface__title">Properties</h1>
               <StateNotice

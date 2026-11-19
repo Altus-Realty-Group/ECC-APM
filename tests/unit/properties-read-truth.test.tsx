@@ -3,6 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Router } from "wouter";
+import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { PropertiesSurface } from "../../src/pages/portfolio/Properties";
 
 type Query = React.ComponentProps<typeof PropertiesSurface>["query"];
@@ -17,6 +18,7 @@ function render(overrides: Partial<Query> = {}) {
 function noVerifiedSummary(html: string) {
   assert.doesNotMatch(html, /\d+ loaded|Markets:|visible rows?|avg occupancy|\d+ selected|Selected IDs:/);
   assert.doesNotMatch(html, /No properties were returned|Select all visible|Select properties from the table/);
+  assert.doesNotMatch(html, /Reported property activity/);
   assert.doesNotMatch(html, /Verified property|\/card\/property\/42|type="checkbox"/);
   assert.match(html, /Selection review is unavailable/);
 }
@@ -89,5 +91,32 @@ test("Properties accepts only finite occupancy percentages within zero to one hu
   for (const occPct of [null, undefined, -1, 101, NaN, Infinity, "75"]) {
     const html = render({ data: [{ ...property, occPct }], isSuccess: true });
     assert.doesNotMatch(html, /avg occupancy|NaN%|Infinity%|101%|-1%/);
+  }
+});
+
+
+test("Properties filter preserves explicit inactive and unknown activity as distinct states", () => {
+  const data = [
+    { ...property, id: 42, name: "Active fixture", active: true },
+    { ...property, id: 43, name: "Inactive fixture", active: false },
+    { ...property, id: 44, name: "Unreported fixture", active: null },
+  ];
+  const query = { data, isSuccess: true, isLoading: false, isFetching: false,
+    isError: false, error: null, refetch: async () => ({}) } as Query;
+  let tree!: ReactTestRenderer;
+  act(() => { tree = create(<Router ssrPath="/portfolio/properties"><PropertiesSurface query={query} /></Router>); });
+  try {
+    const links = () => tree.root.findAllByType("a").map((node) => node.props.href)
+      .filter((href) => typeof href === "string" && href.startsWith("/card/property/")).sort();
+    assert.deepEqual(links(), ["/card/property/42", "/card/property/43", "/card/property/44"]);
+    for (const [activity, id] of [["active", 42], ["inactive", 43], ["unreported", 44]]) {
+      act(() => {
+        tree.root.findByProps({ "aria-label": "Reported property activity" })
+          .props.onChange({ currentTarget: { value: activity } });
+      });
+      assert.deepEqual(links(), [`/card/property/${id}`]);
+    }
+  } finally {
+    act(() => tree.unmount());
   }
 });

@@ -2,6 +2,12 @@
 
 Empire Command Center for Altus Property Management. Canonical source: [Altus-Realty-Group/ECC-APM](https://github.com/Altus-Realty-Group/ECC-APM), repository ID 1058195656.
 
+## ECC delivery plan
+
+The [master execution plan](docs/roadmaps/ECC_APM_MASTER_EXECUTION_PLAN.md) owns the current
+sequence for data, writeback, UI, Property Intelligence, Legal and Altus app
+handoffs.
+
 ## Current Replit workspace
 
 Dion selected [ECC-APM (v1.0)](https://replit.com/@AltusDion/ECC-APM-v10) as the active frontend. The [project manifest](.altus-project.json) records this workspace for read-only runtime diagnosis. The intended branch is `main`. The observed branch remains `VERIFY` until the origin, checked-out commit and running process are verified. Synchronization and publication remain gated on exact release evidence.

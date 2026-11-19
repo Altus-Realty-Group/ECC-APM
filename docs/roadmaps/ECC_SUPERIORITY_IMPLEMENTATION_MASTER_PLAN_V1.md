@@ -5,6 +5,10 @@ Product owner: Dion DePaoli
 Repository: `Altus-Realty-Group/ECC-APM`  
 Baseline audited: `main` at `15f670a09c7a0fc029ae8e417efaddd002ba61ec` on 2026-08-04
 
+Current delivery sequence: [ECC APM master execution plan](ECC_APM_MASTER_EXECUTION_PLAN.md).
+Use that checkpoint for implementation and runtime state. The historical
+baseline below documents the original product direction.
+
 ## 1. Executive directive
 
 ECC will become the daily operating command center for Altus property and asset operations. It will not be a decorative dashboard over DoorLoop, Property Matrix, or another vendor. External systems may temporarily execute specialized transactions behind governed adapters, but they may not own Altus canonical identity, URLs, cross-system policy, evidence, or enterprise audit history.

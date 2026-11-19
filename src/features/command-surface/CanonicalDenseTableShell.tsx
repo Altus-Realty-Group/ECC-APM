@@ -96,6 +96,7 @@ export default function CanonicalDenseTableShell({
           ),
       },
       { accessorKey: "secondary", header: "Context" },
+      ...(config.statusLabel ? [{ accessorKey: "status", header: config.statusLabel }] : []),
       { accessorKey: "metricA", header: config.metricALabel },
       { accessorKey: "metricB", header: config.metricBLabel },
       { accessorKey: "segment", header: config.segmentLabel },

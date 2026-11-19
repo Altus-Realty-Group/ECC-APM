@@ -163,3 +163,46 @@ production writes, pin source SHA, target project/environment, scope, identity,
 current migration state and recovery operator. Keep original evidence and
 Altus edits during rollback. Pause the affected dispatch/binding and
 reconcile unsettled commands before restart.
+
+## Target PRs and UI acceptance ownership
+
+Codex owns release order and final acceptance of every ECC UI surface,
+including design, data completeness, accessibility and working actions.
+External contributors own one bounded producer slice at a time. A target
+PR records scope and proof expectations. Handoff and implementation
+completion require their own evidence.
+
+| Sequence | Owner | Target | Acceptance and dependency |
+| --- | --- | --- | --- |
+| Start now | Grok | [DoorLoop #139](https://github.com/Altus-Realty-Group/doorloop-sync-backend/pull/139), bounded property-detail runtime composition | Private dispatch, shared budget, exact bytes and restart proof over the merged custody and transport seams. Source/isolated proof first. |
+| Start in parallel | Claude Code | [DoorLoop #140](https://github.com/Altus-Realty-Group/doorloop-sync-backend/pull/140), Working owners contract | Disabled registry and exact owner-relationship proof, with sensitive fields retained under custody. Independent of #139. |
+| Start now | Codex | Properties activity column and UI acceptance in this PR | Active, inactive and unknown are distinguishable on the property table even when showing all records. No network or storage dependency. |
+| After producer and authority proof | Codex | [ECC #254](https://github.com/Altus-Realty-Group/ECC-APM/pull/254) and the separately bounded preview binding | Read one active and one inactive property from Working with actual owner and unit links. Verify runtime and denial paths. |
+| After the property path | Codex owns UI; produce separate app-owned PRs | Lease/tenant/owner cards, posted ledger, Legal/documents and Property Intelligence | Exact entity links, field coverage, real values and workflow acceptance. Stage each producer before its consumer. |
+| After source/readproof for each operation | Codex owns UI; producer PR per operation | ECC edits and DoorLoop writeback; Field App, Construction Manager, Deal Room and Price Engine handoffs | One governed round trip per contract with a receipt, same-ID readback and duplicate/denial recovery. |
+
+### UI data coverage before release
+
+Every admitted field must have a recorded surface or an authorized
+evidence path. For each surface and field record the owning source,
+identity or relationship join, meaning, unit/format, freshness,
+display location and empty/stale/conflict behavior. Require the field's
+render or evidence proof before calling the domain complete. Sensitive
+and unresolved fields stay accessible only through their approved scope.
+Collected provider fields, Altus-native fields, QuickBooks portfolio
+evidence and PI observations keep their distinct provenance.
+
+Use the list for scanning, the card for the full asset view, and detail
+panels for documents, history and raw evidence. Show useful operating
+indicators and next actions that reconcile to approved records. Group
+details around the operator's work, rather than dumping JSON into the
+table. Keep status, source and discrepancy visible when they affect a
+decision. Null, zero, missing, stale, denied and conflict each have
+honest presentation.
+
+Review the real desktop and mobile flows in the selected runtime.
+Check keyboard and touch, readable tables and charts, search and filters,
+card links, successful and failed edits, reload, and explicit source
+coverage. Use Altus black, white and gold and the existing route and
+component patterns. Written proof pairs the visible result with the
+accepted source record or receipt and exact deployed revision.

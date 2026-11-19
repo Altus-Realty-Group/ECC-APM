@@ -5,6 +5,7 @@ export type CommandSurfaceRow = {
   metricA: string;
   metricB: string;
   segment: string;
+  status?: string;
 };
 
 export type CommandSurfaceConfig = {
@@ -21,6 +22,7 @@ export type CommandSurfaceConfig = {
   metricBLabel: string;
   metricBFormat: "percentage" | "currency" | "number";
   segmentLabel: string;
+  statusLabel?: string;
   segmentSummaryLabel: string;
   triageTitle: string;
   triageEmptyLabel: string;

@@ -22,6 +22,7 @@ const PROPERTY_SURFACE_CONFIG: CommandSurfaceConfig = {
   metricBLabel: "Occupancy",
   metricBFormat: "percentage",
   segmentLabel: "Market",
+  statusLabel: "Activity",
   segmentSummaryLabel: "markets",
   triageTitle: "Portfolio Triage",
   triageEmptyLabel: "Select properties from the table to review them here.",
@@ -30,6 +31,8 @@ const PROPERTY_SURFACE_CONFIG: CommandSurfaceConfig = {
 };
 
 type Activity = "all" | "active" | "inactive" | "unreported";
+
+const ACTIVITY_LABEL = { active: "Active", inactive: "Inactive", unreported: "Unreported" } as const;
 
 function activityOf(value: unknown): Exclude<Activity, "all"> {
   if (value === true) return "active";
@@ -69,6 +72,7 @@ export function PropertiesSurface({ query }: { query: PropertiesQuery }) {
           ? formatPercent(prop.occPct, 0, "percent")
           : BLANK,
         segment: prop.city ?? prop.state ?? BLANK,
+        status: ACTIVITY_LABEL[activityOf(prop.active)],
       };
     });
 

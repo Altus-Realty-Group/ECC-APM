@@ -128,3 +128,19 @@ test("Properties filter preserves explicit inactive and unknown activity as dist
     else Reflect.deleteProperty(globalThis, "window");
   }
 });
+
+
+test("Properties exposes activity in the table without conflating false with missing", () => {
+  const html = render({
+    isSuccess: true,
+    data: [
+      { ...property, id: 42, active: true },
+      { ...property, id: 43, active: false },
+      { ...property, id: 44, active: null },
+    ],
+  });
+  assert.match(html, />Activity</);
+  for (const label of ["Active", "Inactive", "Unreported"]) {
+    assert.match(html, new RegExp(`<td[^>]*>${label}</td>`));
+  }
+});

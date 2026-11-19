@@ -192,5 +192,9 @@ for a different company or property, absent or revoked membership, a revoked
 session, and an unavailable authority. Record the results against the exact
 runtime revision without disclosing record data or grant credentials.
 
+The [ECC APM DoorLoop ingestion and UI plan](https://github.com/Altus-Realty-Group/doorloop-sync-backend/blob/main/docs/database/ECC_APM_DOORLOOP_INGESTION_AND_UI_PLAN.md)
+records the source-of-truth hierarchy, custody and promotion path, and the
+acceptance tests for the active and inactive property read.
+
 ## 10. Rollback
 Revert this PR. It adds source, tests and documents only; no schema, role, grant, configuration or deployment exists to undo.

@@ -2,7 +2,9 @@ import React from "react";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
+import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { Router } from "wouter";
+import { memoryLocation } from "wouter/memory-location";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Sidebar from "../../src/components/Sidebar";
 import { KpiCard } from "../../src/features/dashboard/components/KpiCard";
@@ -259,6 +261,57 @@ test("property card: transient failure keeps the same-session card and says the 
   const html = renderIn(seeded(["card", "property", 7], card("Elm Court"), new HttpError("HTTP 503", 503)), "/card/property/7", <PropertyCardPage />);
   assert.match(html, /latest refresh failed/);
   assert.match(html, /Elm Court/);
+});
+
+test("property card rejects invalid links and only renders an exact-ID reply", async (t) => {
+  const key = ["card", "property", 7];
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const location = memoryLocation({ path: "/card/property/1e2" });
+  const requested: string[] = [];
+  let reply = card("Requested property");
+  let status = 200;
+  t.mock.method(globalThis, "fetch", async (input: string) => {
+    requested.push(input);
+    return Response.json(status === 200 ? reply : { error: "Fixture" }, { status });
+  });
+  const flush = () => new Promise(resolve => setTimeout(resolve, 15));
+  let tree!: ReactTestRenderer;
+  await act(async () => {
+    tree = create(<Router hook={location.hook}><QueryClientProvider client={client}><PropertyCardPage /></QueryClientProvider></Router>);
+    await flush();
+  });
+  t.after(async () => {
+    await act(async () => tree.unmount());
+    client.clear();
+  });
+  const rendered = () => JSON.stringify(tree.toJSON());
+  assert.match(rendered(), /property link is not valid/);
+  assert.deepEqual(requested, []);
+
+  await act(async () => location.navigate("/card/property/7"));
+  const refresh = () => act(async () => {
+    await client.refetchQueries({ queryKey: key });
+    await flush();
+  });
+  await refresh();
+  assert.match(rendered(), /Requested property/);
+  assert.ok(requested.length > 0);
+  assert.ok(requested.every(url => url === "/api/rpc/get_property_card?id=7"));
+
+  reply = { ...reply, property: { ...reply.property, id: 8, name: "Different property" } };
+  await refresh();
+  assert.ok(client.getQueryState(key)?.error instanceof ContractError);
+  assert.match(rendered(), /unexpected format/);
+  assert.doesNotMatch(rendered(), /Requested property|Different property|kpi-units/);
+
+  reply = card("Requested property");
+  await refresh();
+  assert.match(rendered(), /Requested property/);
+
+  status = 404;
+  await refresh();
+  assert.match(rendered(), /This property is unavailable/);
+  assert.doesNotMatch(rendered(), /Requested property|kpi-units/);
 });
 
 test("property card: no Contacts / Key Dates / owner / class / status / DoorLoop presentation (not in the contract)", () => {

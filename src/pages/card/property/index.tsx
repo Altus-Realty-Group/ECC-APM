@@ -2,7 +2,8 @@ import { Link, useRoute } from "wouter";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { CardShell } from "@/components/cardkit/CardShell";
 import StateNotice from "@/components/ui/StateNotice";
-import { errorKind, isContractError } from "@/lib/dataState";
+import { isContractError } from "@/lib/dataState";
+import { HttpError } from "@/lib/http";
 import { accessGuard } from "@/lib/useAccessGuard";
 import HeroBlock from "./HeroBlock";
 import Overview from "./Overview";
@@ -13,9 +14,10 @@ export default function PropertyCardPage() {
   // wouter's inferred params type collapses to null here; widen it explicitly (guardrail pins Number(params?.id)).
   const params: { id?: string } | null = routeParams;
   const idNum = Number(params?.id);
-  const q = usePropertyCard(idNum);
+  const validId = /^\d+$/.test(params?.id ?? "") && Number.isSafeInteger(idNum) && idNum > 0;
+  const q = usePropertyCard(validId ? idNum : NaN);
   const backLink = <Link href="/portfolio/properties" className="ecc-btn ecc-touch">Back to properties</Link>;
-  if (!Number.isFinite(idNum)) {
+  if (!validId) {
     return (
       <div className="ecc-record-unavailable"><h1>Property record</h1>
         <StateNotice kind="error" title="That property link is not valid." testId="prop-invalid" />
@@ -27,30 +29,35 @@ export default function PropertyCardPage() {
   const retry = () => { void q.refetch(); };
   // After a 401/403 TanStack keeps the previous card; it must not be rendered once access is denied.
   const { data, denied } = accessGuard(q);
+  const unreadable = q.isError && isContractError(q.error);
+  const notFound = q.isError && q.error instanceof HttpError && q.error.status === 404;
 
   if (q.isLoading && !denied) {
     return <div className="ecc-record-unavailable"><h1>Property record</h1><StateNotice kind="loading" title="Loading property…" />{backLink}</div>;
   }
 
-  if (!data) {
-    const unreadable = !denied && isContractError(q.error);
+  if (!data || unreadable || notFound) {
     return (
       <div className="ecc-record-unavailable"><h1>Property record</h1>
         <StateNotice
-          kind={denied ? "denied" : "error"}
+          kind={denied ? "denied" : notFound ? "empty" : "error"}
           title={
             denied
               ? "You don't have access to this property."
               : unreadable
                 ? "This property came back in an unexpected format."
-                : "This property could not be loaded."
+                : notFound
+                  ? "This property is unavailable."
+                  : "This property could not be loaded."
           }
           detail={
             denied
               ? "No property details are shown. Ask an administrator to confirm your access."
               : unreadable
                 ? "The details could not be trusted, so none are shown. Try again."
-                : "Check your connection and try again."
+                : notFound
+                  ? "Return to Properties to find the current record."
+                  : "Check your connection and try again."
           }
           onRetry={retry}
           retrying={q.isFetching}
@@ -72,7 +79,7 @@ export default function PropertyCardPage() {
 
   return (
     <ErrorBoundary>
-      {q.isError && errorKind(q.error) !== "denied" ? (
+      {q.isError ? (
         <StateNotice kind="error" title="Showing the last loaded details; the latest refresh failed." onRetry={retry} retrying={q.isFetching} />
       ) : null}
       <div className="px-6 pt-4">{backLink}</div>

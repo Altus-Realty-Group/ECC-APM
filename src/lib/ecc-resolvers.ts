@@ -13,7 +13,13 @@ function parseContract<T>(schema: ZodType<T>, data: unknown): T {
 export function usePropertyCard(id: number) {
   return useQuery({
     queryKey: ["card","property", id],
-    queryFn: ({ signal }) => sessionFetchJSON(`/api/rpc/get_property_card?id=${id}`, { signal }).then(data => parseContract(PropertyCard, data)),
+    enabled: Number.isSafeInteger(id) && id > 0,
+    queryFn: async ({ signal }) => {
+      const raw = await sessionFetchJSON(`/api/rpc/get_property_card?id=${id}`, { signal });
+      const card = parseContract(PropertyCard, raw);
+      if (card.property.id !== id) throw new ContractError("Response does not match the requested property.");
+      return card;
+    },
   });
 }
 export function useUnitCard(id: number) {

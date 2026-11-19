@@ -104,8 +104,14 @@ test("Properties filter preserves explicit inactive and unknown activity as dist
   const query = { data, isSuccess: true, isLoading: false, isFetching: false,
     isError: false, error: null, refetch: async () => ({}) } as Query;
   let tree!: ReactTestRenderer;
-  act(() => { tree = create(<Router ssrPath="/portfolio/properties"><PropertiesSurface query={query} /></Router>); });
+  const useFixtureLocation = (): [string, (to: string) => void] => ["/portfolio/properties", () => {}];
+  const oldWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: { addEventListener() {}, removeEventListener() {} },
+  });
   try {
+    act(() => { tree = create(<Router hook={useFixtureLocation}><PropertiesSurface query={query} /></Router>); });
     const links = () => tree.root.findAllByType("a").map((node) => node.props.href)
       .filter((href) => typeof href === "string" && href.startsWith("/card/property/")).sort();
     assert.deepEqual(links(), ["/card/property/42", "/card/property/43", "/card/property/44"]);
@@ -117,6 +123,8 @@ test("Properties filter preserves explicit inactive and unknown activity as dist
       assert.deepEqual(links(), [`/card/property/${id}`]);
     }
   } finally {
-    act(() => tree.unmount());
+    if (tree) act(() => tree.unmount());
+    if (oldWindow) Object.defineProperty(globalThis, "window", oldWindow);
+    else Reflect.deleteProperty(globalThis, "window");
   }
 });

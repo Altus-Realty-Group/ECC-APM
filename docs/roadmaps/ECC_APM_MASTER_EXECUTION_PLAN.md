@@ -181,6 +181,56 @@ completion require their own evidence.
 | After the property path | Codex owns UI; produce separate app-owned PRs | Lease/tenant/owner cards, posted ledger, Legal/documents and Property Intelligence | Exact entity links, field coverage, real values and workflow acceptance. Stage each producer before its consumer. |
 | After source/readproof for each operation | Codex owns UI; producer PR per operation | ECC edits and DoorLoop writeback; Field App, Construction Manager, Deal Room and Price Engine handoffs | One governed round trip per contract with a receipt, same-ID readback and duplicate/denial recovery. |
 
+### November 19 producer review and pilot gate
+
+| Target | Reviewed head | Hosted result | Release disposition |
+| --- | --- | --- | --- |
+| [DoorLoop #139](https://github.com/Altus-Realty-Group/doorloop-sync-backend/pull/139) | `77fab4a8524ad28b9671cec19395e5d165666078` | Smoke passed. [PG15](https://github.com/Altus-Realty-Group/doorloop-sync-backend/actions/runs/44620544731) and [PG16](https://github.com/Altus-Realty-Group/doorloop-sync-backend/actions/runs/44620544739) each ran 544 tests and failed the generated writer inventory check. | Draft. Correct source dispatch and regenerate inventory. Installed runtime admission and budget binding require independent proof. |
+| [DoorLoop #140](https://github.com/Altus-Realty-Group/doorloop-sync-backend/pull/140) | `3dc589ec24c30c13bdb0c70f08cd4060299ccf12` | Smoke passed. [PG15](https://github.com/Altus-Realty-Group/doorloop-sync-backend/actions/runs/44625131173) and [PG16](https://github.com/Altus-Realty-Group/doorloop-sync-backend/actions/runs/44625131251) each passed 581 tests. | Draft. Make relationship rows and their replay fingerprint use one consistent identity snapshot. |
+
+**Grok, DL-DETAIL v2, continue #139.** Verify the branch and reviewed
+head. Require an awaited admission port that verifies and consumes the
+server dispatch capability once, returns the bound run and connection,
+and denies before custody or transport on failure. Keep process-local
+nonce and budget doubles in tests. Exercise shared budget reservation and
+provider backoff through one contract for the LIST and DETAIL workers.
+The installed capture catalog has dispatch and budget state. Verify the
+authorized DETAIL interface before claiming an installed binding. Keep
+the Edge entry closed until that interface is proven. Derive IDs from
+the server plan. For new and recovered receipts, read back and verify
+connection, operation, run, ordinal, requested ID, status, timestamp,
+response digest and applicable Retry-After. Match IDs with strict UTF-8
+and duplicate-key rejection. Prove asynchronous admission denial, restart
+and concurrent replay, changed receipt metadata and malformed control
+responses. Regenerate the writer inventory. Reconcile with main and
+report the new head and its hosted results. Source and isolated tests
+only.
+
+**Claude Code, WORK-OWNERS v2, continue #140.** Verify the branch and
+reviewed head. A promoter can commit an identity between the fingerprint
+query and the insert in `link_property_owners`. The link-only advisory
+lock does not cover that promoter. Materialize the exact reference
+resolution once per generation and derive both its fingerprint and
+inserted rows from that result. Verify that a concurrent owner or
+property arrival leaves the stored fingerprint, quarantine and link
+state consistent and that a replay creates a new generation only when
+resolution actually changes. Preserve the disabled registry, immutable
+history, custody-only sensitive fields, and connection-scoped metadata
+boundary. Reconcile with main and report exact-head PG15 and PG16 proof.
+Source and isolated tests only.
+
+**Codex owns the runtime and UI acceptance.** First prove both producer
+seams in isolation. Bind the approved Working and capture capabilities
+in the selected environment, then rehearse a known active and a known
+inactive property through protected Working reads. Compare the rendered
+asset cards with source receipts, actual owner and unit edges and the
+QuickBooks reconciliation status. Keep unmatched source references visible
+and separately count records shown, records withheld by scope and provider
+coverage still unverified. A two-record pilot proves the path. Portfolio
+completion requires independent reconciliation of the full active and
+historical population with the QuickBooks baseline and every accessible
+DoorLoop source scope.
+
 ### UI data coverage before release
 
 Every admitted field must have a recorded surface or an authorized

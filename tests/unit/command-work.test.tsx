@@ -46,14 +46,16 @@ test('dashboard queue provides scoped counts, real card actions and no inferred 
  for(const id of [1,2,3])assert.match(page,new RegExp(`href="/card/lease/${id}"`));
  for(const id of [4,5,6])assert.doesNotMatch(page,new RegExp(`href="/card/lease/${id}"`));
  assert.match(page,/Chart counts use the full loaded collection/);
- assert.match(page,/Review source records before assigning work or sending notices/);
+ assert.match(page,/As of /);
  assert.match(page,/aria-label="Search review queue"/);
 });
 test('unconnected dashboard consolidates the outage and does not pretend placeholder graphics are live',()=>{
  const unbound=query(undefined,{isSuccess:false,isError:true,error:new Error('BACKEND_NOT_CONNECTED')});
  const page=renderToStaticMarkup(<Router ssrPath="/dashboard"><DashboardView query={unbound} leases={unbound} units={unbound} today={date}/></Router>);
  assert.equal((page.match(/role="alert"/g)??[]).length,1);
- assert.match(page,/Retrying or refreshing the browser cannot create that connection/);
+ assert.match(page,/Portfolio data unavailable/);
+ assert.match(page,/Occupancy data unavailable/);
+ assert.match(page,/Income, expenses and net operating income history: data unavailable/);
  assert.doesNotMatch(page,/cc-horizon-track|cc-status-stack|href="\/card\/lease/);
  assert.match(page,/<details class="cc-capabilities"/);
 });

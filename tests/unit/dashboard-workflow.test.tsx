@@ -32,8 +32,8 @@ function context(html: string) {
 }
 function noFigures(html: string) {
   assert.equal((html.match(/data-testid="kpi\.[^"]+" data-missing="true"/g) ?? []).length, 4);
-  assert.doesNotMatch(html, /data-testid="occupancy-trend"|<svg[^>]*role="img"/);
-  assert.match(html, /Occupancy history is unavailable/);
+  assert.doesNotMatch(html, /stroke-dasharray=|2026-10-01|View reported observations/);
+  assert.match(html, /Occupancy history: data unavailable/);
   assert.match(html, /Figures are not confirmed/);
 }
 
@@ -48,14 +48,14 @@ test("dashboard outage keeps navigation and Retry without fabricated data", () =
   const html = render({ isError: true, error: new Error("HTTP 503") });
   context(html); noFigures(html);
   assert.match(html, /state-error/);
-  assert.match(html, /could not be loaded/);
+  assert.match(html, /Portfolio data unavailable/);
   assert.match(html, />Retry</);
 });
 
 test("dashboard contract failure preserves page context and hides rejected figures", () => {
   const html = render({ isError: true, error: new ContractError("Internal wire detail") });
   context(html); noFigures(html);
-  assert.match(html, /unexpected format/);
+  assert.match(html, /Portfolio data unavailable/);
   assert.doesNotMatch(html, /Internal wire detail/);
 });
 
@@ -72,7 +72,7 @@ test("dashboard denial hides cached metrics and history while retaining useful p
 test("dashboard unresolved read retains context without a pretend snapshot", () => {
   const html = render();
   context(html); noFigures(html);
-  assert.match(html, /No portfolio summary is available yet/);
+  assert.match(html, /Portfolio data pending/);
 });
 
 test("dashboard confirmed zero is distinct from missing values", () => {
@@ -87,7 +87,7 @@ test("dashboard confirmed zero is distinct from missing values", () => {
 test("dashboard missing values and empty history remain visibly unreported", () => {
   const html = render({ data: normalizeDashboardKpis({}) });
   context(html);
-  assert.equal((html.match(/>Not reported</g) ?? []).length, 4);
+  assert.equal((html.match(/data-testid="kpi\.[^"]+" data-missing="true"/g) ?? []).length, 4);
   assert.doesNotMatch(html, /Lease renewals due/); // Actual date review has its own governed read.
   assert.match(html, /state-empty/);
   assert.match(html, /No trend data reported/);

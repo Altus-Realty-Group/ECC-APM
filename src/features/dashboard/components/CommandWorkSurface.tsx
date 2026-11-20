@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { confirmedLeases, confirmedUnits, inLeaseWindow, LEASE_WINDOWS, unitStatusGroups, unitStatusKey, type RecordQuery, type LeaseWindow } from "../commandWork";
+import { PendingChart } from "./CommandCenterPanels";
 import { errorKind } from "@/lib/dataState";
 
 export default function CommandWorkSurface({ leases, units, today }: { leases?: RecordQuery; units?: RecordQuery; today: string }) {
@@ -37,7 +38,7 @@ export default function CommandWorkSurface({ leases, units, today }: { leases?: 
   function chooseTab(value: "leases" | "units") { setTab(value); setSearch(""); setPage(0); }
   return <>
     <section className="cc-next-review" aria-labelledby="next-review-title">
-      <header><p className="cc-overline">Choose the next record review</p><h2 id="next-review-title">Needs review in loaded records</h2><p className="cc-source-note">These counts cover the loaded collection, not every property. Work orders, invoices and payment verification remain unavailable.</p></header>
+      <header><p className="cc-overline">Choose the next record review</p><h2 id="next-review-title">Needs attention</h2><p className="cc-source-note">Lease dates and unit status.</p></header>
       <div className="cc-next-review-actions">
         <button type="button" data-review-action="lease-dates" disabled={leaseReviewCount === null} onClick={() => { setTab("leases"); setWindow("review"); setSearch(""); jumpToQueue(); }}>
           <span><strong>Review lease dates</strong><small>Active leases: past end through 90 days</small></span><b>{leaseReviewCount === null ? "Not available" : `${leaseReviewCount} loaded records`}</b>
@@ -47,31 +48,31 @@ export default function CommandWorkSurface({ leases, units, today }: { leases?: 
         </button>
       </div>
     </section>
-    {(leaseRows !== null || unitRows !== null) ? <div className="cc-record-signals">
+    <div className="cc-record-signals">
       <section className="cc-signal" aria-labelledby="lease-horizon-title">
         <header><div><p className="cc-overline">Leasing exposure</p><h2 id="lease-horizon-title">Lease horizon</h2></div><Link href="/ops/ai/renewal-forecasting">Full review <span aria-hidden="true">↗</span></Link></header>
-        <p className="cc-source-note">Active loaded leases with a valid end date and unique record link. Select a window to review its records.</p>
+        <p className="cc-source-note">Select a date window to review leases.</p>
         {leaseRows ? <>
           <div className="cc-horizon" aria-label="Active lease end-date windows">{counts.map(item => <button key={item.key} type="button" aria-pressed={tab === "leases" && window === item.key} onClick={() => { setTab("leases"); setWindow(item.key); setSearch(""); jumpToQueue(); }}>
             <strong>{item.count}</strong><span className="cc-horizon-track" aria-hidden="true"><span style={{ height: `${(item.count ?? 0) / max * 100}%` }} /></span><span>{item.label}</span>
           </button>)}</div>
           <footer><span>{leaseRows.length} loaded rows · end dates, not renewal predictions</span><button type="button" className="cc-inline" onClick={() => { setTab("leases"); setWindow("verify"); setSearch(""); jumpToQueue(); }}>Verify {leaseRows.filter(row => row.issues.length > 0).length} records</button></footer>
-        </> : <p className="cc-inline-state">Lease records unavailable. Expiration counts are not confirmed.</p>}
+        </> : <PendingChart label="Lease expiration horizon" />}
       </section>
       <section className="cc-signal" aria-labelledby="unit-status-title">
         <header><div><p className="cc-overline">Leasing inventory</p><h2 id="unit-status-title">Reported unit status</h2></div><Link href="/ops/ai/vacancy-analytics">Full review <span aria-hidden="true">↗</span></Link></header>
-        <p className="cc-source-note">Loaded unit rows by their reported label. Missing status does not mean vacant or rent-ready.</p>
+        <p className="cc-source-note">Select a status to review units.</p>
         {unitRows ? <>
           <div className="cc-status-stack" aria-hidden="true">{groups.map((group, i) => <span key={group.key} className={`cc-segment cc-segment-${i % 3}`} style={{ flexGrow: group.count, flexBasis: 0 }} />)}</div>
           <div className="cc-status-list">{groups.map((group, i) => <button type="button" key={group.key} aria-pressed={tab === "units" && unitStatus === group.key} onClick={() => { setTab("units"); setUnitStatus(group.key); setSearch(""); jumpToQueue(); }}>
             <span><i className={`cc-segment-${i % 3}`} aria-hidden="true" />{group.label}</span><strong>{group.count}</strong>
           </button>)}</div>
           <footer><span>{unitRows.length} loaded unit rows · completeness not reported</span></footer>
-        </> : <p className="cc-inline-state">Unit records unavailable. No availability or readiness is inferred.</p>}
+        </> : <PendingChart label="Unit status breakdown" />}
       </section>
-    </div> : null}
+    </div>
     <section className="cc-workbench" aria-labelledby="workbench-title" ref={workbench} tabIndex={-1}>
-      <header><div><p className="cc-overline">From signal to record</p><h2 id="workbench-title">Review work queue</h2><p className="cc-source-note">Planning date {today} · Central time. Review source records before assigning work or sending notices.</p></div><Link className="cc-secondary" href={reviewHref}>Open full review <span aria-hidden="true">↗</span></Link></header>
+      <header><div><p className="cc-overline">From signal to record</p><h2 id="workbench-title">Review queue</h2><p className="cc-source-note">As of {today} · Central time</p></div><Link className="cc-secondary" href={reviewHref}>Open full review <span aria-hidden="true">↗</span></Link></header>
       <div className="cc-workbench-toolbar">
         <div className="cc-review-tabs" role="group" aria-label="Review record type">
           <button type="button" aria-pressed={tab === "leases"} onClick={() => chooseTab("leases")}>Lease review</button>
@@ -93,7 +94,7 @@ export default function CommandWorkSurface({ leases, units, today }: { leases?: 
         </tbody></table></div>
         {!(tab === "leases" ? leaseVisible.length : unitVisible.length) ? <p className="cc-inline-state">No loaded records match this review. Reset filters to inspect the collection; this is not a portfolio-wide all-clear.</p> : null}
         {total > 25 ? <div className="cc-pagination"><span>{start + 1}–{Math.min(start + 25, total)} of {total} matching rows</span><button type="button" disabled={!currentPage} onClick={() => setPage(currentPage - 1)}>Previous records</button><button type="button" disabled={start + 25 >= total} onClick={() => setPage(currentPage + 1)}>Next records</button></div> : null}
-      </> : <div className="cc-workbench-unavailable"><p>{query?.isError && errorKind(query.error) === "denied" ? "You do not have access to these review records." : query?.isFetching || query?.isLoading ? "Loading review records…" : "Review records are not available."}</p><span>Records and counts stay hidden during refresh, failure or restricted access.</span><button type="button" className="cc-secondary" disabled={!query || query.isFetching} onClick={() => { void query?.refetch(); }}>Retry record read</button></div>}
+      </> : <div className="cc-workbench-unavailable"><p>{query?.isError && errorKind(query.error) === "denied" ? "You do not have access to these review records." : query?.isFetching || query?.isLoading ? "Loading review records…" : "Review records are not available."}</p><span></span><button type="button" className="cc-secondary" disabled={!query || query.isFetching} onClick={() => { void query?.refetch(); }}>Retry record read</button></div>}
     </section>
   </>;
 }

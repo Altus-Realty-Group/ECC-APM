@@ -160,3 +160,23 @@ test("KPI strip includes property and unit record-review links", async () => {
   assert.match(json, /\/portfolio\/properties/);
   assert.match(json, /\/portfolio\/units/);
 });
+
+test("dashboard retains its visual inventory when the connection is missing or access changes", async () => {
+  const view = await mount({ query: query({ data: ready() }) });
+  const regions = ["portfolio-geography-title", "cash-flow-title", "leasing-pipeline-title", "occupancy-city-title", "priority-work-title", "lease-horizon-title", "unit-status-title"];
+  try {
+    for (const next of [query({ data: ready() }), query({ isError: true, error: new Error("BACKEND_NOT_CONNECTED") }),
+      query({ data: ready(), isError: true, error: Object.assign(new Error("Denied"), { status: 403 }) })]) {
+      await act(async () => view.update(tree({ query: next })));
+      for (const id of regions) assert.equal(view.root.findAllByProps({ id }).length, 1, id);
+      assert.ok(view.root.findByProps({ "aria-label": "Income, expenses and net operating income history: data unavailable" }));
+      assert.ok(view.root.findByProps({ "aria-label": "Leasing stages; figures not reported" }));
+    }
+    missing(view);
+    assert.doesNotMatch(text(view), /1,500\.00|2026-10-01/);
+    const detail = view.root.findByProps({ className: "cc-capabilities" });
+    assert.equal(detail.type, "details");
+    assert.notEqual(detail.props.open, true);
+    assert.doesNotMatch(text(view), /protected data connection|Retrying or refreshing the browser|producers|schema/);
+  } finally { await act(async () => view.unmount()); }
+});

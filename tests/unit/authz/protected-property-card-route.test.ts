@@ -5,6 +5,7 @@ import { test } from "node:test";
 import express from "express";
 import { createProtectedPropertyCardRouter } from "../../../server/routes/protectedPropertyCard";
 import { makeControlPlaneHttpProtectedPropertyReader } from "../../../server/lib/authz/controlPlanePropertyDecision";
+import { makeWorkingPropertyCardReader } from "../../../server/lib/authz/workingPropertyCard";
 
 test("same-origin property card requires a server session and a fresh exact grant", async (t) => {
   const subject = "11111111-1111-4111-8111-111111111111";
@@ -28,13 +29,19 @@ test("same-origin property card requires a server session and a fresh exact gran
       propertyId: 7, companyId, workingEntityId,
       connectionRef: "fixture-connection", nativeProviderPropertyId: "property-one",
     }) : null,
-    readCard: async scope => {
+    readCard: makeWorkingPropertyCardReader(async scope => {
       reads++;
       assert.equal(scope.companyId, companyId);
       assert.equal(scope.workingEntityId, workingEntityId);
       assert.equal(scope.actor, subject);
-      return { property: { id: 7, name: "Fixture property", address: {} }, kpis: { units: 0 }, privateField: "not projected" };
-    },
+      return [{
+        resource: "properties", entity_id: workingEntityId, connection_ref: "fixture-connection",
+        source_id: "property-one", native_key: "7", native_evidence: "fixture-reviewed",
+        source_run_ref: "fixture-capture", provider_fields: {
+          name: "Fixture property", address: { street1: "Fixture street" }, privateField: "not projected",
+        },
+      }];
+    }),
   }, async (url, init) => {
     const headers = new Headers(init?.headers);
     assert.equal(headers.get("X-Control-Client-Id"), "ecc-test");
@@ -97,8 +104,9 @@ test("same-origin property card requires a server session and a fresh exact gran
   const ready = await call("?id=7");
   assert.equal(ready.status, 200);
   assert.equal(ready.body.property.id, 7);
-  assert.equal(ready.body.kpis.units, 0);
-  assert.equal("privateField" in ready.body, false);
+  assert.equal(ready.body.property.address.line1, "Fixture street");
+  assert.equal(ready.body.kpis.units, null);
+  assert.doesNotMatch(JSON.stringify(ready.body), /privateField|native_evidence|source_run_ref/);
 
   for (const deniedMode of ["wrong-company", "revoked"] as const) {
     mode = deniedMode;

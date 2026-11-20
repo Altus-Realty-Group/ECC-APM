@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "bae057406b728cb0840a1c3afcd55f5bb6767876",
+  "sourceScope": "src/**/*.ts and src/**/*.tsx",
+  "tsxModules": 256,
+  "uiObjects": 588,
+  "apiReferences": 98,
+  "limitations": [
+    "Static source inventory is not rendered-state, data-authority or user-approval evidence.",
+    "Conditional and indirect controls need runtime review.",
+    "Repeated runtime rows create more instances than source declarations.",
+    "Historical Dropbox archives are outside this source inventory.",
+    "External URL queries are omitted."
+  ]
+}

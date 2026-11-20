@@ -3,10 +3,7 @@ import { once } from "node:events";
 import { type AddressInfo } from "node:net";
 import { test } from "node:test";
 import express from "express";
-import { createProtectedPropertyCardRouter } from "../../../server/routes/protectedPropertyCard";
-import { makeControlPlaneHttpProtectedPropertyReader } from "../../../server/lib/authz/controlPlanePropertyDecision";
-import { makeWorkingPropertyCardReader } from "../../../server/lib/authz/workingPropertyCard";
-import { makeVerifiedWorkingPropertyBinding } from "../../../server/lib/authz/verifiedWorkingPropertyBinding";
+import { createWorkingPropertyCardRouter } from "../../../server/routes/workingPropertyCard";
 
 test("same-origin property card requires a server session and a fresh exact grant", async (t) => {
   const subject = "11111111-1111-4111-8111-111111111111";
@@ -22,25 +19,24 @@ test("same-origin property card requires a server session and a fresh exact gran
   let revokedAt: string | null = null;
   let mode: "allowed" | "wrong-company" | "revoked" | "unavailable" = "allowed";
 
-  const readProperty = makeControlPlaneHttpProtectedPropertyReader({
+  const router = createWorkingPropertyCardRouter({
     origin: "https://control.example.invalid", clientId: "ecc-test", clientAssertion: "synthetic-test-assertion",
   }, {
     policy: { applicationId: "ecc", environment: "test" },
     now: () => Date.parse("2026-11-19T12:00:00Z"),
-    resolveVerifiedBinding: makeVerifiedWorkingPropertyBinding({
-      loadWorkingIdentities: async key => key === "7" ? [{
-        resource: "properties", entity_id: workingEntityId, connection_ref: "fixture-connection",
-        source_id: "property-one", native_key: "7", native_evidence: "fixture-reviewed",
-        mapping_evidence: {
-          evidence_id: "fixture-reviewed", resource: "properties", result_sha256: "a".repeat(64), revoked_at: null,
-        },
-      }] : [],
-      loadCompanyReceipts: async id => [{
-        propertyId: id, companyId, workingEntityId, connectionRef: "fixture-connection",
-        nativeProviderPropertyId: "property-one", status: "verified", receiptSha256: "b".repeat(64), revokedAt,
-      }],
-    }),
-    readCard: makeWorkingPropertyCardReader(async scope => {
+    resolveSessionId: () => session,
+    loadWorkingIdentities: async key => key === "7" ? [{
+      resource: "properties", entity_id: workingEntityId, connection_ref: "fixture-connection",
+      source_id: "property-one", native_key: "7", native_evidence: "fixture-reviewed",
+      mapping_evidence: {
+        evidence_id: "fixture-reviewed", resource: "properties", result_sha256: "a".repeat(64), revoked_at: null,
+      },
+    }] : [],
+    loadCompanyReceipts: async id => [{
+      propertyId: id, companyId, workingEntityId, connectionRef: "fixture-connection",
+      nativeProviderPropertyId: "property-one", status: "verified", receiptSha256: "b".repeat(64), revokedAt,
+    }],
+    loadWorkingCard: async scope => {
       reads++;
       assert.equal(scope.companyId, companyId);
       assert.equal(scope.workingEntityId, workingEntityId);
@@ -52,7 +48,7 @@ test("same-origin property card requires a server session and a fresh exact gran
           name: "Fixture property", address: { street1: "Fixture street" }, privateField: "not projected",
         },
       }];
-    }),
+    },
   }, async (url, init) => {
     const headers = new Headers(init?.headers);
     assert.equal(headers.get("X-Control-Client-Id"), "ecc-test");
@@ -93,7 +89,7 @@ test("same-origin property card requires a server session and a fresh exact gran
   });
 
   const app = express();
-  app.use("/api/rpc", createProtectedPropertyCardRouter({ resolveSessionId: () => session, readProperty }));
+  app.use("/api/rpc", router);
   const server = app.listen(0, "127.0.0.1");
   await once(server, "listening");
   t.after(() => server.close());
@@ -110,6 +106,11 @@ test("same-origin property card requires a server session and a fresh exact gran
     assert.deepEqual(await call(query), { status: 400, body: { error: "invalid property id" } });
   }
   assert.deepEqual(await call("?id=7", "POST"), { status: 405, body: { error: "method not allowed" } });
+  for (const path of [base + "/?id=7", base.replace("get_property_card", "GET_PROPERTY_CARD") + "?id=7"]) {
+    const response = await fetch(path);
+    assert.equal(response.status, 404);
+    await response.body?.cancel();
+  }
   assert.equal(decisionCalls, 0);
   assert.equal(currentSessionCalls, 0);
   const ready = await call("?id=7");

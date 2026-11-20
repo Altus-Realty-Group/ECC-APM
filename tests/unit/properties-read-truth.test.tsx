@@ -18,7 +18,7 @@ function render(overrides: Partial<Query> = {}) {
 function noVerifiedSummary(html: string) {
   assert.doesNotMatch(html, /\d+ loaded|Markets:|visible rows?|avg occupancy|\d+ selected|Selected IDs:/);
   assert.doesNotMatch(html, /No properties were returned|Select all visible|Select properties from the table/);
-  assert.doesNotMatch(html, /Reported property activity/);
+  assert.doesNotMatch(html, /Reported property activity|Activity in loaded records/);
   assert.doesNotMatch(html, /Verified property|\/card\/property\/42|type="checkbox"/);
   assert.match(html, /Selection review is unavailable/);
 }
@@ -143,4 +143,15 @@ test("Properties exposes activity in the table without conflating false with mis
   for (const label of ["Active", "Inactive", "Unreported"]) {
     assert.match(html, new RegExp(`<td[^>]*>${label}</td>`));
   }
+});
+
+test("Properties reports activity coverage from the loaded rows without treating unknown as inactive", () => {
+  const html = render({ isSuccess: true, data: [
+    { ...property, id: 1, active: true },
+    { ...property, id: 2, active: true },
+    { ...property, id: 3, active: false },
+    { ...property, id: 4 },
+  ] });
+  assert.match(html, /Activity in loaded records/);
+  assert.match(html, /Loaded records: 2 active, 1 inactive, 1 unreported/);
 });

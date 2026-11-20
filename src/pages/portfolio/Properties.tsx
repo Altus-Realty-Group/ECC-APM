@@ -82,6 +82,12 @@ export function PropertiesSurface({ query }: { query: PropertiesQuery }) {
       [row.primary, row.secondary, row.id, row.segment].join(" ").toLowerCase().includes(needle),
     );
   }, [activity, data, q, ready]);
+  const activityCounts = useMemo(() => {
+    if (!ready || !data) return null;
+    const counts = { active: 0, inactive: 0, unreported: 0 };
+    for (const property of data) counts[activityOf(property.active)]++;
+    return counts;
+  }, [ready, data]);
   const selectedRows = rows.filter((row) => selectedIds.includes(row.id));
 
   return (
@@ -89,7 +95,12 @@ export function PropertiesSurface({ query }: { query: PropertiesQuery }) {
       <div className="ecc-command-surface-layout">
         <div>
           <EccCommandPalette config={PROPERTY_SURFACE_CONFIG} onFocusSearch={() => searchInputRef.current?.focus()} />
-          {ready ? <>
+          {activityCounts ? <>
+            <p aria-label="Activity in loaded records">
+              Loaded records: {activityCounts.active.toLocaleString()} active,{" "}
+              {activityCounts.inactive.toLocaleString()} inactive,{" "}
+              {activityCounts.unreported.toLocaleString()} unreported.
+            </p>
             <label className="ecc-command-search">
               <span>Reported property activity</span>
               <select aria-label="Reported property activity" value={activity} onChange={(event) => {

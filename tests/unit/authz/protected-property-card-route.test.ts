@@ -4,7 +4,7 @@ import { type AddressInfo } from "node:net";
 import { test } from "node:test";
 import express from "express";
 import { createProtectedPropertyCardRouter } from "../../../server/routes/protectedPropertyCard";
-import { makeControlPlaneProtectedPropertyReader } from "../../../server/lib/authz/controlPlanePropertyDecision";
+import { makeControlPlaneHttpProtectedPropertyReader } from "../../../server/lib/authz/controlPlanePropertyDecision";
 
 test("same-origin property card requires a server session and a fresh exact grant", async (t) => {
   const subject = "11111111-1111-4111-8111-111111111111";
@@ -13,23 +13,17 @@ test("same-origin property card requires a server session and a fresh exact gran
   const applicationSessionId = "test-session";
   const resourceId = "fixture-connection:property-one";
   let session: string | null = null;
+  let currentSessionCalls = 0;
   let decisionCalls = 0;
+  let sessionStatus = 200;
   let reads = 0;
   let mode: "allowed" | "wrong-company" | "revoked" | "unavailable" = "allowed";
 
-  const readProperty = makeControlPlaneProtectedPropertyReader({
+  const readProperty = makeControlPlaneHttpProtectedPropertyReader({
     origin: "https://control.example.invalid", clientId: "ecc-test", clientAssertion: "synthetic-test-assertion",
   }, {
     policy: { applicationId: "ecc", environment: "test" },
     now: () => Date.parse("2026-11-19T12:00:00Z"),
-    resolveSession: async () => ({
-      error: null, meta: { contractVersion: "1.0.0", source: "control-plane" },
-      data: {
-        applicationSessionId, allowed: true, applicationId: "ecc", personId: subject,
-        accountId: "22222222-2222-4222-8222-222222222222", expiresAt: "2026-11-19T12:01:00Z",
-        decisionMode: "canonical", billingMode: "canonical", banner: null,
-      },
-    }),
     resolveVerifiedBinding: async id => id === 7 ? ({
       propertyId: 7, companyId, workingEntityId,
       connectionRef: "fixture-connection", nativeProviderPropertyId: "property-one",
@@ -41,7 +35,31 @@ test("same-origin property card requires a server session and a fresh exact gran
       assert.equal(scope.actor, subject);
       return { property: { id: 7, name: "Fixture property", address: {} }, kpis: { units: 0 }, privateField: "not projected" };
     },
-  }, async (_url, init) => {
+  }, async (url, init) => {
+    const headers = new Headers(init?.headers);
+    assert.equal(headers.get("X-Control-Client-Id"), "ecc-test");
+    assert.equal(headers.get("X-Control-Client-Assertion"), "synthetic-test-assertion");
+    assert.equal(headers.get("cookie"), null);
+    assert.equal(init?.cache, "no-store");
+    assert.equal(init?.redirect, "error");
+    const path = new URL(String(url)).pathname;
+    if (path === "/api/control/v1/session/current") {
+      currentSessionCalls++;
+      assert.equal(init?.method, "GET");
+      assert.equal(init?.body, undefined);
+      assert.equal(headers.get("X-Control-Application-Session"), applicationSessionId);
+      if (sessionStatus !== 200) return Response.json({ detail: "private session failure" }, { status: sessionStatus });
+      return Response.json({
+        error: null, meta: { contractVersion: "1.0.0", source: "control-plane" },
+        data: {
+          applicationSessionId, allowed: true, applicationId: "ecc", personId: subject,
+          accountId: "22222222-2222-4222-8222-222222222222", expiresAt: "2026-11-19T12:01:00Z",
+          decisionMode: "canonical", billingMode: "canonical", banner: null,
+        },
+      });
+    }
+    assert.equal(path, "/api/control/v1/resource-grants/evaluate");
+    assert.equal(headers.get("X-Control-Application-Session"), null);
     decisionCalls++;
     assert.deepEqual(JSON.parse(String(init?.body)), {
       applicationSessionId, companyId, resourceType: "ecc.property", resourceId, action: "read",
@@ -75,6 +93,7 @@ test("same-origin property card requires a server session and a fresh exact gran
   }
   assert.deepEqual(await call("?id=7", "POST"), { status: 405, body: { error: "method not allowed" } });
   assert.equal(decisionCalls, 0);
+  assert.equal(currentSessionCalls, 0);
   const ready = await call("?id=7");
   assert.equal(ready.status, 200);
   assert.equal(ready.body.property.id, 7);
@@ -88,6 +107,13 @@ test("same-origin property card requires a server session and a fresh exact gran
   assert.deepEqual(await call("?id=8"), { status: 403, body: { error: "not permitted" } });
   mode = "unavailable";
   assert.deepEqual(await call("?id=7"), { status: 503, body: { error: "unavailable" } });
+  assert.equal(decisionCalls, 4);
+  assert.equal(currentSessionCalls, 5);
+  sessionStatus = 401;
+  assert.deepEqual(await call("?id=7"), { status: 403, body: { error: "not permitted" } });
+  sessionStatus = 404;
+  assert.deepEqual(await call("?id=7"), { status: 503, body: { error: "unavailable" } });
+  assert.equal(currentSessionCalls, 7);
   assert.equal(decisionCalls, 4);
   assert.equal(reads, 1);
 });

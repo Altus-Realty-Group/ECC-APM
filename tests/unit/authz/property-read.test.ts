@@ -8,10 +8,11 @@ const actor = "11111111-1111-4111-8111-111111111111";
 const binding = {
   propertyId: 7,
   companyId: "44444444-4444-4444-8444-444444444444",
-  resourceId: "prop-synthetic-0001",
+  nativeProviderPropertyId: "prop-synthetic-0001",
   workingEntityId: "55555555-5555-4555-8555-555555555555",
   connectionRef: "fixture-connection",
 };
+const resourceId = "fixture-connection:prop-synthetic-0001";
 const session = {
   applicationId: "ecc", applicationSessionId: sessionId, allowed: true,
   personId: actor, accountId: "22222222-2222-4222-8222-222222222222", expiresAt: "2026-11-18T12:02:00Z",
@@ -22,7 +23,7 @@ const allow = {
   contractVersion: "control.resource.grant.v1", decision: "allow",
   decisionExpiresAt: "2026-11-18T12:01:00Z", decisionMaxSeconds: 60, environment: "development",
   grantId: "66666666-6666-4666-8666-666666666666", issuer: "altus-control-plane",
-  resourceId: binding.resourceId, resourceType: "ecc.property",
+  resourceId, resourceType: "ecc.property",
   revocation: "checked_at_decision_not_recalled", sourceInstance: "ecc-dev", subject: actor,
 };
 const card = { property: { id: 7, address: {}, name: "Fixture property" }, kpis: { units: 0 }, privateField: "not projected" };
@@ -54,7 +55,7 @@ test("requires a fresh exact authority for each card and returns only the existi
   }
   assert.deepEqual(decisions, Array(2).fill({
     applicationSessionId: sessionId, companyId: binding.companyId,
-    resourceType: "ecc.property", resourceId: binding.resourceId, action: "read",
+    resourceType: "ecc.property", resourceId, action: "read",
   }));
   assert.deepEqual(reads, Array(2).fill({ ...binding, actor, validUntilMs: start + 60_000 }));
 });
@@ -93,4 +94,14 @@ test("expiry during read discards the result and a mismatched card cannot escape
   setTime(start);
   deps.readCard = async () => ({ ...card, property: { ...card.property, id: 8 } });
   assert.deepEqual(await readProtectedProperty(deps, sessionId, 7), { outcome: "unavailable" });
+});
+
+test("rejects ambiguous provider identifiers before asking for a decision", async () => {
+  for (const patch of [{ connectionRef: "fixture:other" }, { nativeProviderPropertyId: "other:property" }]) {
+    const { deps, decisions, reads } = fixture();
+    deps.resolveVerifiedBinding = async () => ({ ...binding, ...patch });
+    assert.deepEqual(await readProtectedProperty(deps, sessionId, 7), { outcome: "denied" });
+    assert.deepEqual(decisions, []);
+    assert.deepEqual(reads, []);
+  }
 });

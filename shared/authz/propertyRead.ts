@@ -2,13 +2,15 @@ import { PropertyCard, type PropertyCardData } from "../../src/shared/card-contr
 import { admitSession, type AdmissionPolicy, OPAQUE, UUID } from "./session";
 import { parseRfc3339 } from "./time";
 
+const connectionLabel = /^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$/;
+const nativePropertyLabel = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const label = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const validLabel = (v: unknown): v is string => typeof v === "string" && label.test(v);
 
 export type PropertyBinding = {
   propertyId: number;
   companyId: string;
-  resourceId: string;
+  nativeProviderPropertyId: string;
   workingEntityId: string;
   connectionRef: string;
 };
@@ -75,21 +77,23 @@ export async function readProtectedProperty(
     const binding = await deps.resolveVerifiedBinding(propertyId);
     const now = tick();
     if (!binding || binding.propertyId !== propertyId || !UUID.test(binding.companyId)
-      || !UUID.test(binding.workingEntityId) || !validLabel(binding.resourceId)
-      || !validLabel(binding.connectionRef) || now >= admission.session.expiresAtMs) return denied;
+      || !UUID.test(binding.workingEntityId)
+      || typeof binding.nativeProviderPropertyId !== "string" || !nativePropertyLabel.test(binding.nativeProviderPropertyId)
+      || typeof binding.connectionRef !== "string" || !connectionLabel.test(binding.connectionRef) || now >= admission.session.expiresAtMs) return denied;
 
     const scope = {
       propertyId,
       companyId: binding.companyId.toLowerCase(),
-      resourceId: binding.resourceId,
+      nativeProviderPropertyId: binding.nativeProviderPropertyId,
       workingEntityId: binding.workingEntityId.toLowerCase(),
       connectionRef: binding.connectionRef,
     };
+    const resourceId = `${scope.connectionRef}:${scope.nativeProviderPropertyId}`;
     const result = await deps.decide({
       applicationSessionId: sessionId,
       companyId: scope.companyId,
       resourceType: "ecc.property",
-      resourceId: scope.resourceId,
+      resourceId,
       action: "read",
     });
     const receivedAt = tick();
@@ -98,7 +102,7 @@ export async function readProtectedProperty(
     const actor = admission.session.personId;
     const expires = decisionExpiry(result.body, {
       actor, clientId: deps.clientId, environment: deps.policy.environment,
-      companyId: scope.companyId, resourceId: scope.resourceId,
+      companyId: scope.companyId, resourceId,
     });
     if (expires === null || expires > receivedAt + 60_000 || expires > admission.session.expiresAtMs
       || expires <= receivedAt) return denied;

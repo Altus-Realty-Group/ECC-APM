@@ -6,6 +6,7 @@ import express from "express";
 import { createProtectedPropertyCardRouter } from "../../../server/routes/protectedPropertyCard";
 import { makeControlPlaneHttpProtectedPropertyReader } from "../../../server/lib/authz/controlPlanePropertyDecision";
 import { makeWorkingPropertyCardReader } from "../../../server/lib/authz/workingPropertyCard";
+import { makeVerifiedWorkingPropertyBinding } from "../../../server/lib/authz/verifiedWorkingPropertyBinding";
 
 test("same-origin property card requires a server session and a fresh exact grant", async (t) => {
   const subject = "11111111-1111-4111-8111-111111111111";
@@ -18,6 +19,7 @@ test("same-origin property card requires a server session and a fresh exact gran
   let decisionCalls = 0;
   let sessionStatus = 200;
   let reads = 0;
+  let revokedAt: string | null = null;
   let mode: "allowed" | "wrong-company" | "revoked" | "unavailable" = "allowed";
 
   const readProperty = makeControlPlaneHttpProtectedPropertyReader({
@@ -25,10 +27,19 @@ test("same-origin property card requires a server session and a fresh exact gran
   }, {
     policy: { applicationId: "ecc", environment: "test" },
     now: () => Date.parse("2026-11-19T12:00:00Z"),
-    resolveVerifiedBinding: async id => id === 7 ? ({
-      propertyId: 7, companyId, workingEntityId,
-      connectionRef: "fixture-connection", nativeProviderPropertyId: "property-one",
-    }) : null,
+    resolveVerifiedBinding: makeVerifiedWorkingPropertyBinding({
+      loadWorkingIdentities: async key => key === "7" ? [{
+        resource: "properties", entity_id: workingEntityId, connection_ref: "fixture-connection",
+        source_id: "property-one", native_key: "7", native_evidence: "fixture-reviewed",
+        mapping_evidence: {
+          evidence_id: "fixture-reviewed", resource: "properties", result_sha256: "a".repeat(64), revoked_at: null,
+        },
+      }] : [],
+      loadCompanyReceipts: async id => [{
+        propertyId: id, companyId, workingEntityId, connectionRef: "fixture-connection",
+        nativeProviderPropertyId: "property-one", status: "verified", receiptSha256: "b".repeat(64), revokedAt,
+      }],
+    }),
     readCard: makeWorkingPropertyCardReader(async scope => {
       reads++;
       assert.equal(scope.companyId, companyId);
@@ -122,6 +133,11 @@ test("same-origin property card requires a server session and a fresh exact gran
   sessionStatus = 404;
   assert.deepEqual(await call("?id=7"), { status: 503, body: { error: "unavailable" } });
   assert.equal(currentSessionCalls, 7);
+  assert.equal(decisionCalls, 4);
+  sessionStatus = 200;
+  revokedAt = "2026-11-19T12:00:00Z";
+  assert.deepEqual(await call("?id=7"), { status: 403, body: { error: "not permitted" } });
+  assert.equal(currentSessionCalls, 8);
   assert.equal(decisionCalls, 4);
   assert.equal(reads, 1);
 });

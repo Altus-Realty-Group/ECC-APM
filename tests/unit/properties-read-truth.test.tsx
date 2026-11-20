@@ -155,3 +155,38 @@ test("Properties reports activity coverage from the loaded rows without treating
   assert.match(html, /Activity in loaded records/);
   assert.match(html, /Loaded records: 2 active, 1 inactive, 1 unreported/);
 });
+
+test("Properties clears selected review state when access is revoked and restored", () => {
+  const admitted = {
+    data: [{ ...property, active: false }], isSuccess: true, isLoading: false, isFetching: false,
+    isError: false, error: null, refetch: async () => ({}),
+  } as Query;
+  const denied = {
+    ...admitted, isSuccess: false, isError: true, error: Object.assign(new Error("Denied"), { status: 403 }),
+  } as Query;
+  const useFixtureLocation = (): [string, (to: string) => void] => ["/portfolio/properties", () => {}];
+  const view = (query: Query) => <Router hook={useFixtureLocation}><PropertiesSurface query={query} /></Router>;
+  const oldWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: { addEventListener() {}, removeEventListener() {} },
+  });
+  let tree!: ReactTestRenderer;
+  try {
+    act(() => { tree = create(view(admitted)); });
+    const selection = () => tree.root.findByProps({ "aria-label": "Select property Verified property" });
+    act(() => { selection().props.onChange({ target: { checked: true } }); });
+    assert.equal(selection().props.checked, true);
+    act(() => { tree.update(view(denied)); });
+    const deniedMarkup = JSON.stringify(tree.toJSON());
+    assert.match(deniedMarkup, /access to properties/);
+    assert.doesNotMatch(deniedMarkup, /Verified property|Activity in loaded records|Selected IDs:/);
+    act(() => { tree.update(view(admitted)); });
+    assert.equal(selection().props.checked, false);
+    assert.doesNotMatch(JSON.stringify(tree.toJSON()), /Selected IDs: 42/);
+  } finally {
+    if (tree) act(() => tree.unmount());
+    if (oldWindow) Object.defineProperty(globalThis, "window", oldWindow);
+    else Reflect.deleteProperty(globalThis, "window");
+  }
+});

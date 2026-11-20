@@ -1,27 +1,22 @@
-import { useRoute } from "wouter";
-// AssetCard removed - will be rebuilt
+import { Link, Redirect, useRoute, useSearch } from "wouter";
+import StateNotice from "@/components/ui/StateNotice";
 
-export default function PropertyDetailPage(){
+/** Keep old property bookmarks on the canonical, contract-backed card journey. */
+export default function PropertyDetailPage() {
   const [match, params] = useRoute<{ id: string }>("/portfolio/properties/:id");
+  const search = useSearch();
   const id = params?.id;
-  
-  // Add null-check to prevent crashes
-  if (!match || !id) {
+
+  if (!match || !id || !/^\d+$/.test(id) || !Number.isSafeInteger(Number(id)) || Number(id) <= 0) {
     return (
-      <div className="p-4">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Property Not Found</h2>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">The requested property could not be found.</p>
-        </div>
+      <div className="ecc-record-unavailable">
+        <h1>Property record</h1>
+        <StateNotice kind="error" title="That property link is not valid." testId="prop-invalid" />
+        <Link href="/portfolio/properties" className="ecc-btn ecc-touch">Back to properties</Link>
       </div>
     );
   }
-  
-  return (
-    <div className="p-4">
-      <h1>Property Detail</h1>
-      <p>Property ID: {id}</p>
-      <p>Asset card will be rebuilt</p>
-    </div>
-  );
+
+  // Replace avoids trapping browser Back on the legacy URL and redirecting again.
+  return <Redirect to={`/card/property/${id}${search ? `?${search}` : ""}`} replace />;
 }
